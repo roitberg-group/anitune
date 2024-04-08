@@ -1,0 +1,26 @@
+{
+  "template": "git@github.com:IgnacioJPickering/cookiecutter-pycargo",
+  "commit": "8357fb36f272150896aa3544fa38c4392472ffe2",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "access": "private",
+      "repo_name": "ani-ftune",
+      "package_name": "ani_ftune",
+      "command": "ani-ftune",
+      "conda_env_name": "ani-ftune",
+      "author_name": "Ignacio Pickering",
+      "author_git_profile": "IgnacioJPickering",
+      "author_email": "ign.pickering@gmail.com",
+      "description": "Python package ani_ftune",
+      "python_version_major": "3",
+      "python_version_minor": "8",
+      "year": "2023",
+      "github_dir": "IgnacioJPickering",
+      "python_version": "3.8",
+      "python_version_joint": "38",
+      "_template": "git@github.com:IgnacioJPickering/cookiecutter-pycargo"
+    }
+  },
+  "directory": null
+}
