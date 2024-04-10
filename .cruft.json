@@ -7,7 +7,7 @@
       "access": "private",
       "repo_name": "ani-ftune",
       "package_name": "ani_ftune",
-      "command": "ani-ftune",
+      "command": "anitune",
       "conda_env_name": "ani-ftune",
       "author_name": "Ignacio Pickering",
       "author_git_profile": "IgnacioJPickering",
