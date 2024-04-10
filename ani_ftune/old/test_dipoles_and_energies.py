@@ -1,4 +1,3 @@
-
 # type: ignore
 from dipole_model import DipolesAndEnergies1x
 import torch

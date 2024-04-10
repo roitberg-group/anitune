@@ -1,4 +1,3 @@
-
 # type: ignore
 from hashlib import blake2b
 import argparse
