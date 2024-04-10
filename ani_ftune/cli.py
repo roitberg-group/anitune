@@ -41,7 +41,9 @@ class FinetuneSpec:
         return self.body_lr == 0.0
 
 
-@app.command(help="Obtain information about the difference between a fine tuned model and the original model")
+@app.command(
+    help="Obtain information about the difference between a fine tuned model and the original model"
+)
 def delta(
     original_model_path: tpx.Annotated[
         Path,
@@ -65,13 +67,14 @@ def delta(
     raise NotImplementedError("Not implemented yet")
 
 
-@app.command(help="Benchmark a (usually finetuned) ANI model, and compare with the original model")
+@app.command(
+    help="Benchmark a (usually finetuned) ANI model, and compare with the original model"
+)
 def bench(
     original_model_path: tpx.Annotated[
         Path,
         Option(
-            "-om"
-            "--om",
+            "-om" "--om",
             "--original-model",
             help="Path to the pretrained jit-compiled model",
         ),
@@ -79,8 +82,7 @@ def bench(
     ftuned_model_path: tpx.Annotated[
         Path,
         Option(
-            "-fm"
-            "--fm",
+            "-fm" "--fm",
             "--ftuned-model",
             help="Path to the finetuned jit-compiled model",
         ),
