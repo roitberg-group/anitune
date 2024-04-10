@@ -1,4 +1,5 @@
 r"""Command line interface entrypoints"""
+
 import typing as tp
 import typing_extensions as tpx
 from pathlib import Path
@@ -17,9 +18,7 @@ app = Typer(
 )
 
 
-@app.command(
-    help="Compare the params of a ftuned model and the original model"
-)
+@app.command(help="Compare the params of a ftuned model and the original model")
 def delta(
     original_model_path: tpx.Annotated[
         Path,
