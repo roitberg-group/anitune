@@ -80,8 +80,8 @@ def main():
         )
     else:
         SPLITS = None
-    VALIDATION_SPLIT = f"validation"
-    TRAINING_SPLIT = f"training"
+    VALIDATION_SPLIT = "validation"
+    TRAINING_SPLIT = "training"
     if model_num != -1:
         VALIDATION_SPLIT = VALIDATION_SPLIT + str(model_num)
         TRAINING_SPLIT = TRAINING_SPLIT + str(model_num)
