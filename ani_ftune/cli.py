@@ -5,6 +5,8 @@ from pathlib import Path
 
 from typer import Option, Typer
 
+from ani_ftune.ftune import FinetuneSpec
+
 app = Typer(
     rich_markup_mode="markdown",
     help=r"""## ANI-ftune
@@ -15,34 +17,8 @@ app = Typer(
 )
 
 
-class FinetuneSpec:
-    def __init__(
-        self,
-        num_head_layers: int = 1,
-        head_lr: float = 1e-3,
-        body_lr: float = 0.0,
-        unfreeze_body_epoch: int = 0,
-    ) -> None:
-        self.num_head_layers = num_head_layers
-        self.head_lr = head_lr
-        self.body_lr = body_lr
-        self.unfreeze_body_epoch = unfreeze_body_epoch
-        if self.head_lr <= 0.0:
-            raise ValueError(
-                "Learning rate for the head of the model must be strictly positive"
-            )
-        if self.body_lr < 0.0:
-            raise ValueError(
-                "Learning rate for the body of the model must be positive or zero"
-            )
-
-    @property
-    def frozen_body(self) -> bool:
-        return self.body_lr == 0.0
-
-
 @app.command(
-    help="Obtain information about the difference between a fine tuned model and the original model"
+    help="Compare the params of a ftuned model and the original model"
 )
 def delta(
     original_model_path: tpx.Annotated[
@@ -68,7 +44,7 @@ def delta(
 
 
 @app.command(
-    help="Benchmark a (usually finetuned) ANI model, and compare with the original model"
+    help="Benchmark a (usually ftuned) ANI model, compare results with the original"
 )
 def bench(
     original_model_path: tpx.Annotated[
@@ -99,7 +75,7 @@ def bench(
     raise NotImplementedError("Not implemented yet")
 
 
-@app.command("Fine tune a pretrained ANI model")
+@app.command(help="Fine tune a pretrained ANI model")
 def ftune(
     model_path: tpx.Annotated[
         Path,
@@ -141,7 +117,7 @@ def ftune(
             help="Tuple of learning rates for (head, body). Body lr may be 0",
         ),
     ] = (1e-3, 0.0),
-    unfreeze_body_epoch: tpx.Annotated[
+    unfreeze_body_epoch_num: tpx.Annotated[
         int,
         Option(
             "-f",
@@ -178,7 +154,7 @@ def ftune(
         num_head_layers,
         head_lr=lrs[0],
         body_lr=lrs[1],
-        unfreeze_body_epoch=unfreeze_body_epoch,
+        unfreeze_body_epoch_num=unfreeze_body_epoch_num,
     )
     print(test_paths)
     print(ft_spec)
