@@ -1,7 +1,7 @@
 # Configuration file that stores all hooks that pre-commit runs
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v4.6.0
     hooks:
       - id: no-commit-to-branch  # disallow commiting to master / main directly
         args: ['--branch', 'main', '--branch', 'master']
@@ -20,19 +20,19 @@ repos:
         stages: [push]
 
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 24.3.0
     hooks:
       - id: black
         stages: [push]
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 4.0.1
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
     hooks:
       - id: flake8
         stages: [push]
 
-  - repo: https://github.com/myint/autoflake
-    rev: v1.4
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
     hooks:
       - id: autoflake
         stages: [push]
