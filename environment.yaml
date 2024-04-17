@@ -30,6 +30,8 @@ dependencies:
 
   # docs
   - sphinx  # documentation framework, uses restructured text (.rst)
+  - sphinx_rtd_theme
+  - sphinx-gallery
 
   # DL
   - numpy=1.20
