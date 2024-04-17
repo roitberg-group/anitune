@@ -1,10 +1,3 @@
-r"""
-Train An ANI-Style Neural Network Potential
-===========================================
-
-This example shows how to use TorchANI to train a neural network potential.
-"""
-# To begin with, let's first import the modules and setup devices we will use:
 import typing as tp
 import math
 from pathlib import Path
@@ -19,7 +12,6 @@ from torchani.datasets import ANIDataset, ANIBatchedDataset
 from torchani.units import hartree2kcalpermol
 from torchani.assembler import FlexibleANI
 
-# Explanation of how to train an ANI model
 # Device and dataset to run the training
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ds = ANIDataset('../dataset/ani-1x/sample.h5')
@@ -71,21 +63,6 @@ validation = torch.utils.data.DataLoader(
     **kwargs,
 )
 
-# We can use the transforms module to modify the batches, the API for transforms is
-# very similar to torchvision https://pytorch.org/vision/stable/transforms.html
-# with the difference that the transforms are applied to both target and inputs
-# in all cases.
-#
-# Transform can be passed to the "transform" argument of ANIBatchedDataset to
-# to be performed on-the-fly on CPU (slow if no CACHE)
-#
-# Transform can also be applied directly when training on GPU
-#
-# Transform can also be applied to a dataset when batching it, by using the inplace_transform
-# argument of create_batched_dataset (Be careful, this may be error prone)
-#
-# In this case we wont apply any transform
-
 # Lets generate a non-pretrained model that we will train afterwards
 # Optionally we could initialize the weights with a custom initialization,
 # But for simplicity we use PyTorch default initialization
@@ -111,9 +88,6 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     threshold=0,
 )
 
-###############################################################################
-# We first read the checkpoint files to restart training. We use `latest_traininig.pt`
-# to store current training state.
 
 latest_training_state_checkpoint_path = Path('./latest_training_state.pt').resolve()
 best_model_state_checkpoint_path = Path('./best_model_state.pt').resolve()
@@ -125,9 +99,6 @@ if latest_training_state_checkpoint_path.exists():
 
 model = model.to(torch.float)
 model = model.to(device)
-###############################################################################
-# During training, we need to validate on validation set and if validation error
-# is better than the best, then save the new best model to a checkpoint
 
 
 def validate(model: BuiltinModel, validation: torch.utils.data.DataLoader) -> float:
