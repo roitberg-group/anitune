@@ -13,18 +13,18 @@ from torchani.units import hartree2kcalpermol
 from torchani.assembler import FlexibleANI
 
 # Device and dataset to run the training
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-ds = ANIDataset('../dataset/ani-1x/sample.h5')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+ds = ANIDataset("../dataset/ani-1x/sample.h5")
 
 # We prebatch the dataset to train with memory efficiency, keeping a good
 # performance.
-batched_dataset_path = Path('./batched_dataset_1x').resolve()
+batched_dataset_path = Path("./batched_dataset_1x").resolve()
 if not batched_dataset_path.exists():
     torchani.datasets.create_batched_dataset(
         ds,
         dest_path=batched_dataset_path,
         batch_size=2560,
-        splits={'training': 0.8, 'validation': 0.2}
+        splits={"training": 0.8, "validation": 0.2},
     )
 
 train_ds = ANIBatchedDataset(batched_dataset_path, split="training")
@@ -47,8 +47,7 @@ if CACHE:
     valid_ds = valid_ds.cache()
     kwargs: tp.Dict[str, tp.Any] = {"pin_memory": False}
 else:
-    kwargs = {
-        "num_workers": 2, "prefetch_factor": 2, "pin_memory": True}
+    kwargs = {"num_workers": 2, "prefetch_factor": 2, "pin_memory": True}
 
 training = torch.utils.data.DataLoader(
     train_ds,
@@ -89,28 +88,30 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 )
 
 
-latest_training_state_checkpoint_path = Path('./latest_training_state.pt').resolve()
-best_model_state_checkpoint_path = Path('./best_model_state.pt').resolve()
+latest_training_state_checkpoint_path = Path("./latest_training_state.pt").resolve()
+best_model_state_checkpoint_path = Path("./best_model_state.pt").resolve()
 if latest_training_state_checkpoint_path.exists():
     checkpoint = torch.load(latest_training_state_checkpoint_path)
-    model.load_state_dict(checkpoint['model'])
-    scheduler.load_state_dict(checkpoint['scheduler'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
+    model.load_state_dict(checkpoint["model"])
+    scheduler.load_state_dict(checkpoint["scheduler"])
+    optimizer.load_state_dict(checkpoint["optimizer"])
 
 model = model.to(torch.float)
 model = model.to(device)
 
 
-def validate(model: BuiltinModel, validation: torch.utils.data.DataLoader) -> float:
+def validate(model: BuiltinModel, validation: torch.utils.data.DataLoader) -> float:  # type: ignore
     squared_error = 0.0
     count = 0
     model.train(False)
     with torch.no_grad():
         for properties in validation:
-            properties = {k: v.to(device, non_blocking=True) for k, v in properties.items()}
-            species = properties['species']
-            coordinates = properties['coordinates'].float()
-            target_energies = properties['energies'].float()
+            properties = {
+                k: v.to(device, non_blocking=True) for k, v in properties.items()
+            }
+            species = properties["species"]
+            coordinates = properties["coordinates"].float()
+            target_energies = properties["energies"].float()
             output = model((species, coordinates))
             predicted_energies = output.energies
             squared_error += (predicted_energies - target_energies).pow(2).sum().item()
@@ -126,7 +127,7 @@ tensorboard = torch.utils.tensorboard.SummaryWriter()
 
 ###############################################################################
 # Finally, we come to the training loop.
-mse = torch.nn.MSELoss(reduction='none')
+mse = torch.nn.MSELoss(reduction="none")
 
 # Criteria for stopping training
 max_epochs = 5
@@ -137,11 +138,14 @@ if scheduler.last_epoch == 0:
     rmse = validate(model, validation)
     print(f"Before training starts: Validation RMSE (kcal/mol) {rmse}")
     scheduler.step(rmse)
-    torch.save({
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'scheduler': scheduler.state_dict(),
-    }, latest_training_state_checkpoint_path)
+    torch.save(
+        {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+        },
+        latest_training_state_checkpoint_path,
+    )
 
 for epoch in range(scheduler.last_epoch, max_epochs + 1):
     # Stop training if the lr is below a given threshold
@@ -155,9 +159,9 @@ for epoch in range(scheduler.last_epoch, max_epochs + 1):
         desc=f"Epoch {epoch}",
     ):
         batch = {k: v.to(device, non_blocking=True) for k, v in batch.items()}
-        species = batch['species']
-        coordinates = batch['coordinates'].float()
-        target_energies = batch['energies'].float()
+        species = batch["species"]
+        coordinates = batch["coordinates"].float()
+        target_energies = batch["energies"].float()
         num_atoms = (species >= 0).sum(dim=1, dtype=target_energies.dtype)
         output = model((species, coordinates))
         predicted_energies = output.energies
@@ -179,14 +183,17 @@ for epoch in range(scheduler.last_epoch, max_epochs + 1):
     scheduler.step(rmse)
 
     # Checkpoint the training state
-    torch.save({
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'scheduler': scheduler.state_dict(),
-    }, latest_training_state_checkpoint_path)
+    torch.save(
+        {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+        },
+        latest_training_state_checkpoint_path,
+    )
 
     # Log scalars
-    tensorboard.add_scalar('validation_rmse_kcalpermol', rmse, epoch)
-    tensorboard.add_scalar('best_validation_rmse_kcalpermol', scheduler.best, epoch)
-    tensorboard.add_scalar('learning_rate', optimizer.param_groups[0]["lr"], epoch)
-    tensorboard.add_scalar('epoch_loss_square_ha', loss, epoch)
+    tensorboard.add_scalar("validation_rmse_kcalpermol", rmse, epoch)
+    tensorboard.add_scalar("best_validation_rmse_kcalpermol", scheduler.best, epoch)
+    tensorboard.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], epoch)
+    tensorboard.add_scalar("epoch_loss_square_ha", loss, epoch)

@@ -81,6 +81,7 @@ class LossConfig:
     r"""
     loss-specific configurations
     """
+
     terms_and_factors: tp.FrozenSet[tp.Tuple[str, float]] = frozenset(
         {("Energies", 1.0)}
     )
@@ -92,6 +93,7 @@ class OptimizerConfig:
     r"""
     Optimizer configuration
     """
+
     lr: float = 0.5e-3
     weight_decay: float = 1e-7
 
@@ -101,6 +103,7 @@ class SchedulerConfig:
     r"""
     lr-Scheduler configuration
     """
+
     monitor_label: str = "energies"
     factor: float = 0.5
     patience: int = 100
@@ -112,6 +115,7 @@ class AccelConfig:
     r"""
     Acceleration specific configuration. Does not affect reproducibility.
     """
+
     device: str = "gpu"
     use_cuda_ops: bool = True
     max_batches_per_packet: int = 300
@@ -125,6 +129,7 @@ class TrainConfig:
     r"""
     Configuration for all the training.
     """
+
     name: str = "run"
     finetune: bool = False
     ds: DatasetConfig = DatasetConfig()

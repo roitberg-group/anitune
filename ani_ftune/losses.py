@@ -105,7 +105,9 @@ class MultiTaskLoss(torch.nn.Module):
         losses: tp.Dict[str, Tensor] = {}
         num_atoms = (targ["species"] >= 0).sum(dim=1, dtype=torch.float)
 
-        losses["loss"] = torch.tensor(0.0, dtype=torch.float, device=targ["species"].device)
+        losses["loss"] = torch.tensor(
+            0.0, dtype=torch.float, device=targ["species"].device
+        )
         for term in self.terms:
             k = term.label
 

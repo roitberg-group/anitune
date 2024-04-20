@@ -40,7 +40,9 @@ class LitModel(lightning.LightningModule):
             self.valid_metrics[k] = self.train_metrics[k].clone(prefix="valid_")
 
         if not any(term.label == monitor_label for term in loss_terms):
-            raise ValueError("The monitored label must be one of the enabled loss terms")
+            raise ValueError(
+                "The monitored label must be one of the enabled loss terms"
+            )
         self.monitor_label = f"valid_rmse_{monitor_label}"
 
         self.loss = MultiTaskLoss(loss_terms, uncertainty_weighted)
@@ -136,10 +138,12 @@ class LitModel(lightning.LightningModule):
             patience=hparams.plateau_patience,
             threshold=hparams.plateau_threshold,
         )
-        schedulers.append({
-            "scheduler": plateau,
-            "interval": "epoch",
-            "strict": True,
-            "monitor": self.monitor_label,
-        })
+        schedulers.append(
+            {
+                "scheduler": plateau,
+                "interval": "epoch",
+                "strict": True,
+                "monitor": self.monitor_label,
+            }
+        )
         return [optimizer], schedulers
