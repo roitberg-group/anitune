@@ -1,128 +1,132 @@
 import typing as tp
 
 import torch
-from torch import Tensor
 import lightning
-import torch.utils.tensorboard
+from lightning.pytorch.callbacks import (
+    LearningRateMonitor,
+    EarlyStopping,
+)
 
-import torchani
-from torchani.models import BuiltinModel
-from torchani.datasets import ANIDataset, ANIBatchedDataset
-from torchani.units import hartree2kcalpermol
-from torchani.assembler import FlexibleANI
+from torchani import datasets
 
-from anitune.losses import LossKind, LossFactory
+from ani_ftune.exceptions import ConfigError
+from ani_ftune import model_builders
+from ani_ftune.lit_models import LitModel
+from ani_ftune import losses
+from ani_ftune.configuration import (
+    TrainConfig,
+    DatasetConfig,
+    AccelConfig,
+    ModelConfig,
+    LossConfig,
+    OptimizerConfig,
+    SchedulerConfig,
+)
 
 
-class LitModel(lightning.LightningModule):
-    def __init__(
-        self,
-        model: BuiltinModel,
-        opt_lr: float = 0.5e-3,
-        opt_weight_decay: float = 1e-7,
-        scheduler_factor: float = 0.5,
-        scheduler_patience: int = 100,
-        scheduler_threshold: float = 0.0,
-        min_lr: float = 1e-8,
-        max_epochs: int = 1000,
-        loss_sqrt_atoms: bool = True,
-        loss: LossKind = LossKind.MSE,
-        loss_factors: tp.Optional[tp.Dict[str, float]] = None,
-        train_energies: bool = True,
-        train_forces: bool = False,
-        train_dipoles: bool = False,
-    ) -> None:
-        super().__init__()
-        _loss_factors = {
-            "energy_factor": 1.0,
-            "dipole_factor": 0.001,
-            "force_factor": 0.01,
-        }
-        if loss_factors is not None:
-            if not set(loss_factors.keys()).issubset(_loss_factors.keys()):
-                raise ValueError(f"Allowed loss factors are {set(_loss_factors.keys())}")
-            _loss_factors.update(loss_factors)
+config = TrainConfig(
+    ds=DatasetConfig(
+        name="TestData",
+        batch_size=1500,
+        folds=5,
+        fold_idx=0,
+    ),
+    accel=AccelConfig(max_batches_per_packet=100),
+    model=ModelConfig(),
+    loss=LossConfig(
+        terms_and_factors=frozenset({("Energies", 1.0)}),
+    ),
+    optim=OptimizerConfig(),
+    scheduler=SchedulerConfig(),
+)
 
-        self.loss = LossFactory(loss, **_loss_factors)
-        self.model = model
-        self.opt_weight_decay = opt_weight_decay
-        self.max_epochs = max_epochs
-        self.min_lr = min_lr
-        self.opt_lr = opt_lr
-        self.scheduler_patience = scheduler_patience
-        self.scheduler_factor = scheduler_factor
-        self.scheduler_threshold = scheduler_threshold
-        self.loss_sqrt_atoms
-        self.save_hyperparameters(ignore="model")
 
-        self.train_forces = train_forces
-        self.train_dipoles = train_dipoles
+model = getattr(model_builders, config.model.builder)(
+    lot=config.ds.lot,
+    symbols=config.model.get_symbols(
+        config.ds.name,
+        basis_set=config.ds.basis_set,
+        functional=config.ds.functional,
+    ),
+    use_cuda_ops=config.accel.use_cuda_ops,
+    **config.model.flag_dict,
+)
+lit_model = LitModel(
+    model,
+    loss_terms=tuple(
+        getattr(losses, name)(factor=factor)
+        for name, factor in config.loss.terms_and_factors
+    ),
+    # Loss
+    uncertainty_weighted=config.loss.uncertainty_weighted,
+    # Optim
+    weight_decay=config.optim.weight_decay,
+    lr=config.optim.lr,
+    # Scheduler
+    monitor_label=config.scheduler.monitor_label,
+    plateau_factor=config.scheduler.factor,
+    plateau_patience=config.scheduler.patience,
+    plateau_threshold=config.scheduler.threshold,
+)
 
-    def training_step(
-        self,
-        batch: tp.Any,
-        batch_idx: int,
-    ) -> Tensor:
-        return self.batch_eval(
-            tp.cast(tp.Dict[str, Tensor], batch),
-            batch_idx,
-        )
 
-    def validation_step(
-        self,
-        batch: tp.Any,
-        batch_idx: int,
-    ) -> None:
-        torch.set_grad_enabled(True)
-        self.batch_eval(
-            tp.cast(tp.Dict[str, Tensor], batch),
-            batch_idx,
-        )
+if not config.ds.path.exists():
+    split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
+    if config.ds.folds is not None:
+        if config.ds.train_frac != 0.8 or config.ds.validation_frac != 0.2:
+            raise ConfigError("Train and val frac can't be set if training to folds")
+        if not isinstance(config.ds.fold_idx, int):
+            raise ConfigError("A fold idx must be present when training to folds")
+        split_kwargs = {"folds": config.ds.folds}
+    else:
+        split_kwargs = {"splits": config.ds.split_dict}
+    datasets.create_batched_dataset(
+        locations=getattr(datasets, config.ds.name)(
+            skip_check=True,
+            functional=config.ds.functional,
+            basis_set=config.ds.basis_set,
+        ),
+        max_batches_per_packet=config.accel.max_batches_per_packet,
+        dest_path=config.ds.path,
+        batch_size=config.ds.batch_size,
+        shuffle_seed=config.ds.shuffle_seed,
+        **split_kwargs,
+    )
 
-    def batch_eval(
-        self,
-        batch: tp.Dict[str, Tensor],
-        batch_idx: int,
-    ) -> Tensor:
-        if self.train_forces:
-            batch["coordinates"].requires_grad_(True)
-        output = self.model((batch["species"], batch["coordinates"]))
-        energies = output.energies
+kwargs: tp.Dict[str, tp.Any] = {
+    "num_workers": config.accel.num_workers,
+    "prefetch_factor": config.accel.prefetch_factor,
+    "pin_memory": True,
+    "batch_size": None,
+}
+training_label = f"training{config.ds.fold_idx}"
+validation_label = f"validation{config.ds.fold_idx}"
+training = torch.utils.data.DataLoader(
+    datasets.ANIBatchedDataset(config.ds.path, split=training_label),
+    shuffle=True,
+    **kwargs,
+)
+validation = torch.utils.data.DataLoader(
+    datasets.ANIBatchedDataset(config.ds.path, split=validation_label),
+    shuffle=False,
+    **kwargs,
+)
 
-        forces: tp.Optional[Tensor]
-        if self.train_forces:
-            forces = -torch.autograd.grad(
-                energies.sum(),
-                batch["coordinates"],
-            )[0]
-        else:
-            forces = None
-
-        dipoles: tp.Optional[Tensor]
-        if hasattr(output, "dipoles") and self.train_dipoles:
-            dipoles = output.dipoles
-
-        if self.train_forces:
-            batch["coordinates"].requires_grad_(True)
-
-        loss = self.loss(
-            energies=energies,
-            forces=forces,
-            dipoles=dipoles,
-            target=batch,
-        )
-        return loss
-
-    def configure_optimizers(self) -> tp.Any:
-        opt = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.opt_lr,
-            weight_decay=self.opt_weight_decay,
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=opt,
-            factor=self.scheduler_factor,
-            patience=self.scheduler_patience,
-            threshold=self.scheduler_threshold,
-        )
-        return opt, scheduler
+lr_monitor = LearningRateMonitor()
+early_stopping = EarlyStopping(
+    monitor=lit_model.monitor_label,
+    strict=True,
+    mode="min",
+    patience=lit_model.hparams.plateau_patience * 2,  # type: ignore
+)
+trainer = lightning.Trainer(
+    devices=1,
+    accelerator=config.accel.device,
+    max_epochs=config.accel.max_epochs,
+    callbacks=[lr_monitor, early_stopping],
+)
+trainer.fit(
+    lit_model,
+    train_dataloaders=training,
+    val_dataloaders=validation,
+)

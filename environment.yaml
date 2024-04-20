@@ -38,7 +38,9 @@ dependencies:
   - mkl=2024.0.0
   - pytorch=1.13.1
   - lightning=2.2.1
+  - torchmetrics=1.3.2
   - cudatoolkit=11.6
+  - tensorboard
 
   # Progress bars
   - tqdm

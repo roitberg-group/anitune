@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import typing as tp
 from enum import Enum
 
@@ -5,70 +6,123 @@ import torch
 from torch import Tensor
 
 
-class LossKind(Enum):
-    MSE = "mse"
-    MSE_UNCERTAINTY_WEIGHTED = "mse-uncertainty-weighted"
+class Penalty(Enum):
+    SQUARE = 0
+    ABS = 1
 
 
-class Loss(torch.nn.Module):
+@dataclass
+class LossTerm:
+    label: str
+    is_extensive: bool
+    scale_by_sqrt_atoms: bool = False
+    is_vec3: bool = False
+    factor: float = 1.0
+    grad_label: tp.Optional[str] = None
+    penalty: Penalty = Penalty.SQUARE
+
+
+def Forces(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="forces",
+        grad_label="energies",
+        is_vec3=True,
+        is_extensive=True,
+        factor=factor,
+    )
+
+
+def Energies(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="energies",
+        is_extensive=True,
+        factor=factor,
+    )
+
+
+def EnergiesSqrtAtoms(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="energies",
+        is_extensive=True,
+        factor=factor,
+        scale_by_sqrt_atoms=True,
+    )
+
+
+def TotalCharge(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="total_charge",
+        is_extensive=True,
+        factor=factor,
+    )
+
+
+def EnergiesXC(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="energies-xc",
+        is_extensive=True,
+        factor=factor,
+    )
+
+
+def Dipoles(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="dipoles",
+        is_extensive=False,
+        is_vec3=True,
+        factor=factor,
+    )
+
+
+def AtomicCharges(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="dipoles",
+        is_extensive=False,
+        is_vec3=True,
+        factor=factor,
+    )
+
+
+class MultiTaskLoss(torch.nn.Module):
+    def is_enabled(self, value: str) -> bool:
+        return any(term.label == value for term in self.terms)
+
     def __init__(
         self,
-        energy_factor: float,
-        force_factor: float,
-        dipole_factor: float,
-        energy_sqrt_num_atoms: bool = True,
-        force_sqrt_num_atoms: bool = False,
+        terms: tp.Sequence[LossTerm],
+        uncertainty_weighted: bool = False,
     ) -> None:
         super().__init__()
-        self.energy_factor = energy_factor
-        self.force_factor = force_factor
-        self.dipole_factor = dipole_factor
-        self.energy_sqrt_num_atoms = energy_sqrt_num_atoms
-        self.force_sqrt_num_atoms = force_sqrt_num_atoms
+        self.terms = tuple(terms)
+        if uncertainty_weighted:
+            raise NotImplementedError("Uncertainty Weighted loss not implemented yet")
 
     def forward(
         self,
-        energies: tp.Optional[Tensor],
-        forces: tp.Optional[Tensor],
-        dipoles: tp.Optional[Tensor],
-        batch: tp.Dict[str, Tensor],
+        pred: tp.Dict[str, Tensor],
+        targ: tp.Dict[str, Tensor],
     ) -> tp.Dict[str, Tensor]:
-        loss = torch.tensor(0.0, dtype=torch.float)
-        dipole_loss = torch.tensor(0.0, dtype=torch.float)
-        force_loss = torch.tensor(0.0, dtype=torch.float)
-        energy_loss = torch.tensor(0.0, dtype=torch.float)
+        losses: tp.Dict[str, Tensor] = {}
+        num_atoms = (targ["species"] >= 0).sum(dim=1, dtype=torch.float)
 
-        num_atoms = (batch["species"] >= 0).sum(dim=1, dtype=torch.float)
-        if energies is not None:
-            energy_loss = (energies - batch["energies"]).pow(2).sum()
-            if self.energy_sqrt_num_atoms:
-                energy_loss / num_atoms.sqrt()
-            else:
-                energy_loss / num_atoms
-            loss += self.energy_factor * energy_loss
+        losses["loss"] = torch.tensor(0.0, dtype=torch.float, device=targ["species"].device)
+        for term in self.terms:
+            k = term.label
 
-        if forces is not None:
-            force_loss = (forces - batch["forces"]).pow(2).sum() / 3
-            if self.force_sqrt_num_atoms:
-                force_loss / num_atoms.sqrt()
-            else:
-                force_loss / num_atoms
-            loss += self.force_factor * force_loss
+            diff = pred[k] - targ[k]
+            num_atoms = num_atoms.view((-1,) + (1,) * (diff.ndim - 1))
+            if term.penalty is Penalty.SQUARE:
+                error = diff.pow(2)
+            elif term.penalty is Penalty.ABS:
+                error = torch.abs(diff)
+            if term.scale_by_sqrt_atoms:
+                error = error * num_atoms.sqrt()
+            if term.is_extensive:
+                error = error / num_atoms
+            if term.is_vec3:
+                error = error / 3
 
-        if dipoles is not None:
-            dipole_loss = (dipoles - batch["forces"]).pow(2).sum() / 3
-            loss += self.dipole_factor * dipole_loss
-        return {
-            "total": loss,
-            "dipole": dipole_loss,
-            "force": force_loss,
-            "energy": energy_loss,
-        }
-
-
-def LossFactory(
-    loss: LossKind = LossKind.MSE,
-    *args,
-    **kwargs,
-) -> Loss:
-    raise NotImplementedError()
+            merror = error.mean()
+            losses[k] = merror
+            losses["loss"] += merror * term.factor
+        return losses
