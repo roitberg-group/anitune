@@ -49,3 +49,6 @@ def batch(ds: ANIDataset, batched_ds_path: Path, batch_size: int = 64) -> LearnS
         training=training,
         validation=validation,
     )
+
+
+# TODO: Use lightning to training
