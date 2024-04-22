@@ -1,10 +1,11 @@
 import hashlib
 
 import typing as tp
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-from torchani import datasets
+from ani_ftune.utils import DATA_ELEMENTS
+
 
 _BATCH_PATH = Path.home().joinpath(".local/torchani/Batched")
 _BATCH_PATH.mkdir(exist_ok=True, parents=True)
@@ -17,9 +18,9 @@ _FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
 # Dataset parameters
-@dataclass(frozen=True)
+@dataclass
 class DatasetConfig:
-    fold_idx: tp.Union[int, str] = field(default="single", compare=False)
+    fold_idx: tp.Union[int, str] = "single"
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
     validation_frac: float = 0.2
@@ -45,25 +46,32 @@ class DatasetConfig:
 
     @property
     def path(self) -> Path:
+        dict_ = asdict(self)
+        dict_.pop("fold_idx")
+        state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
-        hasher.update(bytes(str(hash(self)).encode()))
-        return _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+        hasher.update(str(state).encode())
+        _path = _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+        print(f"Dataset path: {_path}")
+        return _path
 
 
-@dataclass(frozen=True)
+@dataclass
 class ModelConfig:
-    flags: tp.FrozenSet[tp.Tuple[str, bool]] = frozenset(
-        {("repulsion", True), ("dispersion", False)}
-    )
+    flags: tp.Tuple[tp.Tuple[str, bool], ...] = (("repulsion", True), ("dispersion", False))
     builder: str = "FlexibleANI"
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
 
     def get_symbols(
         self, ds_name: str = "", basis_set: str = "", functional: str = ""
     ) -> tp.Tuple[str, ...]:
+        from torchani import datasets  # noqa
         if self.symbols is not None:
             return self.symbols
         print("Fetching present chemical symbols from dataset...")
+        symbols = DATA_ELEMENTS.get(ds_name)
+        if symbols is not None:
+            return symbols
         ds = getattr(datasets, ds_name)(
             skip_check=True, basis_set=basis_set, functional=functional, verbose=False
         )
@@ -76,19 +84,17 @@ class ModelConfig:
         return {k: v for k, v in self.flags}
 
 
-@dataclass(frozen=True)
+@dataclass
 class LossConfig:
     r"""
     loss-specific configurations
     """
 
-    terms_and_factors: tp.FrozenSet[tp.Tuple[str, float]] = frozenset(
-        {("Energies", 1.0)}
-    )
+    terms_and_factors: tp.Tuple[tp.Tuple[str, float], ...] = (("Energies", 1.0),)
     uncertainty_weighted: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass
 class OptimizerConfig:
     r"""
     Optimizer configuration
@@ -98,7 +104,7 @@ class OptimizerConfig:
     weight_decay: float = 1e-7
 
 
-@dataclass(frozen=True)
+@dataclass
 class SchedulerConfig:
     r"""
     lr-Scheduler configuration
@@ -110,21 +116,33 @@ class SchedulerConfig:
     threshold: float = 0.0
 
 
-@dataclass(frozen=True)
+@dataclass
 class AccelConfig:
     r"""
     Acceleration specific configuration. Does not affect reproducibility.
     """
-
     device: str = "gpu"
     use_cuda_ops: bool = True
     max_batches_per_packet: int = 300
     num_workers: int = 2
     prefetch_factor: int = 2
     max_epochs: int = 2000
+    limit: tp.Optional[int] = None
+
+    @property
+    def log_interval(self) -> tp.Optional[int]:
+        return max(1, self.limit) if self.limit is not None else 50
+
+    @property
+    def train_limit(self) -> tp.Optional[int]:
+        return self.limit if self.limit is None else max(1, int(self.limit))
+
+    @property
+    def validation_limit(self) -> tp.Optional[int]:
+        return self.limit if self.limit is None else max(1, int(self.limit / 10))
 
 
-@dataclass(frozen=True)
+@dataclass
 class TrainConfig:
     r"""
     Configuration for all the training.
@@ -132,6 +150,7 @@ class TrainConfig:
 
     name: str = "run"
     finetune: bool = False
+    debug: bool = False
     ds: DatasetConfig = DatasetConfig()
     model: ModelConfig = ModelConfig()
     loss: LossConfig = LossConfig()
@@ -141,8 +160,19 @@ class TrainConfig:
 
     @property
     def path(self) -> Path:
+        dict_ = asdict(self)
+        dict_.pop("accel")
+        keys = tuple(dict_.keys())
+        for k in keys:
+            if isinstance(dict_[k], dict):
+                dict_[k] = sorted((k, v) for k, v in dict_[k].items())
+        state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
-        hasher.update(bytes(str(hash(self)).encode()))
+        hasher.update(str(state).encode())
         if self.finetune:
             return _FTUNE_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+        if self.debug:
+            from uuid import uuid4
+            hasher.update(uuid4().bytes)
+            return Path("/tmp") / "{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"
         return _TRAIN_PATH / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"

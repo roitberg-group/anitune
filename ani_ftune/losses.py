@@ -7,8 +7,8 @@ from torch import Tensor
 
 
 class Penalty(Enum):
-    SQUARE = 0
-    ABS = 1
+    SQUARE = "square"
+    ABS = "abs"
 
 
 @dataclass
