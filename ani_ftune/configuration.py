@@ -58,7 +58,10 @@ class DatasetConfig:
 
 @dataclass
 class ModelConfig:
-    flags: tp.Tuple[tp.Tuple[str, bool], ...] = (("repulsion", True), ("dispersion", False))
+    flags: tp.Tuple[tp.Tuple[str, bool], ...] = (
+        ("repulsion", True),
+        ("dispersion", False),
+    )
     builder: str = "FlexibleANI"
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
 
@@ -66,6 +69,7 @@ class ModelConfig:
         self, ds_name: str = "", basis_set: str = "", functional: str = ""
     ) -> tp.Tuple[str, ...]:
         from torchani import datasets  # noqa
+
         if self.symbols is not None:
             return self.symbols
         print("Fetching present chemical symbols from dataset...")
@@ -121,6 +125,7 @@ class AccelConfig:
     r"""
     Acceleration specific configuration. Does not affect reproducibility.
     """
+
     device: str = "gpu"
     use_cuda_ops: bool = True
     max_batches_per_packet: int = 300
@@ -173,6 +178,7 @@ class TrainConfig:
             return _FTUNE_PATH / f"{self.name}-{hasher.hexdigest(4)}"
         if self.debug:
             from uuid import uuid4
+
             hasher.update(uuid4().bytes)
             return Path("/tmp") / "{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"
         return _TRAIN_PATH / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"

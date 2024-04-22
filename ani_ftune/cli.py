@@ -86,7 +86,13 @@ def bench(
 
 @app.command(help="Train an ANI-style model from scratch")
 def train(
-    name: tpx.Annotated[str, Option("--name", help="Name of the run",),] = "run",
+    name: tpx.Annotated[
+        str,
+        Option(
+            "--name",
+            help="Name of the run",
+        ),
+    ] = "run",
     builder: tpx.Annotated[
         str,
         Option(
@@ -182,7 +188,13 @@ def train(
             help="Run debug",
         ),
     ] = False,
-    limit: tpx.Annotated[tp.Optional[int], Option("--limit", help="Limit number of batches or percent",),] = None,
+    limit: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--limit",
+            help="Limit number of batches or percent",
+        ),
+    ] = None,
 ) -> None:
     fold_idx: tp.Union[str, int]
     try:

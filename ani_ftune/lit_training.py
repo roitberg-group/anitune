@@ -57,7 +57,9 @@ def train_from_scratch(config: TrainConfig) -> None:
         split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
         if config.ds.folds is not None:
             if config.ds.train_frac != 0.8 or config.ds.validation_frac != 0.2:
-                raise ConfigError("Train and val frac can't be set if training to folds")
+                raise ConfigError(
+                    "Train and val frac can't be set if training to folds"
+                )
             if not isinstance(config.ds.fold_idx, int):
                 raise ConfigError("A fold idx must be present when training to folds")
             split_kwargs = {"folds": config.ds.folds}
@@ -82,8 +84,12 @@ def train_from_scratch(config: TrainConfig) -> None:
         "pin_memory": True,
         "batch_size": None,
     }
-    training_label = f"training{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
-    validation_label = f"validation{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
+    training_label = (
+        f"training{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
+    )
+    validation_label = (
+        f"validation{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
+    )
     training = torch.utils.data.DataLoader(
         datasets.ANIBatchedDataset(config.ds.path, split=training_label),
         shuffle=True,
@@ -118,15 +124,25 @@ def train_from_scratch(config: TrainConfig) -> None:
         save_top_k=1,
         enable_version_counter=False,
     )
-    tb_logger = TensorBoardLogger(save_dir=config.path, version=None, name="tb-versioned-logs")
-    csv_logger = CSVLogger(save_dir=config.path, version=None, name="csv-versioned-logs")
+    tb_logger = TensorBoardLogger(
+        save_dir=config.path, version=None, name="tb-versioned-logs"
+    )
+    csv_logger = CSVLogger(
+        save_dir=config.path, version=None, name="csv-versioned-logs"
+    )
     merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs", dest="tb-logs")
     trainer = lightning.Trainer(
         default_root_dir=config.path,
         devices=1,
         accelerator=config.accel.device,
         max_epochs=config.accel.max_epochs,
-        callbacks=[lr_monitor, early_stopping, best_model_ckpt, latest_model_ckpt, merge_tb_logs],
+        callbacks=[
+            lr_monitor,
+            early_stopping,
+            best_model_ckpt,
+            latest_model_ckpt,
+            merge_tb_logs,
+        ],
         logger=[tb_logger, csv_logger],
         limit_train_batches=config.accel.train_limit,
         limit_val_batches=config.accel.validation_limit,
