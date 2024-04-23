@@ -13,7 +13,13 @@ _BATCH_PATH.mkdir(exist_ok=True, parents=True)
 _TRAIN_PATH = Path.home().joinpath(".local/torchani/Train")
 _TRAIN_PATH.mkdir(exist_ok=True, parents=True)
 
-_FTUNE_PATH = Path.home().joinpath(".local/torchani/Finetune")
+_DEBUG_TRAIN_PATH = Path.home().joinpath(".local/torchani/DebugTrain")
+_DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
+
+_DEBUG_FTUNE_PATH = Path.home().joinpath(".local/torchani/DebugFtune")
+_DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
+
+_FTUNE_PATH = Path.home().joinpath(".local/torchani/Ftune")
 _FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
@@ -171,27 +177,32 @@ class TrainConfig:
     """
 
     name: str = "run"
-    debug: bool = False
     ds: DatasetConfig = DatasetConfig()
     model: ModelConfig = ModelConfig()
     loss: LossConfig = LossConfig()
     optim: OptimizerConfig = OptimizerConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
-    accel: AccelConfig = AccelConfig()
     ftune: tp.Optional[FinetuneConfig] = None
+    debug: bool = False
+    accel: AccelConfig = AccelConfig()
 
     @property
-    def finetune(self) -> bool:
+    def ftune_mode(self) -> bool:
         return self.ftune is not None
 
     @property
     def path(self) -> Path:
         dict_ = asdict(self)
-        if self.finetune:
+        if self.ftune_mode:
             root = _FTUNE_PATH
+            if self.debug:
+                root = _DEBUG_FTUNE_PATH
         else:
             root = _TRAIN_PATH
-            dict_.pop("ftune")
+            if self.debug:
+                root = _DEBUG_TRAIN_PATH
+
+        dict_.pop("debug")
         dict_.pop("accel")
         keys = tuple(dict_.keys())
         for k in keys:
@@ -200,11 +211,4 @@ class TrainConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-
-        if self.debug:
-            from uuid import uuid4
-
-            hasher.update(uuid4().bytes)
-            root = Path("/tmp")
-
         return root / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"

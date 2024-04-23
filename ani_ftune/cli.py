@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+import shutil
 import typing as tp
 import typing_extensions as tpx
 from pathlib import Path
@@ -16,6 +17,8 @@ from ani_ftune.configuration import (
     LossConfig,
     OptimizerConfig,
     SchedulerConfig,
+    _DEBUG_TRAIN_PATH,
+    _DEBUG_FTUNE_PATH,
 )
 
 app = Typer(
@@ -26,6 +29,19 @@ app = Typer(
     given a set of reference structures.
     """,
 )
+
+
+@app.command(help="Clean debug runs")
+def clean(
+    ftune: tpx.Annotated[bool, Option("--ftune/--no-ftune", help="Clean ftune config",),] = True,
+    train: tpx.Annotated[bool, Option("--train/--no-train", help="Clean train config",),] = True,
+) -> None:
+    if train:
+        shutil.rmtree(_DEBUG_TRAIN_PATH)
+        _DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
+    if ftune:
+        shutil.rmtree(_DEBUG_FTUNE_PATH)
+        _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")
@@ -184,6 +200,7 @@ def train(
     debug: tpx.Annotated[
         bool,
         Option(
+            "-g/-G"
             "--debug/--no-debug",
             help="Run debug",
         ),
@@ -201,6 +218,10 @@ def train(
         fold_idx = int(_fold_idx)
     except ValueError:
         fold_idx = _fold_idx
+    if debug:
+        if limit is None:
+            print("Setting train limit to 10 batches for debugging")
+            limit = 10
     config = TrainConfig(
         name=name,
         debug=debug,
