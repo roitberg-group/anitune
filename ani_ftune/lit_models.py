@@ -23,6 +23,7 @@ class LitModel(lightning.LightningModule):
         monitor_label: str = "energies",
         loss_terms: tp.Sequence[LossTerm] = (Energies(),),
         uncertainty_weighted: bool = False,
+        num_head_layers: int = 0,
     ) -> None:
         super().__init__()
         self.train_metrics = torch.nn.ModuleDict()
@@ -50,6 +51,21 @@ class LitModel(lightning.LightningModule):
 
         # Hyperparameters
         self.save_hyperparameters(ignore="model")
+
+        # Backbone for finetuning
+        module_list = torch.nn.ModuleList()
+        if num_head_layers > 0:
+            for k in model.get_chemical_symbols():
+                j = 0
+                for layer in reversed(model.neural_networks[k]):
+                    if isinstance(layer, torch.nn.Linear):
+                        j += 1
+                        module_list.append(layer)
+                        if j == num_head_layers:
+                            break
+            if not module_list:
+                raise ValueError("Backbone is empty")
+        self.backbone = module_list
 
     def training_step(
         self,
