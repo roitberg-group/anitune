@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+import pickle
 import shutil
 import typing as tp
 import typing_extensions as tpx
@@ -7,6 +8,7 @@ from pathlib import Path
 
 from typer import Option, Typer
 
+from ani_ftune.console import console
 from ani_ftune.lit_training import train_from_scratch
 from ani_ftune.configuration import (
     FinetuneConfig,
@@ -19,6 +21,8 @@ from ani_ftune.configuration import (
     SchedulerConfig,
     _DEBUG_TRAIN_PATH,
     _DEBUG_FTUNE_PATH,
+    _TRAIN_PATH,
+    _FTUNE_PATH,
 )
 
 app = Typer(
@@ -56,24 +60,137 @@ def clean(
         _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
+def _select_run_path(name: str, idx: tp.Optional[int], ftune: bool = False) -> Path:
+    if (idx is None and not name) or (idx is not None and name):
+        raise ValueError("Either an index or a name should be specified, but not both")
+
+    root = _FTUNE_PATH if ftune else _TRAIN_PATH
+
+    if idx is not None:
+        try:
+            path = sorted(root.iterdir())[idx]
+        except IndexError:
+            raise ValueError(
+                f"Run {'ftune' if ftune else 'train'}-{idx} could not be found"
+            ) from None
+    else:
+        for p in sorted(root.iterdir()):
+            if p.name == name:
+                path = p
+                break
+        else:
+            raise ValueError(f"Run {name} could not be found") from None
+    return path
+
+
+@app.command(help="Continue a previously started training")
+def restart(
+    name: tpx.Annotated[
+        str,
+        Option(
+            "-n",
+            "--name",
+            help="Name of training run",
+        ),
+    ] = "",
+    idx: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "-i",
+            "--idx",
+            help="Index of run",
+        ),
+    ] = None,
+    ftune: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Restart a finetuning run",
+        ),
+    ] = False,
+) -> None:
+    path = _select_run_path(name, idx, ftune) / "config.pkl"
+    if not path.is_file():
+        raise ValueError(f"{path} is not a file dir")
+
+    with open(path, mode="rb") as f:
+        config = pickle.load(f)
+    train_from_scratch(config, restart=True)
+
+
+@app.command(help="Display training and finetuning runs")
+def ls() -> None:
+    train = sorted(_TRAIN_PATH.iterdir())
+    ftune = sorted(_FTUNE_PATH.iterdir())
+    debug_train = sorted(_DEBUG_TRAIN_PATH.iterdir())
+    debug_ftune = sorted(_DEBUG_FTUNE_PATH.iterdir())
+
+    if train or debug_train:
+        console.print("Training runs:")
+        for j, p in enumerate(train):
+            console.print(f"{j}. {p.name}", style="green")
+        for p in debug_train:
+            console.print(f"(debug). {p.name}", style="yellow")
+    else:
+        console.print("(No training runs found)")
+
+    console.print()
+    if ftune or debug_ftune:
+        console.print("Finetuning runs:")
+        for j, p in enumerate(ftune):
+            console.print(f"{j}. {p.name}", style="blue")
+        for p in debug_ftune:
+            console.print(f"(debug). {p.name}", style="yellow")
+    else:
+        console.print("(No finetuning runs found)")
+
+
+@app.command(help="Delete specific training or finetuning run")
+def rm(
+    name: tpx.Annotated[
+        str,
+        Option(
+            "-n",
+            "--name",
+            help="Name of run",
+        ),
+    ] = "",
+    idx: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "-i",
+            "--idx",
+            help="Index of run",
+        ),
+    ] = None,
+    ftune: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Remove a finetuning run",
+        ),
+    ] = False,
+) -> None:
+    path = _select_run_path(name, idx, ftune)
+    shutil.rmtree(path)
+
+
 @app.command(help="Compare the params of a ftuned model and the original model")
 def delta(
     original_model_path: tpx.Annotated[
         Path,
         Option(
-            "-om",
-            "--om",
-            "--original-model",
-            help="Path to the pretrained jit-compiled model",
+            "-o",
+            "--original-state-dict",
+            help="Path to the pretrained state dict .pt or .ckpt",
         ),
     ],
     ftuned_model_path: tpx.Annotated[
         Path,
         Option(
-            "-fm",
-            "--fm",
-            "--ftuned-model",
-            help="Path to the finetuned jit-compiled model",
+            "-f",
+            "--ftuned-state-dict",
+            help="Path to the finetuned state dict .pt or .ckpt file",
         ),
     ],
 ) -> None:
@@ -87,17 +204,17 @@ def bench(
     original_model_path: tpx.Annotated[
         Path,
         Option(
-            "-om" "--om",
-            "--original-model",
-            help="Path to the pretrained jit-compiled model",
+            "-o",
+            "--original-state-dict",
+            help="Path to the pretrained state dict .pt or .ckpt",
         ),
     ],
     ftuned_model_path: tpx.Annotated[
         Path,
         Option(
-            "-fm" "--fm",
-            "--ftuned-model",
-            help="Path to the finetuned jit-compiled model",
+            "-f",
+            "--ftuned-state-dict",
+            help="Path to the finetuned state dict .pt or .ckpt file",
         ),
     ],
     test_paths: tpx.Annotated[

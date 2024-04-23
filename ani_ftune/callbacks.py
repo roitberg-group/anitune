@@ -1,10 +1,38 @@
+import pickle
+import typing as tp
 from pathlib import Path
+
 from lightning.pytorch.callbacks import Callback
 from lightning import Trainer, LightningModule
+from ani_ftune.configuration import TrainConfig
+
+
+class SaveConfig(Callback):
+    def __init__(
+        self,
+        config: TrainConfig,
+        dests: tp.Iterable[str] = ("latest-model", "best-model"),
+    ) -> None:
+        super().__init__()
+        self._dests = (dests,) if isinstance(dests, str) else dests
+        self._config = config
+
+    def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        root = Path(trainer.default_root_dir).resolve()
+
+        with open(root / "config.pkl", mode="wb") as f:
+            pickle.dump(self._config, f)
+
+        for dest in self._dests:
+            if dest:
+                dir_ = root / dest
+                dir_.mkdir(exist_ok=True, parents=True)
+                with open(dir_ / "model_config.pkl", mode="wb") as f:
+                    pickle.dump(self._config.model, f)
 
 
 class MergeTensorBoardLogs(Callback):
-    def __init__(self, src: str, dest: str) -> None:
+    def __init__(self, src: str, dest: str = "tb-logs") -> None:
         super().__init__()
         self._src = src
         self._dest = dest
@@ -14,12 +42,12 @@ class MergeTensorBoardLogs(Callback):
         trainer: Trainer,
         pl_module: LightningModule,
     ) -> None:
-        trainer_root = Path(trainer.default_root_dir).resolve()
-        tb_versioned_logs = trainer_root / self._src
+        root = Path(trainer.default_root_dir).resolve()
+        tb_versioned_logs = root / self._src
         if (not tb_versioned_logs.is_dir()) or (not any(tb_versioned_logs.iterdir())):
             return
 
-        tb_logs = trainer_root / self._dest
+        tb_logs = root / self._dest
         tb_logs.mkdir(exist_ok=True, parents=True)
         versions = sorted(tb_versioned_logs.iterdir())
         for d in versions:

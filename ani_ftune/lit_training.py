@@ -1,10 +1,14 @@
+import pickle
+import sys
 import typing as tp
+
+from rich.prompt import Confirm
 
 from ani_ftune.exceptions import ConfigError
 from ani_ftune.configuration import TrainConfig
 
 
-def train_from_scratch(config: TrainConfig) -> None:
+def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     import torch  # noqa
     import lightning  # noqa
     from lightning.pytorch.callbacks import (  # noqa
@@ -19,7 +23,7 @@ def train_from_scratch(config: TrainConfig) -> None:
     from ani_ftune.lit_models import LitModel  # noqa
     from ani_ftune import model_builders  # noqa
     from ani_ftune import losses  # noqa
-    from ani_ftune.callbacks import MergeTensorBoardLogs
+    from ani_ftune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
 
     model = getattr(model_builders, config.model.builder)(
         lot=config.ds.lot,
@@ -29,10 +33,25 @@ def train_from_scratch(config: TrainConfig) -> None:
             functional=config.ds.functional,
         ),
         use_cuda_ops=config.accel.use_cuda_ops,
-        **config.model.flag_dict,
+        **config.model.kwargs_dict,
     )
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
+    if restart and not ckpt_path.is_file():
+        raise ValueError(f"Error when restarting run in path {config.path}")
+    if not restart and ckpt_path.is_file():
+        if not Confirm.ask("Run already exists, do you want to restart it?"):
+            sys.exit(0)
+        else:
+            # Reload config from the path
+            path = config.path / "config.pkl"
+            if not path.is_file():
+                raise ValueError(f"{path} is not a file dir")
+
+            with open(path, mode="rb") as f:
+                config = pickle.load(f)
+            restart = True
+
     if ckpt_path.is_file():
         lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
     else:
@@ -136,20 +155,28 @@ def train_from_scratch(config: TrainConfig) -> None:
         save_top_k=1,
         enable_version_counter=False,
     )
-    tb_logger = TensorBoardLogger(
-        save_dir=config.path, version=None, name="tb-versioned-logs"
-    )
-    csv_logger = CSVLogger(
-        save_dir=config.path, version=None, name="csv-versioned-logs"
-    )
-    merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs", dest="tb-logs")
+    save_model_config = SaveConfig(config)
+    merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs")
     callbacks = [
         lr_monitor,
         early_stopping,
         best_model_ckpt,
         latest_model_ckpt,
         merge_tb_logs,
+        save_model_config,
     ]
+
+    tb_logger = TensorBoardLogger(
+        save_dir=config.path,
+        version=None,
+        name="tb-versioned-logs",
+    )
+    csv_logger = CSVLogger(
+        save_dir=config.path,
+        version=None,
+        name="csv-versioned-logs",
+    )
+    loggers = [tb_logger, csv_logger]
 
     # Finetuning configuration
     if config.ftune is not None:
@@ -171,7 +198,7 @@ def train_from_scratch(config: TrainConfig) -> None:
         devices=1,
         accelerator=config.accel.device,
         max_epochs=config.accel.max_epochs,
-        logger=[tb_logger, csv_logger],
+        logger=loggers,
         callbacks=callbacks,
         limit_train_batches=config.accel.train_limit,
         limit_val_batches=config.accel.validation_limit,
