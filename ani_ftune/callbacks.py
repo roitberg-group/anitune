@@ -8,7 +8,11 @@ from ani_ftune.configuration import TrainConfig
 
 
 class SaveConfig(Callback):
-    def __init__(self, config: TrainConfig, dests: tp.Iterable[str] = ("latest-model", "best-model")) -> None:
+    def __init__(
+        self,
+        config: TrainConfig,
+        dests: tp.Iterable[str] = ("latest-model", "best-model"),
+    ) -> None:
         super().__init__()
         self._dests = (dests,) if isinstance(dests, str) else dests
         self._config = config
