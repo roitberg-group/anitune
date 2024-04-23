@@ -165,7 +165,7 @@ def train_from_scratch(config: TrainConfig) -> None:
             train_bn=False,
             verbose=False,
         )
-    callbacks.append(ftune_callback)
+        callbacks.append(ftune_callback)
     trainer = lightning.Trainer(
         default_root_dir=config.path,
         devices=1,
