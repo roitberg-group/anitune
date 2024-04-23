@@ -16,14 +16,14 @@ class SaveConfig(Callback):
     def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         root = Path(trainer.default_root_dir).resolve()
 
-        with open(root / "config.pkl", mode="wb", encoding="utf-8") as f:
+        with open(root / "config.pkl", mode="wb") as f:
             pickle.dump(self._config, f)
 
         for dest in self._dests:
             if dest:
                 dir_ = root / dest
                 dir_.mkdir(exist_ok=True, parents=True)
-                with open(dir_ / "model_config.pkl", mode="wb", encoding="utf-8") as f:
+                with open(dir_ / "model_config.pkl", mode="wb") as f:
                     pickle.dump(self._config.model, f)
 
 

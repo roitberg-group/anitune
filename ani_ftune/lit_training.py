@@ -1,10 +1,14 @@
+import pickle
+import sys
 import typing as tp
+
+from rich.prompt import Confirm
 
 from ani_ftune.exceptions import ConfigError
 from ani_ftune.configuration import TrainConfig
 
 
-def train_from_scratch(config: TrainConfig) -> None:
+def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     import torch  # noqa
     import lightning  # noqa
     from lightning.pytorch.callbacks import (  # noqa
@@ -33,6 +37,21 @@ def train_from_scratch(config: TrainConfig) -> None:
     )
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
+    if restart and not ckpt_path.is_file():
+        raise ValueError(f"Error when restarting run in path {config.path}")
+    if not restart and ckpt_path.is_file():
+        if not Confirm.ask("Run already exists, do you want to restart it?"):
+            sys.exit(0)
+        else:
+            # Reload config from the path
+            path = config.path / "config.pkl"
+            if not path.is_file():
+                raise ValueError(f"{path} is not a file dir")
+
+            with open(path, mode="rb") as f:
+                config = pickle.load(f)
+            restart = True
+
     if ckpt_path.is_file():
         lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
     else:

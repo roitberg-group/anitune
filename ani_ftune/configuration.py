@@ -204,6 +204,7 @@ class TrainConfig:
 
         dict_.pop("debug")
         dict_.pop("accel")
+        dict_.pop("name")
         keys = tuple(dict_.keys())
         for k in keys:
             if isinstance(dict_[k], dict):

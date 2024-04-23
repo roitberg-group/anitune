@@ -8,7 +8,6 @@ from pathlib import Path
 
 from typer import Option, Typer
 
-from ani_ftune.utils import TrainKind
 from ani_ftune.console import console
 from ani_ftune.lit_training import train_from_scratch
 from ani_ftune.configuration import (
@@ -61,42 +60,65 @@ def clean(
         _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
-@app.command(help="Continue a previously started training")
-def restart(
-    name: tpx.Annotated[str, Option("-n", "--name", help="Name of training run",),] = "",
-    idx: tpx.Annotated[tp.Optional[int], Option("-i" "--idx", help="Help string",),] = None,
-    kind: tpx.Annotated[TrainKind, Option("-k", "--kind", help="Kind of training run",),] = TrainKind.TRAIN,
-) -> None:
+def _select_run_path(name: str, idx: tp.Optional[int], ftune: bool = False) -> Path:
     if (idx is None and not name) or (idx is not None and name):
         raise ValueError("Either an index or a name should be specified, but not both")
 
-    if kind is TrainKind.TRAIN:
-        root = _TRAIN_PATH
-    else:
-        root = _FTUNE_PATH
+    root = _FTUNE_PATH if ftune else _TRAIN_PATH
 
     if idx is not None:
         try:
-            path = sorted(root.iterdir())[idx] / "config.pkl"
+            path = sorted(root.iterdir())[idx]
         except IndexError:
-            raise ValueError(f"Run {kind}-{idx} could not be found") from None
+            raise ValueError(
+                f"Run {'ftune' if ftune else 'train'}-{idx} could not be found"
+            ) from None
     else:
         for p in sorted(root.iterdir()):
             if p.name == name:
-                path = p / "config.pkl"
+                path = p
                 break
         else:
             raise ValueError(f"Run {name} could not be found") from None
+    return path
 
+
+@app.command(help="Continue a previously started training")
+def restart(
+    name: tpx.Annotated[
+        str,
+        Option(
+            "-n",
+            "--name",
+            help="Name of training run",
+        ),
+    ] = "",
+    idx: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "-i",
+            "--idx",
+            help="Index of run",
+        ),
+    ] = None,
+    ftune: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Restart a finetuning run",
+        ),
+    ] = False,
+) -> None:
+    path = _select_run_path(name, idx, ftune) / "config.pkl"
     if not path.is_file():
-        raise ValueError(f"{path} is not a valid file")
+        raise ValueError(f"{path} is not a file dir")
 
-    with open(path / "config.pkl", mode="rb", encoding="utf-8") as f:
+    with open(path, mode="rb") as f:
         config = pickle.load(f)
-    train_from_scratch(config)
+    train_from_scratch(config, restart=True)
 
 
-@app.command()
+@app.command(help="Display training and finetuning runs")
 def ls() -> None:
     train = sorted(_TRAIN_PATH.iterdir())
     ftune = sorted(_FTUNE_PATH.iterdir())
@@ -121,6 +143,36 @@ def ls() -> None:
             console.print(f"(debug). {p.name}", style="yellow")
     else:
         console.print("(No finetuning runs found)")
+
+
+@app.command(help="Delete specific training or finetuning run")
+def rm(
+    name: tpx.Annotated[
+        str,
+        Option(
+            "-n",
+            "--name",
+            help="Name of run",
+        ),
+    ] = "",
+    idx: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "-i",
+            "--idx",
+            help="Index of run",
+        ),
+    ] = None,
+    ftune: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Remove a finetuning run",
+        ),
+    ] = False,
+) -> None:
+    path = _select_run_path(name, idx, ftune)
+    shutil.rmtree(path)
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")

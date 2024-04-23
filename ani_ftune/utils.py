@@ -1,11 +1,3 @@
-from enum import Enum
-
-
-class TrainKind(Enum):
-    TRAIN = "train"
-    FTUNE = "ftune"
-
-
 DATA_ELEMENTS = {
     "ANI1x": ("H", "C", "N", "O"),
     "ANIExCorr": ("H", "C", "N", "O", "S"),
