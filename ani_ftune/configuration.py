@@ -63,7 +63,11 @@ class DatasetConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        name = self.name if self.name else "_".join(p.stem.replace("-", "_") for p in sorted(self.src_paths))
+        name = (
+            self.name
+            if self.name
+            else "_".join(p.stem.replace("-", "_") for p in sorted(self.src_paths))
+        )
         _path = _BATCH_PATH / f"{name}-{hasher.hexdigest(4)}"
         print(f"Dataset path: {_path}")
         return _path
@@ -199,6 +203,7 @@ class TrainConfig:
 
         if self.debug:
             from uuid import uuid4
+
             hasher.update(uuid4().bytes)
             root = Path("/tmp")
 

@@ -71,7 +71,9 @@ def train_from_scratch(config: TrainConfig) -> None:
         if config.ds.src_paths:
             ds = datasets.ANIDataset(locations=config.ds.src_paths)
             if config.ds.name:
-                raise ValueError("Dataset name should not be set if custom source paths are specified")
+                raise ValueError(
+                    "Dataset name should not be set if custom source paths are specified"
+                )
 
         else:
             ds = getattr(datasets, config.ds.name)(

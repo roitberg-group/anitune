@@ -313,7 +313,13 @@ def ftune(
             help="Limit number of batches or percent",
         ),
     ] = None,
-    original_idx: tpx.Annotated[int, Option("--idx", help="Original index of the model",),] = 0,
+    original_idx: tpx.Annotated[
+        int,
+        Option(
+            "--idx",
+            help="Original index of the model",
+        ),
+    ] = 0,
 ) -> None:
     if head_lr <= 0.0:
         raise ValueError(
