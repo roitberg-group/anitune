@@ -33,8 +33,20 @@ app = Typer(
 
 @app.command(help="Clean debug runs")
 def clean(
-    ftune: tpx.Annotated[bool, Option("--ftune/--no-ftune", help="Clean ftune config",),] = True,
-    train: tpx.Annotated[bool, Option("--train/--no-train", help="Clean train config",),] = True,
+    ftune: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Clean ftune config",
+        ),
+    ] = True,
+    train: tpx.Annotated[
+        bool,
+        Option(
+            "--train/--no-train",
+            help="Clean train config",
+        ),
+    ] = True,
 ) -> None:
     if train:
         shutil.rmtree(_DEBUG_TRAIN_PATH)
@@ -200,8 +212,7 @@ def train(
     debug: tpx.Annotated[
         bool,
         Option(
-            "-g/-G"
-            "--debug/--no-debug",
+            "-g/-G" "--debug/--no-debug",
             help="Run debug",
         ),
     ] = False,
