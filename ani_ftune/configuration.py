@@ -1,7 +1,7 @@
 import hashlib
 
 import typing as tp
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from ani_ftune.utils import DATA_ELEMENTS
@@ -17,6 +17,17 @@ _FTUNE_PATH = Path.home().joinpath(".local/torchani/Finetune")
 _FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
+@dataclass
+class FinetuneConfig:
+    state_dict_path: Path
+    num_head_layers: int = 1
+    backbone_lr: float = 0.0
+
+    @property
+    def frozen_backbone(self) -> bool:
+        return self.backbone_lr == 0.0
+
+
 # Dataset parameters
 @dataclass
 class DatasetConfig:
@@ -24,7 +35,8 @@ class DatasetConfig:
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
     validation_frac: float = 0.2
-    name: str = "TestData"
+    name: str = ""
+    src_paths: tp.Tuple[Path, ...] = ()
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
     shuffle_seed: int = 1234
@@ -51,7 +63,8 @@ class DatasetConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        _path = _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+        name = self.name if self.name else "_".join(p.stem.replace("-", "_") for p in sorted(self.src_paths))
+        _path = _BATCH_PATH / f"{name}-{hasher.hexdigest(4)}"
         print(f"Dataset path: {_path}")
         return _path
 
@@ -154,18 +167,27 @@ class TrainConfig:
     """
 
     name: str = "run"
-    finetune: bool = False
     debug: bool = False
     ds: DatasetConfig = DatasetConfig()
     model: ModelConfig = ModelConfig()
     loss: LossConfig = LossConfig()
     optim: OptimizerConfig = OptimizerConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
-    accel: AccelConfig = field(default=AccelConfig(), compare=False)
+    accel: AccelConfig = AccelConfig()
+    ftune: tp.Optional[FinetuneConfig] = None
+
+    @property
+    def finetune(self) -> bool:
+        return self.ftune is not None
 
     @property
     def path(self) -> Path:
         dict_ = asdict(self)
+        if self.finetune:
+            root = _FTUNE_PATH
+        else:
+            root = _TRAIN_PATH
+            dict_.pop("ftune")
         dict_.pop("accel")
         keys = tuple(dict_.keys())
         for k in keys:
@@ -174,11 +196,10 @@ class TrainConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        if self.finetune:
-            return _FTUNE_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+
         if self.debug:
             from uuid import uuid4
-
             hasher.update(uuid4().bytes)
-            return Path("/tmp") / "{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"
-        return _TRAIN_PATH / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"
+            root = Path("/tmp")
+
+        return root / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"

@@ -7,8 +7,8 @@ from pathlib import Path
 from typer import Option, Typer
 
 from ani_ftune.lit_training import train_from_scratch
-from ani_ftune.ftune import FinetuneSpec
 from ani_ftune.configuration import (
+    FinetuneConfig,
     TrainConfig,
     DatasetConfig,
     AccelConfig,
@@ -224,30 +224,36 @@ def train(
 
 @app.command(help="Fine tune a pretrained ANI model")
 def ftune(
-    model_path: tpx.Annotated[
+    state_dict_path: tpx.Annotated[
         Path,
         Option(
-            "-m",
-            "--model-path",
+            "-s",
+            "--state-dict",
             help="Path to the pretrained jit-compiled model",
         ),
     ],
-    data_paths: tpx.Annotated[
+    src_paths: tpx.Annotated[
         tp.List[Path],
         Option(
             "-d",
-            "--data-path",
+            "--dataset",
             help="Paths to data to fine-tune the model with",
         ),
     ],
-    _test_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
+    name: tpx.Annotated[
+        str,
         Option(
-            "-t",
-            "--test-path",
-            help="Paths to test data",
+            "--name",
+            help="Name of the run",
         ),
-    ] = None,
+    ] = "ftune",
+    builder: tpx.Annotated[
+        str,
+        Option(
+            "--builder",
+            help="Builder function",
+        ),
+    ] = "FlexibleANI",
     num_head_layers: tpx.Annotated[
         int,
         Option(
@@ -256,28 +262,26 @@ def ftune(
             help="Number of layers to use as model head",
         ),
     ] = 1,
-    lrs: tpx.Annotated[
-        tp.Tuple[float, float],
-        Option(
-            "-l",
-            "--lrs",
-            help="Tuple of learning rates for (head, body). Body lr may be 0",
-        ),
-    ] = (1e-3, 0.0),
-    unfreeze_body_epoch_num: tpx.Annotated[
-        int,
-        Option(
-            "-f",
-            "--freeze-body-epoch",
-            help="Epoch at which body is frozen, only used if body lr is nonzero",
-        ),
-    ] = 0,
     # Loss and optimizer specification
-    l2_factor: tpx.Annotated[
+    head_lr: tpx.Annotated[
         float,
         Option(
-            "--l2-factor",
-            help="L2 penalty for the loss",
+            "--lr",
+            help="Learning rate for head of model",
+        ),
+    ] = 0.5e-3,
+    backbone_lr: tpx.Annotated[
+        float,
+        Option(
+            "--backbone-lr",
+            help="Learning rate for backbone of model (may be zero)",
+        ),
+    ] = 0.0,
+    weight_decay: tpx.Annotated[
+        float,
+        Option(
+            "--wd",
+            help="Weight decay",
         ),
     ] = 1e-7,
     batch_size: tpx.Annotated[
@@ -288,20 +292,66 @@ def ftune(
             help="Batch size",
         ),
     ] = 64,
-    force_train_factor: tpx.Annotated[
+    train_frac: tpx.Annotated[
         float,
         Option(
-            "--force-train-factor",
-            help="Factor for force training loss, may be 0",
+            "--train-frac",
+            help="Training set fraction",
         ),
-    ] = 0.0,
+    ] = 0.8,
+    validation_frac: tpx.Annotated[
+        float,
+        Option(
+            "--validation-frac",
+            help="Validation set fraction",
+        ),
+    ] = 0.2,
+    limit: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--limit",
+            help="Limit number of batches or percent",
+        ),
+    ] = None,
+    original_idx: tpx.Annotated[int, Option("--idx", help="Original index of the model",),] = 0,
 ) -> None:
-    test_paths = [] if _test_paths is None else _test_paths
-    ft_spec = FinetuneSpec(
-        num_head_layers,
-        head_lr=lrs[0],
-        body_lr=lrs[1],
-        unfreeze_body_epoch_num=unfreeze_body_epoch_num,
+    if head_lr <= 0.0:
+        raise ValueError(
+            "Learning rate for the head of the model must be strictly positive"
+        )
+    if backbone_lr < 0.0:
+        raise ValueError(
+            "Learning rate for the body of the model must be positive or zero"
+        )
+    if backbone_lr > head_lr:
+        raise ValueError("Backbone lr must be greater or equal to head lr")
+    if num_head_layers < 1:
+        raise ValueError("There must be at least one head layer")
+
+    # TODO: Do smth with the state dict
+    config = TrainConfig(
+        name=f"{name}-{original_idx}",
+        ds=DatasetConfig(
+            src_paths=tuple(sorted(src_paths)),
+            batch_size=batch_size,
+            fold_idx="single",
+            validation_frac=validation_frac,
+            train_frac=train_frac,
+        ),
+        accel=AccelConfig(max_batches_per_packet=100, limit=limit),
+        model=ModelConfig(builder=builder),
+        loss=LossConfig(
+            terms_and_factors=(("Energies", 1.0),),
+        ),
+        optim=OptimizerConfig(
+            lr=head_lr,
+            weight_decay=weight_decay,
+        ),
+        scheduler=SchedulerConfig(),
+        ftune=FinetuneConfig(
+            state_dict_path=state_dict_path,
+            num_head_layers=num_head_layers,
+            backbone_lr=backbone_lr,
+        ),
     )
-    print(test_paths)
-    print(ft_spec)
+    train_from_scratch(config)

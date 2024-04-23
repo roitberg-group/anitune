@@ -11,6 +11,7 @@ def train_from_scratch(config: TrainConfig) -> None:
         LearningRateMonitor,
         EarlyStopping,
         ModelCheckpoint,
+        BackboneFinetuning,
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
@@ -51,6 +52,7 @@ def train_from_scratch(config: TrainConfig) -> None:
             plateau_factor=config.scheduler.factor,
             plateau_patience=config.scheduler.patience,
             plateau_threshold=config.scheduler.threshold,
+            num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
         )
 
     if not config.ds.path.exists():
@@ -65,12 +67,20 @@ def train_from_scratch(config: TrainConfig) -> None:
             split_kwargs = {"folds": config.ds.folds}
         else:
             split_kwargs = {"splits": config.ds.split_dict}
-        datasets.create_batched_dataset(
-            locations=getattr(datasets, config.ds.name)(
+
+        if config.ds.src_paths:
+            ds = datasets.ANIDataset(locations=config.ds.src_paths)
+            if config.ds.name:
+                raise ValueError("Dataset name should not be set if custom source paths are specified")
+
+        else:
+            ds = getattr(datasets, config.ds.name)(
                 skip_check=True,
                 functional=config.ds.functional,
                 basis_set=config.ds.basis_set,
-            ),
+            )
+        datasets.create_batched_dataset(
+            locations=ds,
             max_batches_per_packet=config.accel.max_batches_per_packet,
             dest_path=config.ds.path,
             batch_size=config.ds.batch_size,
@@ -131,19 +141,36 @@ def train_from_scratch(config: TrainConfig) -> None:
         save_dir=config.path, version=None, name="csv-versioned-logs"
     )
     merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs", dest="tb-logs")
+    callbacks = [
+        lr_monitor,
+        early_stopping,
+        best_model_ckpt,
+        latest_model_ckpt,
+        merge_tb_logs,
+    ]
+
+    # Finetuning configuration
+    if config.ftune is not None:
+        if config.ftune.frozen_backbone:
+            unfreeze_epoch = config.accel.max_epochs + 1
+        else:
+            unfreeze_epoch = 0
+        ftune_callback = BackboneFinetuning(
+            lambda_func=lambda epoch: 1.0,
+            backbone_initial_lr=config.ftune.backbone_lr,
+            unfreeze_backbone_at_epoch=unfreeze_epoch,
+            should_align=False,
+            train_bn=False,
+            verbose=False,
+        )
+    callbacks.append(ftune_callback)
     trainer = lightning.Trainer(
         default_root_dir=config.path,
         devices=1,
         accelerator=config.accel.device,
         max_epochs=config.accel.max_epochs,
-        callbacks=[
-            lr_monitor,
-            early_stopping,
-            best_model_ckpt,
-            latest_model_ckpt,
-            merge_tb_logs,
-        ],
         logger=[tb_logger, csv_logger],
+        callbacks=callbacks,
         limit_train_batches=config.accel.train_limit,
         limit_val_batches=config.accel.validation_limit,
         log_every_n_steps=config.accel.log_interval,
