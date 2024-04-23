@@ -81,7 +81,7 @@ class DatasetConfig:
 
 @dataclass
 class ModelConfig:
-    flags: tp.Tuple[tp.Tuple[str, bool], ...] = (
+    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str]], ...] = (
         ("repulsion", True),
         ("dispersion", False),
     )
@@ -107,8 +107,8 @@ class ModelConfig:
         return symbols
 
     @property
-    def flag_dict(self) -> tp.Dict[str, bool]:
-        return {k: v for k, v in self.flags}
+    def kwargs_dict(self) -> tp.Dict[str, tp.Union[bool, int, float, str]]:
+        return {k: v for k, v in self.kwargs}
 
 
 @dataclass

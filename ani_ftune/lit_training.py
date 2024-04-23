@@ -19,7 +19,7 @@ def train_from_scratch(config: TrainConfig) -> None:
     from ani_ftune.lit_models import LitModel  # noqa
     from ani_ftune import model_builders  # noqa
     from ani_ftune import losses  # noqa
-    from ani_ftune.callbacks import MergeTensorBoardLogs
+    from ani_ftune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
 
     model = getattr(model_builders, config.model.builder)(
         lot=config.ds.lot,
@@ -29,7 +29,7 @@ def train_from_scratch(config: TrainConfig) -> None:
             functional=config.ds.functional,
         ),
         use_cuda_ops=config.accel.use_cuda_ops,
-        **config.model.flag_dict,
+        **config.model.kwargs_dict,
     )
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
@@ -136,20 +136,28 @@ def train_from_scratch(config: TrainConfig) -> None:
         save_top_k=1,
         enable_version_counter=False,
     )
-    tb_logger = TensorBoardLogger(
-        save_dir=config.path, version=None, name="tb-versioned-logs"
-    )
-    csv_logger = CSVLogger(
-        save_dir=config.path, version=None, name="csv-versioned-logs"
-    )
-    merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs", dest="tb-logs")
+    save_model_config = SaveConfig(config)
+    merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs")
     callbacks = [
         lr_monitor,
         early_stopping,
         best_model_ckpt,
         latest_model_ckpt,
         merge_tb_logs,
+        save_model_config,
     ]
+
+    tb_logger = TensorBoardLogger(
+        save_dir=config.path,
+        version=None,
+        name="tb-versioned-logs",
+    )
+    csv_logger = CSVLogger(
+        save_dir=config.path,
+        version=None,
+        name="csv-versioned-logs",
+    )
+    loggers = [tb_logger, csv_logger]
 
     # Finetuning configuration
     if config.ftune is not None:
@@ -171,7 +179,7 @@ def train_from_scratch(config: TrainConfig) -> None:
         devices=1,
         accelerator=config.accel.device,
         max_epochs=config.accel.max_epochs,
-        logger=[tb_logger, csv_logger],
+        logger=loggers,
         callbacks=callbacks,
         limit_train_batches=config.accel.train_limit,
         limit_val_batches=config.accel.validation_limit,
