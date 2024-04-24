@@ -25,6 +25,7 @@ dependencies:
   # cli
   - typer  # handy cli library with support for type checking
   - rich  # colorful styles and terminal outputs
+  - psutil
   #- click  # more involved cli library, backend for typer
   #- shellingham  # autodetect shell for auto completion
 

@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+from typer import Argument
 import pickle
 import shutil
 import typing as tp
@@ -69,10 +70,17 @@ def clean(
 
 
 def _select_run_path(
-    name: str, idx: tp.Optional[int], ftune: bool = False, debug: bool = False
+    name_or_idx: str,
+    ftune: bool = False,
+    debug: bool = False,
 ) -> Path:
-    if (idx is None and not name) or (idx is not None and name):
-        raise ValueError("Either an index or a name should be specified, but not both")
+    try:
+        name = ""
+        idx = int(name_or_idx)
+    except ValueError:
+        name = name_or_idx
+        idx = None
+
     if debug:
         root = _DEBUG_FTUNE_PATH if ftune else _DEBUG_TRAIN_PATH
     else:
@@ -97,22 +105,7 @@ def _select_run_path(
 
 @app.command(help="Continue a previously started training")
 def restart(
-    name: tpx.Annotated[
-        str,
-        Option(
-            "-n",
-            "--name",
-            help="Name of training run",
-        ),
-    ] = "",
-    idx: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "-i",
-            "--idx",
-            help="Index of run",
-        ),
-    ] = None,
+    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run")],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -128,12 +121,13 @@ def restart(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune, debug) / "config.pkl"
+    path = _select_run_path(name_or_idx, ftune, debug) / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
+    console.print(f"Restarting run {path.name}")
     train_from_scratch(config, restart=True)
 
 
@@ -148,8 +142,8 @@ def ls() -> None:
         console.print("Training runs:")
         for j, p in enumerate(train):
             console.print(f"{j}. {p.name}", style="green")
-        for p in debug_train:
-            console.print(f"(debug). {p.name}", style="yellow")
+        for j, p in enumerate(debug_train):
+            console.print(f"{j}. (debug) {p.name}", style="yellow")
     else:
         console.print("(No training runs found)")
 
@@ -158,30 +152,15 @@ def ls() -> None:
         console.print("Finetuning runs:")
         for j, p in enumerate(ftune):
             console.print(f"{j}. {p.name}", style="blue")
-        for p in debug_ftune:
-            console.print(f"(debug). {p.name}", style="yellow")
+        for j, p in enumerate(debug_ftune):
+            console.print(f"{j}. (debug) {p.name}", style="yellow")
     else:
         console.print("(No finetuning runs found)")
 
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    name: tpx.Annotated[
-        str,
-        Option(
-            "-n",
-            "--name",
-            help="Name of run",
-        ),
-    ] = "",
-    idx: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "-i",
-            "--idx",
-            help="Index of run",
-        ),
-    ] = None,
+    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run")],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -198,8 +177,9 @@ def rm(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune, debug)
+    path = _select_run_path(name_or_idx, ftune, debug)
     shutil.rmtree(path)
+    console.print(f"Removed run {path.name}")
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")
@@ -368,6 +348,27 @@ def train(
             help="Limit number of batches or percent",
         ),
     ] = None,
+    deterministic: tpx.Annotated[
+        bool,
+        Option(
+            "--deterministic/--no-deterministic",
+            help="Run deterministic training (has a performance penalty)",
+        ),
+    ] = False,
+    detect_anomaly: tpx.Annotated[
+        bool,
+        Option(
+            "--detect-anomaly/--no-detect-anomaly",
+            help="Detect anomalies during training (has a performance penalty)",
+        ),
+    ] = False,
+    data_seed: tpx.Annotated[
+        int,
+        Option(
+            "--data-seed",
+            help="Seed for dataset prebatching",
+        ),
+    ] = 1234,
 ) -> None:
     fold_idx: tp.Union[str, int]
     try:
@@ -376,8 +377,12 @@ def train(
         fold_idx = _fold_idx
     if debug:
         if limit is None:
-            print("Setting train limit to 10 batches for debugging")
+            console.print("Setting train limit to 10 batches for debugging")
             limit = 10
+        console.print("Setting deterministic training for debugging purposes")
+        deterministic = True
+        console.print("Setting anomaly detection for debugging purposes")
+        detect_anomaly = True
     config = TrainConfig(
         name=name,
         debug=debug,
@@ -387,8 +392,14 @@ def train(
             fold_idx=fold_idx,
             validation_frac=validation_frac,
             train_frac=train_frac,
+            shuffle_seed=data_seed,
         ),
-        accel=AccelConfig(max_batches_per_packet=100, limit=limit),
+        accel=AccelConfig(
+            max_batches_per_packet=100,
+            limit=limit,
+            deterministic=deterministic,
+            detect_anomaly=detect_anomaly,
+        ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
             terms_and_factors=(("Energies", 1.0),),
@@ -483,6 +494,20 @@ def ftune(
             help="Validation set fraction",
         ),
     ] = 0.2,
+    deterministic: tpx.Annotated[
+        bool,
+        Option(
+            "--deterministic/--no-deterministic",
+            help="Run deterministic training (has a performance penalty)",
+        ),
+    ] = False,
+    detect_anomaly: tpx.Annotated[
+        bool,
+        Option(
+            "--detect-anomaly/--no-detect-anomaly",
+            help="Detect anomalies during training (has a performance penalty)",
+        ),
+    ] = False,
     limit: tpx.Annotated[
         tp.Optional[int],
         Option(
@@ -497,6 +522,13 @@ def ftune(
             help="Original index of the model",
         ),
     ] = 0,
+    data_seed: tpx.Annotated[
+        int,
+        Option(
+            "--data-seed",
+            help="Seed for dataset prebatching",
+        ),
+    ] = 1234,
 ) -> None:
     if head_lr <= 0.0:
         raise ValueError(
@@ -520,8 +552,14 @@ def ftune(
             fold_idx="single",
             validation_frac=validation_frac,
             train_frac=train_frac,
+            shuffle_seed=data_seed,
         ),
-        accel=AccelConfig(max_batches_per_packet=100, limit=limit),
+        accel=AccelConfig(
+            max_batches_per_packet=100,
+            limit=limit,
+            deterministic=deterministic,
+            detect_anomaly=detect_anomaly,
+        ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
             terms_and_factors=(("Energies", 1.0),),

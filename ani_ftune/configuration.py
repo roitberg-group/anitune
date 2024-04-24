@@ -156,6 +156,8 @@ class AccelConfig:
     prefetch_factor: int = 2
     max_epochs: int = 2000
     limit: tp.Optional[int] = None
+    deterministic: bool = False
+    detect_anomaly: bool = False
 
     @property
     def log_interval(self) -> tp.Optional[int]:
