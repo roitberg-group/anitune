@@ -11,7 +11,7 @@ from typer import Option, Typer
 
 from ani_ftune.console import console
 from ani_ftune.lit_training import train_from_scratch
-from ani_ftune.configuration import (
+from ani_ftune.config import (
     FinetuneConfig,
     TrainConfig,
     DatasetConfig,

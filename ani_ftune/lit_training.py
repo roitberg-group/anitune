@@ -6,8 +6,7 @@ import typing as tp
 from rich.prompt import Confirm
 
 from ani_ftune.console import console
-from ani_ftune.exceptions import ConfigError
-from ani_ftune.configuration import TrainConfig
+from ani_ftune.config import TrainConfig, ConfigError
 
 
 def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
