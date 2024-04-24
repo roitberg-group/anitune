@@ -142,8 +142,8 @@ def ls() -> None:
         console.print("Training runs:")
         for j, p in enumerate(train):
             console.print(f"{j}. {p.name}", style="green")
-        for p in debug_train:
-            console.print(f"(debug). {p.name}", style="yellow")
+        for j, p in enumerate(debug_train):
+            console.print(f"{j}. (debug) {p.name}", style="yellow")
     else:
         console.print("(No training runs found)")
 
@@ -152,8 +152,8 @@ def ls() -> None:
         console.print("Finetuning runs:")
         for j, p in enumerate(ftune):
             console.print(f"{j}. {p.name}", style="blue")
-        for p in debug_ftune:
-            console.print(f"(debug). {p.name}", style="yellow")
+        for j, p in enumerate(debug_ftune):
+            console.print(f"{j}. (debug) {p.name}", style="yellow")
     else:
         console.print("(No finetuning runs found)")
 
@@ -348,6 +348,27 @@ def train(
             help="Limit number of batches or percent",
         ),
     ] = None,
+    deterministic: tpx.Annotated[
+        bool,
+        Option(
+            "--deterministic/--no-deterministic",
+            help="Run deterministic training (has a performance penalty)",
+        ),
+    ] = False,
+    detect_anomaly: tpx.Annotated[
+        bool,
+        Option(
+            "--detect-anomaly/--no-detect-anomaly",
+            help="Detect anomalies during training (has a performance penalty)",
+        ),
+    ] = False,
+    data_seed: tpx.Annotated[
+        int,
+        Option(
+            "--data-seed",
+            help="Seed for dataset prebatching",
+        ),
+    ] = 1234,
 ) -> None:
     fold_idx: tp.Union[str, int]
     try:
@@ -356,8 +377,12 @@ def train(
         fold_idx = _fold_idx
     if debug:
         if limit is None:
-            print("Setting train limit to 10 batches for debugging")
+            console.print("Setting train limit to 10 batches for debugging")
             limit = 10
+        console.print("Setting deterministic training for debugging purposes")
+        deterministic = True
+        console.print("Setting anomaly detection for debugging purposes")
+        detect_anomaly = True
     config = TrainConfig(
         name=name,
         debug=debug,
@@ -367,8 +392,14 @@ def train(
             fold_idx=fold_idx,
             validation_frac=validation_frac,
             train_frac=train_frac,
+            shuffle_seed=data_seed,
         ),
-        accel=AccelConfig(max_batches_per_packet=100, limit=limit),
+        accel=AccelConfig(
+            max_batches_per_packet=100,
+            limit=limit,
+            deterministic=deterministic,
+            detect_anomaly=detect_anomaly,
+        ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
             terms_and_factors=(("Energies", 1.0),),
@@ -463,6 +494,20 @@ def ftune(
             help="Validation set fraction",
         ),
     ] = 0.2,
+    deterministic: tpx.Annotated[
+        bool,
+        Option(
+            "--deterministic/--no-deterministic",
+            help="Run deterministic training (has a performance penalty)",
+        ),
+    ] = False,
+    detect_anomaly: tpx.Annotated[
+        bool,
+        Option(
+            "--detect-anomaly/--no-detect-anomaly",
+            help="Detect anomalies during training (has a performance penalty)",
+        ),
+    ] = False,
     limit: tpx.Annotated[
         tp.Optional[int],
         Option(
@@ -477,6 +522,13 @@ def ftune(
             help="Original index of the model",
         ),
     ] = 0,
+    data_seed: tpx.Annotated[
+        int,
+        Option(
+            "--data-seed",
+            help="Seed for dataset prebatching",
+        ),
+    ] = 1234,
 ) -> None:
     if head_lr <= 0.0:
         raise ValueError(
@@ -500,8 +552,14 @@ def ftune(
             fold_idx="single",
             validation_frac=validation_frac,
             train_frac=train_frac,
+            shuffle_seed=data_seed,
         ),
-        accel=AccelConfig(max_batches_per_packet=100, limit=limit),
+        accel=AccelConfig(
+            max_batches_per_packet=100,
+            limit=limit,
+            deterministic=deterministic,
+            detect_anomaly=detect_anomaly,
+        ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
             terms_and_factors=(("Energies", 1.0),),

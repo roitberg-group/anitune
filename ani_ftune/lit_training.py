@@ -17,6 +17,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         EarlyStopping,
         ModelCheckpoint,
         BackboneFinetuning,
+        DeviceStatsMonitor,
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
@@ -38,7 +39,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     )
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
-    if not restart and any(config.path.iterdir()):
+    if not restart and config.path.is_dir():
         if not Confirm.ask("Run already exists, do you want to restart it?"):
             console.print("Exiting without training")
             sys.exit(0)
@@ -160,6 +161,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     )
     save_model_config = SaveConfig(config)
     merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs")
+    device_stats = DeviceStatsMonitor()
     callbacks = [
         lr_monitor,
         early_stopping,
@@ -167,6 +169,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         latest_model_ckpt,
         merge_tb_logs,
         save_model_config,
+        device_stats,
     ]
 
     tb_logger = TensorBoardLogger(
@@ -206,6 +209,8 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         limit_train_batches=config.accel.train_limit,
         limit_val_batches=config.accel.validation_limit,
         log_every_n_steps=config.accel.log_interval,
+        deterministic=config.accel.deterministic,
+        detect_anomaly=config.accel.detect_anomaly,
     )
     trainer.fit(
         lit_model,
