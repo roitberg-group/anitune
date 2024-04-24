@@ -68,11 +68,15 @@ def clean(
             console.print("No debug finetuning runs to clean")
 
 
-def _select_run_path(name: str, idx: tp.Optional[int], ftune: bool = False) -> Path:
+def _select_run_path(
+    name: str, idx: tp.Optional[int], ftune: bool = False, debug: bool = False
+) -> Path:
     if (idx is None and not name) or (idx is not None and name):
         raise ValueError("Either an index or a name should be specified, but not both")
-
-    root = _FTUNE_PATH if ftune else _TRAIN_PATH
+    if debug:
+        root = _DEBUG_FTUNE_PATH if ftune else _DEBUG_TRAIN_PATH
+    else:
+        root = _FTUNE_PATH if ftune else _TRAIN_PATH
 
     if idx is not None:
         try:
@@ -116,8 +120,15 @@ def restart(
             help="Restart a finetuning run",
         ),
     ] = False,
+    debug: tpx.Annotated[
+        bool,
+        Option(
+            "--ftune/--no-ftune",
+            help="Restart a debug run",
+        ),
+    ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune) / "config.pkl"
+    path = _select_run_path(name, idx, ftune, debug) / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -178,8 +189,16 @@ def rm(
             help="Remove a finetuning run",
         ),
     ] = False,
+    debug: tpx.Annotated[
+        bool,
+        Option(
+            "-g/-G",
+            "--debug/--no-debug",
+            help="Remove a single debug run",
+        ),
+    ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune)
+    path = _select_run_path(name, idx, ftune, debug)
     shutil.rmtree(path)
 
 
@@ -337,7 +356,8 @@ def train(
     debug: tpx.Annotated[
         bool,
         Option(
-            "-g/-G" "--debug/--no-debug",
+            "-g/-G",
+            "--debug/--no-debug",
             help="Run debug",
         ),
     ] = False,
