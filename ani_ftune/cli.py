@@ -53,11 +53,19 @@ def clean(
     ] = True,
 ) -> None:
     if train:
-        shutil.rmtree(_DEBUG_TRAIN_PATH)
-        _DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
+        if any(_DEBUG_TRAIN_PATH.iterdir()):
+            shutil.rmtree(_DEBUG_TRAIN_PATH)
+            _DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
+            console.print("Cleaned all training debug runs")
+        else:
+            console.print("No debug training runs to clean")
     if ftune:
-        shutil.rmtree(_DEBUG_FTUNE_PATH)
-        _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
+        if any(_DEBUG_FTUNE_PATH.iterdir()):
+            shutil.rmtree(_DEBUG_FTUNE_PATH)
+            _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
+            console.print("Cleaned all finetuning debug runs")
+        else:
+            console.print("No debug finetuning runs to clean")
 
 
 def _select_run_path(name: str, idx: tp.Optional[int], ftune: bool = False) -> Path:
