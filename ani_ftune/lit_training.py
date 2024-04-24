@@ -1,3 +1,4 @@
+from copy import deepcopy
 import pickle
 import sys
 import typing as tp
@@ -17,7 +18,6 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         EarlyStopping,
         ModelCheckpoint,
         BackboneFinetuning,
-        DeviceStatsMonitor,
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
@@ -37,6 +37,8 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         use_cuda_ops=config.accel.use_cuda_ops,
         **config.model.kwargs_dict,
     )
+    if config.ftune is not None:
+        model.load_state_dict(config.ftune.pretrained_state_dict)
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
     if not restart and config.path.is_dir():
@@ -48,9 +50,10 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
             path = config.path / "config.pkl"
             if not path.is_file():
                 raise ValueError(f"{path} is not a config file")
-
+            accel = deepcopy(config.accel)
             with open(path, mode="rb") as f:
                 config = pickle.load(f)
+            config.accel = accel
             restart = True
 
     if restart:
@@ -161,7 +164,6 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     )
     save_model_config = SaveConfig(config)
     merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs")
-    device_stats = DeviceStatsMonitor()
     callbacks = [
         lr_monitor,
         early_stopping,
@@ -169,7 +171,6 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         latest_model_ckpt,
         merge_tb_logs,
         save_model_config,
-        device_stats,
     ]
 
     tb_logger = TensorBoardLogger(
