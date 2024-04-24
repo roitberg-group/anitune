@@ -68,7 +68,9 @@ def clean(
             console.print("No debug finetuning runs to clean")
 
 
-def _select_run_path(name: str, idx: tp.Optional[int], ftune: bool = False, debug: bool = False) -> Path:
+def _select_run_path(
+    name: str, idx: tp.Optional[int], ftune: bool = False, debug: bool = False
+) -> Path:
     if (idx is None and not name) or (idx is not None and name):
         raise ValueError("Either an index or a name should be specified, but not both")
     if debug:
