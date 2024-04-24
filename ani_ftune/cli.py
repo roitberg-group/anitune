@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+from typer import Argument
 import pickle
 import shutil
 import typing as tp
@@ -69,10 +70,17 @@ def clean(
 
 
 def _select_run_path(
-    name: str, idx: tp.Optional[int], ftune: bool = False, debug: bool = False
+    name_or_idx: str,
+    ftune: bool = False,
+    debug: bool = False,
 ) -> Path:
-    if (idx is None and not name) or (idx is not None and name):
-        raise ValueError("Either an index or a name should be specified, but not both")
+    try:
+        name = ""
+        idx = int(name_or_idx)
+    except ValueError:
+        name = name_or_idx
+        idx = None
+
     if debug:
         root = _DEBUG_FTUNE_PATH if ftune else _DEBUG_TRAIN_PATH
     else:
@@ -97,22 +105,7 @@ def _select_run_path(
 
 @app.command(help="Continue a previously started training")
 def restart(
-    name: tpx.Annotated[
-        str,
-        Option(
-            "-n",
-            "--name",
-            help="Name of training run",
-        ),
-    ] = "",
-    idx: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "-i",
-            "--idx",
-            help="Index of run",
-        ),
-    ] = None,
+    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run")],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -128,12 +121,13 @@ def restart(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune, debug) / "config.pkl"
+    path = _select_run_path(name_or_idx, ftune, debug) / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
+    console.print(f"Restarting run {path.name}")
     train_from_scratch(config, restart=True)
 
 
@@ -166,22 +160,7 @@ def ls() -> None:
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    name: tpx.Annotated[
-        str,
-        Option(
-            "-n",
-            "--name",
-            help="Name of run",
-        ),
-    ] = "",
-    idx: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "-i",
-            "--idx",
-            help="Index of run",
-        ),
-    ] = None,
+    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run")],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -198,8 +177,9 @@ def rm(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name, idx, ftune, debug)
+    path = _select_run_path(name_or_idx, ftune, debug)
     shutil.rmtree(path)
+    console.print(f"Removed run {path.name}")
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")
