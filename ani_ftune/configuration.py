@@ -36,10 +36,15 @@ class FinetuneConfig:
     @property
     def pretrained_state_dict(self) -> tp.Dict[str, tp.Any]:
         import torch  # noqa
+
         _state_dict = torch.load(self.state_dict_path)
         if "state_dict" in _state_dict:
             _state_dict = _state_dict["state_dict"]
-            return {k.replace("model.", ""): v for k, v in _state_dict.items() if k.startswith("model.")}
+            return {
+                k.replace("model.", ""): v
+                for k, v in _state_dict.items()
+                if k.startswith("model.")
+            }
         return _state_dict
 
 

@@ -1,4 +1,5 @@
 r"""Command line interface entrypoints"""
+
 from typer import Argument
 import pickle
 import shutil
@@ -412,7 +413,9 @@ def train(
 
 @app.command(help="Fine tune a pretrained ANI model")
 def ftune(
-    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run to get the original state dict from")],
+    name_or_idx: tpx.Annotated[
+        str, Argument(help="Name or idx of the run to get the original state dict from")
+    ],
     _src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
@@ -526,7 +529,9 @@ def ftune(
 ) -> None:
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
     if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
-        raise ValueError("One of src_paths or dataset_name must be specified, but not both")
+        raise ValueError(
+            "One of src_paths or dataset_name must be specified, but not both"
+        )
     if head_lr <= 0.0:
         raise ValueError(
             "Learning rate for the head of the model must be strictly positive"
