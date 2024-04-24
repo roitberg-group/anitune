@@ -4,7 +4,7 @@ from pathlib import Path
 
 from lightning.pytorch.callbacks import Callback
 from lightning import Trainer, LightningModule
-from ani_ftune.configuration import TrainConfig
+from ani_ftune.config import TrainConfig
 
 
 class SaveConfig(Callback):

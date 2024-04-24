@@ -1,2 +1,0 @@
-class ConfigError(RuntimeError):
-    pass

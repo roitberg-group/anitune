@@ -23,6 +23,10 @@ _FTUNE_PATH = Path.home().joinpath(".local/torchani/Ftune")
 _FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 
+class ConfigError(RuntimeError):
+    pass
+
+
 @dataclass
 class FinetuneConfig:
     state_dict_path: Path
