@@ -1,4 +1,5 @@
 r"""Command line interface entrypoints"""
+
 import pickle
 import shutil
 import typing as tp
@@ -104,7 +105,13 @@ def _select_run_path(
 
 @app.command(help="Continue a previously started training")
 def restart(
-    name_or_idx: tpx.Annotated[str, Option("-i", help="Name or idx of the run",),],
+    name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-i",
+            help="Name or idx of the run",
+        ),
+    ],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -160,7 +167,13 @@ def ls() -> None:
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    name_or_idx: tpx.Annotated[str, Option("-i", help="Name or idx of the run",),],
+    name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-i",
+            help="Name or idx of the run",
+        ),
+    ],
     ftune: tpx.Annotated[
         bool,
         Option(
@@ -184,8 +197,20 @@ def rm(
 
 @app.command(help="Compare the params of a ftuned model and the original model")
 def compare(
-    pretrained_name_or_idx: tpx.Annotated[str, Option("-p", help="Name or idx of the pretrained run",),],
-    ftuned_name_or_idx: tpx.Annotated[str, Option("-f", help="Name or idx of the finetuned run",),],
+    pretrained_name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-p",
+            help="Name or idx of the pretrained run",
+        ),
+    ],
+    ftuned_name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-f",
+            help="Name or idx of the finetuned run",
+        ),
+    ],
     debug: tpx.Annotated[
         bool,
         Option(
@@ -195,8 +220,13 @@ def compare(
         ),
     ] = False,
 ) -> None:
-    pretrained_path = _select_run_path(pretrained_name_or_idx, ftune=False, debug=debug) / "best-model"
-    ftuned_path = _select_run_path(ftuned_name_or_idx, ftune=True, debug=debug) / "best-model"
+    pretrained_path = (
+        _select_run_path(pretrained_name_or_idx, ftune=False, debug=debug)
+        / "best-model"
+    )
+    ftuned_path = (
+        _select_run_path(ftuned_name_or_idx, ftune=True, debug=debug) / "best-model"
+    )
 
     pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
     ftuned_state_dict = load_state_dict(ftuned_path / "best.ckpt")
@@ -424,7 +454,13 @@ def train(
 
 @app.command(help="Fine tune a pretrained ANI model")
 def ftune(
-    name_or_idx: tpx.Annotated[str, Option("-p", help="Name or idx of the pretrained run",),],
+    name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-p",
+            help="Name or idx of the pretrained run",
+        ),
+    ],
     _src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
