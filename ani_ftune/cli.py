@@ -1,5 +1,4 @@
 r"""Command line interface entrypoints"""
-
 from typer import Argument
 import pickle
 import shutil
@@ -116,7 +115,8 @@ def restart(
     debug: tpx.Annotated[
         bool,
         Option(
-            "--ftune/--no-ftune",
+            "-g/-G",
+            "--debug/--no-debug",
             help="Restart a debug run",
         ),
     ] = False,
@@ -143,7 +143,7 @@ def ls() -> None:
         for j, p in enumerate(train):
             console.print(f"{j}. {p.name}", style="green")
         for j, p in enumerate(debug_train):
-            console.print(f"{j}. (debug) {p.name}", style="yellow")
+            console.print(f"(debug) {j}. {p.name}", style="yellow")
     else:
         console.print("(No training runs found)")
 
@@ -153,7 +153,7 @@ def ls() -> None:
         for j, p in enumerate(ftune):
             console.print(f"{j}. {p.name}", style="blue")
         for j, p in enumerate(debug_ftune):
-            console.print(f"{j}. (debug) {p.name}", style="yellow")
+            console.print(f"(debug) {j}. {p.name}", style="yellow")
     else:
         console.print("(No finetuning runs found)")
 
@@ -412,22 +412,22 @@ def train(
 
 @app.command(help="Fine tune a pretrained ANI model")
 def ftune(
-    state_dict_path: tpx.Annotated[
-        Path,
+    name_or_idx: tpx.Annotated[str, Argument(help="Name or idx of the run to get the original state dict from")],
+    _src_paths: tpx.Annotated[
+        tp.Optional[tp.List[Path]],
         Option(
             "-s",
-            "--state-dict",
-            help="Path to the pretrained jit-compiled model",
-        ),
-    ],
-    src_paths: tpx.Annotated[
-        tp.List[Path],
-        Option(
-            "-d",
-            "--dataset",
+            "--data-path",
             help="Paths to data to fine-tune the model with",
         ),
-    ],
+    ] = None,
+    dataset_name: tpx.Annotated[
+        str,
+        Option(
+            "--dataset",
+            help="Builtin dataset name",
+        ),
+    ] = "",
     name: tpx.Annotated[
         str,
         Option(
@@ -435,13 +435,6 @@ def ftune(
             help="Name of the run",
         ),
     ] = "ftune",
-    builder: tpx.Annotated[
-        str,
-        Option(
-            "--builder",
-            help="Builder function",
-        ),
-    ] = "FlexibleANI",
     num_head_layers: tpx.Annotated[
         int,
         Option(
@@ -457,7 +450,7 @@ def ftune(
             "--lr",
             help="Learning rate for head of model",
         ),
-    ] = 0.5e-3,
+    ] = 0.5e-4,
     backbone_lr: tpx.Annotated[
         float,
         Option(
@@ -515,13 +508,6 @@ def ftune(
             help="Limit number of batches or percent",
         ),
     ] = None,
-    original_idx: tpx.Annotated[
-        int,
-        Option(
-            "--idx",
-            help="Original index of the model",
-        ),
-    ] = 0,
     data_seed: tpx.Annotated[
         int,
         Option(
@@ -529,7 +515,18 @@ def ftune(
             help="Seed for dataset prebatching",
         ),
     ] = 1234,
+    debug: tpx.Annotated[
+        bool,
+        Option(
+            "-g/-G",
+            "--debug/--no-debug",
+            help="Debug finetune run",
+        ),
+    ] = False,
 ) -> None:
+    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
+    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
+        raise ValueError("One of src_paths or dataset_name must be specified, but not both")
     if head_lr <= 0.0:
         raise ValueError(
             "Learning rate for the head of the model must be strictly positive"
@@ -543,11 +540,28 @@ def ftune(
     if num_head_layers < 1:
         raise ValueError("There must be at least one head layer")
 
-    # TODO: Do smth with the state dict
+    if name_or_idx in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
+        raise NotImplementedError("Builtin models not yet implemented")
+
+    pretrained_path = _select_run_path(name_or_idx, ftune=False, debug=debug)
+    pretrained_config_path = pretrained_path / "config.pkl"
+    if not pretrained_config_path.is_file():
+        raise ValueError(f"{pretrained_config_path} is not a valid config file")
+
+    with open(pretrained_config_path, mode="rb") as f:
+        pretrained_config = pickle.load(f)
+        original_idx = pretrained_config.ds.fold_idx
+
+    pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
+
+    if not pretrained_state_dict_path.is_file():
+        raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
+
     config = TrainConfig(
-        name=f"{name}-{original_idx}",
+        name=f"{name}-from_{original_idx}",
         ds=DatasetConfig(
-            src_paths=tuple(sorted(src_paths)),
+            name=dataset_name,
+            src_paths=src_paths,
             batch_size=batch_size,
             fold_idx="single",
             validation_frac=validation_frac,
@@ -560,7 +574,7 @@ def ftune(
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
         ),
-        model=ModelConfig(builder=builder),
+        model=pretrained_config.model,
         loss=LossConfig(
             terms_and_factors=(("Energies", 1.0),),
         ),
@@ -570,7 +584,7 @@ def ftune(
         ),
         scheduler=SchedulerConfig(),
         ftune=FinetuneConfig(
-            state_dict_path=state_dict_path,
+            state_dict_path=pretrained_state_dict_path,
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
         ),
