@@ -10,6 +10,7 @@ from pathlib import Path
 from typer import Option, Typer
 
 from ani_ftune.console import console
+from ani_ftune.utils import load_state_dict
 from ani_ftune.lit_training import train_from_scratch
 from ani_ftune.config import (
     FinetuneConfig,
@@ -184,16 +185,16 @@ def rm(
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")
-def delta(
-    original_model_path: tpx.Annotated[
+def compare(
+    pretrained_path: tpx.Annotated[
         Path,
         Option(
-            "-o",
-            "--original-state-dict",
+            "-p",
+            "--pretrained-state-dict",
             help="Path to the pretrained state dict .pt or .ckpt",
         ),
     ],
-    ftuned_model_path: tpx.Annotated[
+    ftuned_path: tpx.Annotated[
         Path,
         Option(
             "-f",
@@ -202,7 +203,22 @@ def delta(
         ),
     ],
 ) -> None:
-    raise NotImplementedError("Not implemented yet")
+    pretrained_state_dict = load_state_dict(pretrained_path)
+    ftuned_state_dict = load_state_dict(ftuned_path)
+    for k in pretrained_state_dict:
+        if "weight" in k or "bias" in k:
+            pretrained_param = pretrained_state_dict[k]
+            ftuned_param = ftuned_state_dict[k]
+            diff = pretrained_param - ftuned_param
+            if (diff == 0.0).all():
+                console.print(f"No difference found for param {k}")
+            else:
+                diff = diff.abs()
+                console.print(f"Difference found for param {k}")
+                console.print(f"Min abs diff: {diff.min()}")
+                console.print(f"Mean abs diff: {diff.mean()}")
+                console.print(f"Max abs diff: {diff.max()}")
+            console.print()
 
 
 @app.command(
