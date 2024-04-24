@@ -59,7 +59,7 @@ class LitModel(lightning.LightningModule):
                 j = 0
                 for layer in reversed(model.neural_networks[k]):
                     if isinstance(layer, torch.nn.Linear):
-                        if j <= num_head_layers:
+                        if j < num_head_layers:
                             j += 1
                             continue
                         module_list.append(layer)
