@@ -59,12 +59,10 @@ class LitModel(lightning.LightningModule):
                 j = 0
                 for layer in reversed(model.neural_networks[k]):
                     if isinstance(layer, torch.nn.Linear):
-                        j += 1
+                        if j <= num_head_layers:
+                            j += 1
+                            continue
                         module_list.append(layer)
-                        if j == num_head_layers:
-                            break
-            if not module_list:
-                raise ValueError("Backbone is empty")
         self.backbone = module_list
 
     def training_step(
