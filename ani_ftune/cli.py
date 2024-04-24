@@ -209,7 +209,7 @@ def compare(
         if "weight" in k or "bias" in k:
             pretrained_param = pretrained_state_dict[k]
             ftuned_param = ftuned_state_dict[k]
-            diff = (pretrained_param - ftuned_param)
+            diff = pretrained_param - ftuned_param
             if (diff == 0.0).all():
                 console.print(f"No difference found for param {k}")
             else:
