@@ -130,10 +130,17 @@ def restart(
         ),
     ] = False,
 ) -> None:
-    if ftune_name_or_idx and ptrain_name_or_idx or not (ftune_name_or_idx or ptrain_name_or_idx):
+    if (
+        ftune_name_or_idx
+        and ptrain_name_or_idx
+        or not (ftune_name_or_idx or ptrain_name_or_idx)
+    ):
         raise ValueError("One and only one of -f and -p should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
-    path = _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug) / "config.pkl"
+    path = (
+        _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
+        / "config.pkl"
+    )
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -195,7 +202,11 @@ def rm(
         ),
     ] = False,
 ) -> None:
-    if ftune_name_or_idx and ptrain_name_or_idx or not (ftune_name_or_idx or ptrain_name_or_idx):
+    if (
+        ftune_name_or_idx
+        and ptrain_name_or_idx
+        or not (ftune_name_or_idx or ptrain_name_or_idx)
+    ):
         raise ValueError("One and only one of -f and -p should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     path = _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
@@ -412,7 +423,13 @@ def train(
             help="Detect anomalies during training (has a performance penalty)",
         ),
     ] = False,
-    use_cuda_ops: tpx.Annotated[bool, Option("--cuda-ops/--no-cuda-ops", help="Use cuda acceleration",),] = True,
+    use_cuda_ops: tpx.Annotated[
+        bool,
+        Option(
+            "--cuda-ops/--no-cuda-ops",
+            help="Use cuda acceleration",
+        ),
+    ] = True,
     data_seed: tpx.Annotated[
         int,
         Option(
@@ -581,7 +598,13 @@ def ftune(
             help="Debug finetune run",
         ),
     ] = False,
-    use_cuda_ops: tpx.Annotated[bool, Option("--cuda-ops/--no-cuda-ops", help="Use cuda acceleration",),] = True,
+    use_cuda_ops: tpx.Annotated[
+        bool,
+        Option(
+            "--cuda-ops/--no-cuda-ops",
+            help="Use cuda acceleration",
+        ),
+    ] = True,
 ) -> None:
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
     if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
@@ -603,6 +626,7 @@ def ftune(
 
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
         from ani_ftune.model_builders import fetch_pretrained_config
+
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None
     else:
