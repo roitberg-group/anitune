@@ -28,7 +28,7 @@ from ani_ftune.config import (
 
 app = Typer(
     rich_markup_mode="markdown",
-    help=r"""## ANI-ftune
+    help=r"""## ANI
 
     Utility for generating a fine-tuned models from pre trained ANI style models,
     given a set of reference structures.
