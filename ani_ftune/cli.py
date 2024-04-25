@@ -1,5 +1,5 @@
 r"""Command line interface entrypoints"""
-
+import warnings
 import pickle
 import shutil
 import typing as tp
@@ -247,9 +247,11 @@ def compare(
         "aniala",
     ):
         model_name, idx = pretrained_name_or_idx.split(":")
-        from torchani import assembler
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from torchani import assembler
 
-        model = getattr(assembler, model_name.replace("ani", "ANI"))[int(idx)]
+        model = getattr(assembler, model_name.replace("ani", "ANI"))()[int(idx)]
         pretrained_state_dict = model.state_dict()
     else:
         pretrained_path = (
