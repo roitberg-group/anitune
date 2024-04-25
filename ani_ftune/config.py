@@ -29,7 +29,7 @@ class ConfigError(RuntimeError):
 
 @dataclass
 class FinetuneConfig:
-    state_dict_path: Path
+    state_dict_path: tp.Optional[Path]
     num_head_layers: int = 1
     backbone_lr: float = 0.0
 
@@ -39,6 +39,8 @@ class FinetuneConfig:
 
     @property
     def pretrained_state_dict(self) -> tp.Dict[str, tp.Any]:
+        if self.state_dict_path is None:
+            return {}
         return load_state_dict(self.state_dict_path)
 
 
@@ -89,7 +91,7 @@ class DatasetConfig:
 
 @dataclass
 class ModelConfig:
-    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str]], ...] = (
+    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = (
         ("repulsion", True),
         ("dispersion", False),
     )
@@ -115,7 +117,7 @@ class ModelConfig:
         return symbols
 
     @property
-    def kwargs_dict(self) -> tp.Dict[str, tp.Union[bool, int, float, str]]:
+    def kwargs_dict(self) -> tp.Dict[str, tp.Union[bool, int, float, str, None]]:
         return {k: v for k, v in self.kwargs}
 
 
