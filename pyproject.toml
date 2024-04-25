@@ -19,7 +19,7 @@
     documentation = "https://github.com/IgnacioJPickering/ani-ftune.git"
 
 [project.scripts]
-    anitune="ani_ftune.cli:app"
+    ani="ani_ftune.cli:app"
 
 # triggers using the scm version
 [tool.setuptools_scm]
