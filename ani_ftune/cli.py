@@ -269,20 +269,18 @@ def compare(
     help="Benchmark a (usually ftuned) ANI model, compare results with the original"
 )
 def bench(
-    original_model_path: tpx.Annotated[
-        Path,
+    pretrained_name_or_idx: tpx.Annotated[
+        str,
         Option(
-            "-o",
-            "--original-state-dict",
-            help="Path to the pretrained state dict .pt or .ckpt",
+            "-p",
+            help="Name or idx of the pretrained run",
         ),
     ],
-    ftuned_model_path: tpx.Annotated[
-        Path,
+    ftuned_name_or_idx: tpx.Annotated[
+        str,
         Option(
             "-f",
-            "--ftuned-state-dict",
-            help="Path to the finetuned state dict .pt or .ckpt file",
+            help="Name or idx of the finetuned run",
         ),
     ],
     test_paths: tpx.Annotated[
