@@ -28,7 +28,7 @@ from ani_ftune.config import (
 
 app = Typer(
     rich_markup_mode="markdown",
-    help=r"""## ANI-ftune
+    help=r"""## ANI
 
     Utility for generating a fine-tuned models from pre trained ANI style models,
     given a set of reference structures.
@@ -239,15 +239,28 @@ def compare(
         ),
     ] = False,
 ) -> None:
-    pretrained_path = (
-        _select_run_path(pretrained_name_or_idx, ftune=False, debug=debug)
-        / "best-model"
-    )
+    if pretrained_name_or_idx.split(":")[0] in (
+        "ani1x",
+        "ani2x",
+        "ani1ccx",
+        "anidr",
+        "aniala",
+    ):
+        model_name, idx = pretrained_name_or_idx.split(":")
+        from torchani import assembler
+
+        model = getattr(assembler, model_name.replace("ani", "ANI"))[int(idx)]
+        pretrained_state_dict = model.state_dict()
+    else:
+        pretrained_path = (
+            _select_run_path(pretrained_name_or_idx, ftune=False, debug=debug)
+            / "best-model"
+        )
+        pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
+
     ftuned_path = (
         _select_run_path(ftuned_name_or_idx, ftune=True, debug=debug) / "best-model"
     )
-
-    pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
     ftuned_state_dict = load_state_dict(ftuned_path / "best.ckpt")
     for k in pretrained_state_dict:
         if "weight" in k or "bias" in k:
@@ -622,11 +635,13 @@ def ftune(
     if num_head_layers < 1:
         raise ValueError("There must be at least one head layer")
 
+    pretrain_builtin: bool
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
         from ani_ftune.model_builders import fetch_pretrained_config
 
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None
+        pretrain_builtin = True
     else:
         pretrained_path = _select_run_path(name_or_idx, ftune=False, debug=debug)
         pretrained_config_path = pretrained_path / "config.pkl"
@@ -635,14 +650,20 @@ def ftune(
 
         with open(pretrained_config_path, mode="rb") as f:
             pretrained_config = pickle.load(f).model
+        pretrain_builtin = False
 
         pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
 
         if not pretrained_state_dict_path.is_file():
             raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
 
+    if pretrain_builtin:
+        run_name = f"{name}-from_{name_or_idx}"
+    else:
+        run_name = f"{name}-from_{pretrained_config.ds.fold_idx}"
+
     config = TrainConfig(
-        name=f"{name}-from_{pretrained_config.ds.fold_idx}",
+        name=run_name,
         ds=DatasetConfig(
             name=dataset_name,
             src_paths=src_paths,
