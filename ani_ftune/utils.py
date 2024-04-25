@@ -18,7 +18,7 @@ def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
     """
     import torch  # noqa
 
-    _state_dict = torch.load(path)
+    _state_dict = torch.load(path, map_location="cpu")
     if "state_dict" in _state_dict:
         _state_dict = _state_dict["state_dict"]
         return {
