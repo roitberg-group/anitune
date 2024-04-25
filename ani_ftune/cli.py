@@ -41,6 +41,7 @@ def clean(
     ftune: tpx.Annotated[
         bool,
         Option(
+            "-f/-F",
             "--ftune/--no-ftune",
             help="Clean ftune config",
         ),
@@ -48,7 +49,8 @@ def clean(
     train: tpx.Annotated[
         bool,
         Option(
-            "--train/--no-train",
+            "-p/-P",
+            "--pretrain/--no-pretrain",
             help="Clean train config",
         ),
     ] = True,
@@ -105,20 +107,20 @@ def _select_run_path(
 
 @app.command(help="Continue a previously started training")
 def restart(
-    name_or_idx: tpx.Annotated[
+    ftune_name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-i",
+            "-f",
             help="Name or idx of the run",
         ),
-    ],
-    ftune: tpx.Annotated[
-        bool,
+    ] = "",
+    ptrain_name_or_idx: tpx.Annotated[
+        str,
         Option(
-            "--ftune/--no-ftune",
-            help="Restart a finetuning run",
+            "-p",
+            help="Name or idx of the run",
         ),
-    ] = False,
+    ] = "",
     debug: tpx.Annotated[
         bool,
         Option(
@@ -128,7 +130,17 @@ def restart(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name_or_idx, ftune, debug) / "config.pkl"
+    if (
+        ftune_name_or_idx
+        and ptrain_name_or_idx
+        or not (ftune_name_or_idx or ptrain_name_or_idx)
+    ):
+        raise ValueError("One and only one of -f and -p should be specified")
+    name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
+    path = (
+        _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
+        / "config.pkl"
+    )
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -167,20 +179,20 @@ def ls() -> None:
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    name_or_idx: tpx.Annotated[
+    ftune_name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-i",
+            "-f",
             help="Name or idx of the run",
         ),
-    ],
-    ftune: tpx.Annotated[
-        bool,
+    ] = "",
+    ptrain_name_or_idx: tpx.Annotated[
+        str,
         Option(
-            "--ftune/--no-ftune",
-            help="Remove a finetuning run",
+            "-p",
+            help="Name or idx of the run",
         ),
-    ] = False,
+    ] = "",
     debug: tpx.Annotated[
         bool,
         Option(
@@ -190,7 +202,14 @@ def rm(
         ),
     ] = False,
 ) -> None:
-    path = _select_run_path(name_or_idx, ftune, debug)
+    if (
+        ftune_name_or_idx
+        and ptrain_name_or_idx
+        or not (ftune_name_or_idx or ptrain_name_or_idx)
+    ):
+        raise ValueError("One and only one of -f and -p should be specified")
+    name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
+    path = _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
     shutil.rmtree(path)
     console.print(f"Removed run {path.name}")
 
@@ -404,6 +423,13 @@ def train(
             help="Detect anomalies during training (has a performance penalty)",
         ),
     ] = False,
+    use_cuda_ops: tpx.Annotated[
+        bool,
+        Option(
+            "--cuda-ops/--no-cuda-ops",
+            help="Use cuda acceleration",
+        ),
+    ] = True,
     data_seed: tpx.Annotated[
         int,
         Option(
@@ -441,6 +467,7 @@ def train(
             limit=limit,
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
+            use_cuda_ops=use_cuda_ops,
         ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
@@ -458,7 +485,7 @@ def ftune(
         str,
         Option(
             "-p",
-            help="Name or idx of the pretrained run",
+            help="Name or idx of the pretrained run, alternatively, ani1x:idx, ani2x:idx, etc. is also supported",
         ),
     ],
     _src_paths: tpx.Annotated[
@@ -571,6 +598,13 @@ def ftune(
             help="Debug finetune run",
         ),
     ] = False,
+    use_cuda_ops: tpx.Annotated[
+        bool,
+        Option(
+            "--cuda-ops/--no-cuda-ops",
+            help="Use cuda acceleration",
+        ),
+    ] = True,
 ) -> None:
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
     if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
@@ -590,25 +624,27 @@ def ftune(
     if num_head_layers < 1:
         raise ValueError("There must be at least one head layer")
 
-    if name_or_idx in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        raise NotImplementedError("Builtin models not yet implemented")
+    if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
+        from ani_ftune.model_builders import fetch_pretrained_config
 
-    pretrained_path = _select_run_path(name_or_idx, ftune=False, debug=debug)
-    pretrained_config_path = pretrained_path / "config.pkl"
-    if not pretrained_config_path.is_file():
-        raise ValueError(f"{pretrained_config_path} is not a valid config file")
+        pretrained_config = fetch_pretrained_config(name_or_idx)
+        pretrained_state_dict_path = None
+    else:
+        pretrained_path = _select_run_path(name_or_idx, ftune=False, debug=debug)
+        pretrained_config_path = pretrained_path / "config.pkl"
+        if not pretrained_config_path.is_file():
+            raise ValueError(f"{pretrained_config_path} is not a valid config file")
 
-    with open(pretrained_config_path, mode="rb") as f:
-        pretrained_config = pickle.load(f)
-        original_idx = pretrained_config.ds.fold_idx
+        with open(pretrained_config_path, mode="rb") as f:
+            pretrained_config = pickle.load(f).model
 
-    pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
+        pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
 
-    if not pretrained_state_dict_path.is_file():
-        raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
+        if not pretrained_state_dict_path.is_file():
+            raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
 
     config = TrainConfig(
-        name=f"{name}-from_{original_idx}",
+        name=f"{name}-from_{pretrained_config.ds.fold_idx}",
         ds=DatasetConfig(
             name=dataset_name,
             src_paths=src_paths,
@@ -623,6 +659,7 @@ def ftune(
             limit=limit,
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
+            use_cuda_ops=use_cuda_ops,
         ),
         model=pretrained_config.model,
         loss=LossConfig(

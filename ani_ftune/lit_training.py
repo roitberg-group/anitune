@@ -37,7 +37,8 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         **config.model.kwargs_dict,
     )
     if config.ftune is not None:
-        model.load_state_dict(config.ftune.pretrained_state_dict)
+        if config.ftune.pretrained_state_dict:
+            model.load_state_dict(config.ftune.pretrained_state_dict)
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
     if not restart and config.path.is_dir():
