@@ -327,13 +327,21 @@ def train(
             help="Builder function",
         ),
     ] = "FlexibleANI",
+    _src_paths: tpx.Annotated[
+        tp.Optional[tp.List[Path]],
+        Option(
+            "-s",
+            "--data-path",
+            help="Paths to data to fine-tune the model with",
+        ),
+    ] = None,
     dataset_name: tpx.Annotated[
         str,
         Option(
             "--dataset",
             help="Builtin dataset name",
         ),
-    ] = "ANI1x",
+    ] = "",
     batch_size: tpx.Annotated[
         int,
         Option(
@@ -452,6 +460,11 @@ def train(
         ),
     ] = 1234,
 ) -> None:
+    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
+    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
+        raise ValueError(
+            "One of src_paths or dataset_name must be specified, but not both"
+        )
     fold_idx: tp.Union[str, int]
     try:
         fold_idx = int(_fold_idx)
@@ -465,11 +478,19 @@ def train(
         deterministic = True
         console.print("Setting anomaly detection for debugging purposes")
         detect_anomaly = True
+
+    loss_terms_and_factors: tp.Tuple[tp.Tuple[str, float], ...]
+    if forces:
+        loss_terms_and_factors = (("Energies", 1.0), ("Forces", 0.1))
+    else:
+        loss_terms_and_factors = (("Energies", 1.0),)
+
     config = TrainConfig(
         name=name,
         debug=debug,
         ds=DatasetConfig(
             name=dataset_name,
+            src_paths=src_paths,
             batch_size=batch_size,
             fold_idx=fold_idx,
             validation_frac=validation_frac,
@@ -485,7 +506,7 @@ def train(
         ),
         model=ModelConfig(builder=builder),
         loss=LossConfig(
-            terms_and_factors=(("Energies", 1.0),),
+            terms_and_factors=loss_terms_and_factors,
         ),
         optim=OptimizerConfig(lr=lr, weight_decay=weight_decay),
         scheduler=SchedulerConfig(),
