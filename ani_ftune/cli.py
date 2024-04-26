@@ -320,6 +320,13 @@ def train(
             help="Name of the run",
         ),
     ] = "run",
+    lot: tpx.Annotated[
+        str,
+        Option(
+            "--lot",
+            help="Level of theory",
+        ),
+    ] = "wb97x-631gd",
     builder: tpx.Annotated[
         str,
         Option(
@@ -496,6 +503,7 @@ def train(
         name=name,
         debug=debug,
         ds=DatasetConfig(
+            lot=lot,
             name=dataset_name,
             src_paths=src_paths,
             batch_size=batch_size,
@@ -531,6 +539,13 @@ def ftune(
             help="Name or idx of the pretrained run, alternatively, ani1x:idx, ani2x:idx, etc. is also supported",
         ),
     ],
+    lot: tpx.Annotated[
+        str,
+        Option(
+            "--lot",
+            help="Level of theory",
+        ),
+    ] = "wb97x-631gd",
     _src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
@@ -697,6 +712,7 @@ def ftune(
     config = TrainConfig(
         name=run_name,
         ds=DatasetConfig(
+            lot=lot,
             name=dataset_name,
             src_paths=src_paths,
             batch_size=batch_size,
