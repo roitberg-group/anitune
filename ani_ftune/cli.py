@@ -652,7 +652,7 @@ def ftune(
             raise ValueError(f"{pretrained_config_path} is not a valid config file")
 
         with open(pretrained_config_path, mode="rb") as f:
-            pretrained_config = pickle.load(f).model
+            pretrained_config = pickle.load(f)
         pretrain_builtin = False
 
         pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
