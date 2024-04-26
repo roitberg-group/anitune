@@ -443,7 +443,7 @@ def train(
             "--cuda-ops/--no-cuda-ops",
             help="Use cuda acceleration",
         ),
-    ] = True,
+    ] = False,
     data_seed: tpx.Annotated[
         int,
         Option(
