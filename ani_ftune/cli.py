@@ -356,6 +356,13 @@ def train(
             help="Fold idx",
         ),
     ] = "single",
+    folds: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--folds",
+            help="Number of folds to train an ensemble to",
+        ),
+    ] = None,
     train_frac: tpx.Annotated[
         float,
         Option(
@@ -493,6 +500,7 @@ def train(
             src_paths=src_paths,
             batch_size=batch_size,
             fold_idx=fold_idx,
+            folds=folds,
             validation_frac=validation_frac,
             train_frac=train_frac,
             shuffle_seed=data_seed,
