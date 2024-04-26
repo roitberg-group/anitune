@@ -60,6 +60,7 @@ def ReactionANI(
     angle_sections: int = 8,
     neighborlist: str = "full_pairwise",
     repulsion: bool = True,
+    dispersion: bool = False,
     use_cuda_ops: bool = False,
     periodic_table_index: bool = True,
 ) -> BuiltinModel:
