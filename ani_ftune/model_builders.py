@@ -67,7 +67,10 @@ def ReactionANI(
     from torchani import atomics
     from torchani.assembler import Assembler, _parse_cuda_ops
     from torchani.aev import AEVComputer, StandardRadial, StandardAngular
-    asm = Assembler(ensemble_size=ensemble_size, periodic_table_index=periodic_table_index)
+
+    asm = Assembler(
+        ensemble_size=ensemble_size, periodic_table_index=periodic_table_index
+    )
     asm.set_symbols(symbols)
     asm.set_global_cutoff_fn("smooth2")
 
@@ -89,7 +92,9 @@ def ReactionANI(
         ),
         extra=_parse_cuda_ops(use_cuda_ops),
     )
-    asm.set_atomic_maker(functools.partial(atomics.like_1x, activation=torch.nn.GELU(), bias=False))
+    asm.set_atomic_maker(
+        functools.partial(atomics.like_1x, activation=torch.nn.GELU(), bias=False)
+    )
     asm.set_neighborlist(neighborlist)
     asm.set_gsaes_as_self_energies(lot)
     if repulsion:
