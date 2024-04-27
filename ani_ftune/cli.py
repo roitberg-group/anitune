@@ -333,7 +333,21 @@ def train(
             "--builder",
             help="Builder function",
         ),
-    ] = "FlexibleANI",
+    ] = "FlexANI2",
+    repulsion_xtb: tpx.Annotated[
+        bool,
+        Option(
+            "--repulsion-xtb/--no-repulsion-xtb",
+            help="Add a repulsion XTB term to the model",
+        ),
+    ] = False,
+    dispersion_2body_d3: tpx.Annotated[
+        bool,
+        Option(
+            "--dispersion-2body-d3/--no-dispersion-2body-d3",
+            help="Add 2-body dispersion D3 term to the model",
+        ),
+    ] = False,
     _src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
@@ -520,7 +534,13 @@ def train(
             detect_anomaly=detect_anomaly,
             use_cuda_ops=use_cuda_ops,
         ),
-        model=ModelConfig(builder=builder),
+        model=ModelConfig(
+            builder=builder,
+            kwargs=(
+                ("dispersion_2body_d3", dispersion_2body_d3),
+                ("repulsion_xtb", repulsion_xtb),
+            ),
+        ),
         loss=LossConfig(
             terms_and_factors=loss_terms_and_factors,
         ),
