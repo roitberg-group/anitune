@@ -91,10 +91,7 @@ class DatasetConfig:
 
 @dataclass
 class ModelConfig:
-    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = (
-        ("repulsion", True),
-        ("dispersion", False),
-    )
+    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = ()
     builder: str = "FlexibleANI"
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
 
