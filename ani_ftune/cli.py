@@ -536,7 +536,10 @@ def train(
         ),
         model=ModelConfig(
             builder=builder,
-            kwargs=(("dispersion_2body_d3", dispersion_2body_d3), ("repulsion_xtb", repulsion_xtb)),
+            kwargs=(
+                ("dispersion_2body_d3", dispersion_2body_d3),
+                ("repulsion_xtb", repulsion_xtb),
+            ),
         ),
         loss=LossConfig(
             terms_and_factors=loss_terms_and_factors,
