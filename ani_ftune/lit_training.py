@@ -63,9 +63,6 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
             config.accel = accel
             restart = True
 
-    if restart:
-        console.print(f"Restarting run {config.path}")
-
     if ckpt_path.is_file():
         lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
     else:
@@ -86,6 +83,15 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
             plateau_patience=config.scheduler.patience,
             plateau_threshold=config.scheduler.threshold,
             num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
+        )
+
+    if restart:
+        console.print(f"Restarting run {config.path}")
+    else:
+        init_model_path = config.path / "init-model"
+        init_model_path.mkdir(exist_ok=False, parents=True)
+        torch.save(
+            {"state_dict": lit_model.load_state_dict()}, init_model_path / "init.ckpt"
         )
 
     kwargs: tp.Dict[str, tp.Any] = {

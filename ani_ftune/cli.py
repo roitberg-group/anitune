@@ -1,7 +1,6 @@
 r"""Command line interface entrypoints"""
 
 import json
-import warnings
 import pickle
 import shutil
 import typing as tp
@@ -368,22 +367,22 @@ def rm(
             console.print()
 
 
-@app.command(help="Compare the params of a ftuned model and the original model")
+@app.command(help="Compare the params of a trained model and the original model")
 def compare(
-    pretrained_name_or_idx: tpx.Annotated[
+    ptrained_name_or_idx: tpx.Annotated[
         str,
         Option(
             "-t",
             help="Name or idx of the pretrained run",
         ),
-    ],
+    ] = "",
     ftuned_name_or_idx: tpx.Annotated[
         str,
         Option(
             "-f",
             help="Name or idx of the finetuned run",
         ),
-    ],
+    ] = "",
     debug: tpx.Annotated[
         bool,
         Option(
@@ -393,42 +392,23 @@ def compare(
         ),
     ] = False,
 ) -> None:
-    if pretrained_name_or_idx.split(":")[0] in (
-        "ani1x",
-        "ani2x",
-        "ani1ccx",
-        "anidr",
-        "aniala",
+    if (not (ftuned_name_or_idx or ptrained_name_or_idx)) or (
+        ftuned_name_or_idx and ptrained_name_or_idx
     ):
-        model_name, idx = pretrained_name_or_idx.split(":")
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            from torchani import assembler
+        raise ValueError("One and only one of -t or -f has to be specified")
+    root = select_paths(
+        (ptrained_name_or_idx or ftuned_name_or_idx,),
+        kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
+    )[0]
+    trained_path = root / "best-model"
+    trained_state_dict = load_state_dict(trained_path / "best.ckpt")
+    init_path = root / "init-model"
+    init_state_dict = load_state_dict(init_path / "best.ckpt")
 
-        model = getattr(assembler, model_name.replace("ani", "ANI"))()[int(idx)]
-        pretrained_state_dict = model.state_dict()
-    else:
-        pretrained_path = (
-            select_paths(
-                (pretrained_name_or_idx,),
-                kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
-            )[0]
-            / "best-model"
-        )
-        pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
-
-    ftuned_path = (
-        select_paths(
-            (ftuned_name_or_idx,),
-            kind=DiskData.FTUNE if not debug else DiskData.DEBUG_FTUNE,
-        )[0]
-        / "best-model"
-    )
-    ftuned_state_dict = load_state_dict(ftuned_path / "best.ckpt")
-    for k in pretrained_state_dict:
+    for k in init_state_dict:
         if "weight" in k or "bias" in k:
-            pretrained_param = pretrained_state_dict[k]
-            ftuned_param = ftuned_state_dict[k]
+            pretrained_param = init_state_dict[k]
+            ftuned_param = trained_state_dict[k]
             diff = pretrained_param - ftuned_param
             if (diff == 0.0).all():
                 console.print(f"No difference found for param {k}")
