@@ -520,13 +520,6 @@ def train(
             help="Fold idx",
         ),
     ] = "single",
-    xc: tpx.Annotated[
-        bool,
-        Option(
-            "--xc/--no-xc",
-            help="Train to exchange-correlation energies",
-        ),
-    ] = False,
     lr: tpx.Annotated[
         float,
         Option(
@@ -541,6 +534,20 @@ def train(
             help="Weight decay for optimizer",
         ),
     ] = 1e-7,
+    xc: tpx.Annotated[
+        bool,
+        Option(
+            "--xc/--no-xc",
+            help="Train to exchange-correlation energies",
+        ),
+    ] = False,
+    sqrt_atoms: tpx.Annotated[
+        bool,
+        Option(
+            "--sqrt-atoms/--no-sqrt-atoms",
+            help="Use sqrt atoms in energies",
+        ),
+    ] = False,
     energies: tpx.Annotated[
         float,
         Option(
@@ -549,13 +556,6 @@ def train(
             help="Train with energies",
         ),
     ] = 1.0,
-    sqrt_atoms: tpx.Annotated[
-        bool,
-        Option(
-            "--sqrt-atoms/--no-sqrt-atoms",
-            help="Use sqrt atoms in energies",
-        ),
-    ] = False,
     forces: tpx.Annotated[
         float,
         Option(
@@ -757,6 +757,60 @@ def ftune(
             help="Weight decay",
         ),
     ] = 1e-7,
+    xc: tpx.Annotated[
+        bool,
+        Option(
+            "--xc/--no-xc",
+            help="Train to exchange-correlation energies",
+        ),
+    ] = False,
+    sqrt_atoms: tpx.Annotated[
+        bool,
+        Option(
+            "--sqrt-atoms/--no-sqrt-atoms",
+            help="Use sqrt atoms in energies",
+        ),
+    ] = False,
+    energies: tpx.Annotated[
+        float,
+        Option(
+            "-e",
+            "--energies-factor",
+            help="Train with energies",
+        ),
+    ] = 1.0,
+    forces: tpx.Annotated[
+        float,
+        Option(
+            "-f",
+            "--forces-factor",
+            help="Train with forces",
+        ),
+    ] = 0.0,
+    dipoles: tpx.Annotated[
+        float,
+        Option(
+            "-m",
+            "--dipoles-factor",
+            help="Train with dipoles",
+        ),
+    ] = 0.0,
+    atomic_charges: tpx.Annotated[
+        float,
+        Option(
+            "-a",
+            "--atomic-charges-factor",
+            help="Train with atomic charges",
+        ),
+    ] = 0.0,
+    total_charge: tpx.Annotated[
+        float,
+        Option(
+            "-q",
+            "--total-charge-factor",
+            help="Train with total charge",
+        ),
+    ] = 0.0,
     deterministic: tpx.Annotated[
         bool,
         Option(
@@ -844,6 +898,21 @@ def ftune(
     else:
         run_name = f"{name}-from_{pretrained_config.ds.fold_idx}"
 
+    terms_and_factors: tp.List[tp.Tuple[str, float]] = []
+    if energies > 0.0:
+        label = "EnergiesXC" if xc else "Energies"
+        terms_and_factors.append(
+            (label if not sqrt_atoms else f"{label}SqrtAtoms", energies)
+        )
+    if forces > 0.0:
+        terms_and_factors.append(("Forces", forces))
+    if dipoles > 0.0:
+        terms_and_factors.append(("Dipoles", dipoles))
+    if atomic_charges > 0.0:
+        terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if total_charge > 0.0:
+        terms_and_factors.append(("TotalCharge", total_charge))
+
     config = TrainConfig(
         name=run_name,
         ds=ds_config,
@@ -856,7 +925,7 @@ def ftune(
         ),
         model=pretrained_config.model,
         loss=LossConfig(
-            terms_and_factors=(("Energies", 1.0),),
+            terms_and_factors=tuple(terms_and_factors),
         ),
         optim=OptimizerConfig(
             lr=head_lr,
