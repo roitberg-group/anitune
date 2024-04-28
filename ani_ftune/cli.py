@@ -392,14 +392,14 @@ def compare(
         ),
     ] = False,
 ) -> None:
-    if (not (ftuned_name_or_idx or ptrained_name_or_idx)) or (ftuned_name_or_idx and ptrained_name_or_idx):
+    if (not (ftuned_name_or_idx or ptrained_name_or_idx)) or (
+        ftuned_name_or_idx and ptrained_name_or_idx
+    ):
         raise ValueError("One and only one of -t or -f has to be specified")
-    root = (
-        select_paths(
-            (ptrained_name_or_idx or ftuned_name_or_idx,),
-            kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
-        )[0]
-    )
+    root = select_paths(
+        (ptrained_name_or_idx or ftuned_name_or_idx,),
+        kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
+    )[0]
     trained_path = root / "best-model"
     trained_state_dict = load_state_dict(trained_path / "best.ckpt")
     init_path = root / "init-model"

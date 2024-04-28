@@ -90,7 +90,9 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     else:
         init_model_path = config.path / "init-model"
         init_model_path.mkdir(exist_ok=False, parents=True)
-        torch.save({"state_dict": lit_model.load_state_dict()}, init_model_path / "init.ckpt")
+        torch.save(
+            {"state_dict": lit_model.load_state_dict()}, init_model_path / "init.ckpt"
+        )
 
     kwargs: tp.Dict[str, tp.Any] = {
         "num_workers": config.accel.num_workers,
