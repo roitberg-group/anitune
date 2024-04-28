@@ -629,7 +629,13 @@ def train(
             help="Train with energies",
         ),
     ] = 1.0,
-    sqrt_atoms: tpx.Annotated[bool, Option("--sqrt-atoms/--no-sqrt-atoms", help="Use sqrt atoms in energies",),] = False,
+    sqrt_atoms: tpx.Annotated[
+        bool,
+        Option(
+            "--sqrt-atoms/--no-sqrt-atoms",
+            help="Use sqrt atoms in energies",
+        ),
+    ] = False,
     forces: tpx.Annotated[
         float,
         Option(
@@ -707,7 +713,9 @@ def train(
     ] = 1234,
 ) -> None:
     if batch_name_or_idx is not None:
-        batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskDataKind.BATCH)[0]
+        batched_dataset_path = _select_paths(
+            (batch_name_or_idx,), kind=DiskDataKind.BATCH
+        )[0]
         ds_config_path = batched_dataset_path / "ds_config.pkl"
         with open(ds_config_path, mode="rb") as f:
             ds_config = pickle.load(f)
@@ -748,7 +756,9 @@ def train(
     terms_and_factors: tp.List[tp.Tuple[str, float]] = []
     if energies > 0.0:
         label = "EnergiesXC" if xc else "Energies"
-        terms_and_factors.append((label if not sqrt_atoms else f"{label}SqrtAtoms", energies))
+        terms_and_factors.append(
+            (label if not sqrt_atoms else f"{label}SqrtAtoms", energies)
+        )
     if forces > 0.0:
         terms_and_factors.append(("Forces", forces))
     if dipoles > 0.0:
