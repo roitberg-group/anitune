@@ -11,6 +11,10 @@ from ani_ftune.config import TrainConfig
 
 
 def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
+    r"""
+    Train an ANI-style model
+    """
+
     import torch  # noqa
     import lightning  # noqa
     from lightning.pytorch.callbacks import (  # noqa

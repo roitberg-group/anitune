@@ -39,6 +39,10 @@ class ConfigError(RuntimeError):
 
 @dataclass
 class FinetuneConfig:
+    r"""
+    ftune-specific configurations
+    """
+
     state_dict_path: tp.Optional[Path]
     num_head_layers: int = 1
     backbone_lr: float = 0.0
@@ -57,6 +61,10 @@ class FinetuneConfig:
 # Dataset parameters
 @dataclass
 class DatasetConfig:
+    r"""
+    dataset-specific configurations
+    """
+
     fold_idx: tp.Union[int, str] = "single"
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
@@ -110,6 +118,10 @@ class DatasetConfig:
 
 @dataclass
 class ModelConfig:
+    r"""
+    model-specific configurations
+    """
+
     kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = ()
     builder: str = "FlexibleANI"
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
