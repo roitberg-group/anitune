@@ -5,7 +5,7 @@ import typing as tp
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ani_ftune.utils import DATA_ELEMENTS, load_state_dict
+from ani_ftune.utils import load_state_dict
 
 
 _BATCH_PATH = Path.home().joinpath(".local/torchani/Batched")
@@ -100,24 +100,6 @@ class ModelConfig:
     kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = ()
     builder: str = "FlexibleANI"
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
-
-    def get_symbols(
-        self, ds_name: str = "", basis_set: str = "", functional: str = ""
-    ) -> tp.Tuple[str, ...]:
-        from torchani import datasets  # noqa
-
-        if self.symbols is not None:
-            return self.symbols
-        print("Fetching present chemical symbols from dataset...")
-        symbols = DATA_ELEMENTS.get(ds_name)
-        if symbols is not None:
-            return symbols
-        ds = getattr(datasets, ds_name)(
-            skip_check=True, basis_set=basis_set, functional=functional, verbose=False
-        )
-        symbols = tuple(ds.present_elements(chem_symbols=True))
-        print(f"Found {symbols}")
-        return symbols
 
     @property
     def kwargs_dict(self) -> tp.Dict[str, tp.Union[bool, int, float, str, None]]:

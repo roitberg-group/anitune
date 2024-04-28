@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 import pickle
 import sys
@@ -24,16 +25,17 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     from ani_ftune.lit_models import LitModel  # noqa
     from ani_ftune import model_builders  # noqa
     from ani_ftune import losses  # noqa
-    from ani_ftune.batching import batch  # noqa
     from ani_ftune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
+
+    if not config.ds.path.exists():
+        raise RuntimeError("Dataset does not exist")
+
+    with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
+        symbols = json.load(f)["symbols"]
 
     model = getattr(model_builders, config.model.builder)(
         lot=config.ds.lot,
-        symbols=config.model.get_symbols(
-            config.ds.name,
-            basis_set=config.ds.basis_set,
-            functional=config.ds.functional,
-        ),
+        symbols=config.model.symbols if config.model.symbols is not None else symbols,
         use_cuda_ops=config.accel.use_cuda_ops,
         **config.model.kwargs_dict,
     )
@@ -81,9 +83,6 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
             plateau_threshold=config.scheduler.threshold,
             num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
         )
-
-    if not config.ds.path.exists():
-        batch(config.ds, config.accel.max_batches_per_packet)
 
     kwargs: tp.Dict[str, tp.Any] = {
         "num_workers": config.accel.num_workers,
