@@ -6,7 +6,7 @@ import typing as tp
 from rich.prompt import Confirm
 
 from ani_ftune.console import console
-from ani_ftune.config import TrainConfig, ConfigError
+from ani_ftune.config import TrainConfig
 
 
 def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
@@ -24,6 +24,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     from ani_ftune.lit_models import LitModel  # noqa
     from ani_ftune import model_builders  # noqa
     from ani_ftune import losses  # noqa
+    from ani_ftune.batching import batch  # noqa
     from ani_ftune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
 
     model = getattr(model_builders, config.model.builder)(
@@ -82,39 +83,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         )
 
     if not config.ds.path.exists():
-        split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
-        if config.ds.folds is not None:
-            if config.ds.train_frac != 0.8 or config.ds.validation_frac != 0.2:
-                raise ConfigError(
-                    "Train and val frac can't be set if training to folds"
-                )
-            if not isinstance(config.ds.fold_idx, int):
-                raise ConfigError("A fold idx must be present when training to folds")
-            split_kwargs = {"folds": config.ds.folds}
-        else:
-            split_kwargs = {"splits": config.ds.split_dict}
-
-        if config.ds.src_paths:
-            ds = datasets.ANIDataset(locations=config.ds.src_paths)
-            if config.ds.name:
-                raise ValueError(
-                    "Dataset name should not be set if custom source paths are specified"
-                )
-
-        else:
-            ds = getattr(datasets, config.ds.name)(
-                skip_check=True,
-                functional=config.ds.functional,
-                basis_set=config.ds.basis_set,
-            )
-        datasets.create_batched_dataset(
-            locations=ds,
-            max_batches_per_packet=config.accel.max_batches_per_packet,
-            dest_path=config.ds.path,
-            batch_size=config.ds.batch_size,
-            shuffle_seed=config.ds.shuffle_seed,
-            **split_kwargs,
-        )
+        batch(config.ds, config.accel.max_batches_per_packet)
 
     kwargs: tp.Dict[str, tp.Any] = {
         "num_workers": config.accel.num_workers,
