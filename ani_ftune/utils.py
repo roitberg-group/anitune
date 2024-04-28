@@ -1,5 +1,19 @@
+from enum import Enum
 import typing as tp
 from pathlib import Path
+
+
+class DisambiguationError(RuntimeError):
+    pass
+
+
+class DiskDataKind(Enum):
+    TRAIN = "train"
+    FTUNE = "ftune"
+    DEBUG_TRAIN = "debug-train"
+    DEBUG_FTUNE = "debug-ftune"
+    BATCH = "batch"
+
 
 DATA_ELEMENTS = {
     "ANI1x": ("H", "C", "N", "O"),

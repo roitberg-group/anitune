@@ -10,7 +10,7 @@ from pathlib import Path
 from typer import Option, Typer
 
 from ani_ftune.console import console
-from ani_ftune.utils import load_state_dict
+from ani_ftune.utils import load_state_dict, DiskDataKind, DisambiguationError
 from ani_ftune.lit_training import train_from_scratch
 from ani_ftune.config import (
     FinetuneConfig,
@@ -25,6 +25,7 @@ from ani_ftune.config import (
     _DEBUG_FTUNE_PATH,
     _TRAIN_PATH,
     _FTUNE_PATH,
+    _BATCH_PATH,
 )
 
 app = Typer(
@@ -35,6 +36,86 @@ app = Typer(
     given a set of reference structures.
     """,
 )
+
+
+@app.command(help="Prebatch a dataset")
+def prebatch(
+    lot: tpx.Annotated[
+        str,
+        Option(
+            "--lot",
+            help="Level of theory",
+        ),
+    ] = "wb97x-631gd",
+    _src_paths: tpx.Annotated[
+        tp.Optional[tp.List[Path]],
+        Option(
+            "-s",
+            "--data-path",
+            help="Paths to data to fine-tune the model with",
+        ),
+    ] = None,
+    dataset_name: tpx.Annotated[
+        str,
+        Option(
+            "--dataset",
+            help="Builtin dataset name",
+        ),
+    ] = "",
+    batch_size: tpx.Annotated[
+        int,
+        Option(
+            "--batch-size",
+            help="Batch size",
+        ),
+    ] = 2560,
+    folds: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--folds",
+            help="Number of folds to train an ensemble to",
+        ),
+    ] = None,
+    train_frac: tpx.Annotated[
+        float,
+        Option(
+            "--train-frac",
+            help="Training set fraction",
+        ),
+    ] = 0.8,
+    validation_frac: tpx.Annotated[
+        float,
+        Option(
+            "--validation-frac",
+            help="Validation set fraction",
+        ),
+    ] = 0.2,
+    data_seed: tpx.Annotated[
+        int,
+        Option(
+            "--data-seed",
+            help="Seed for dataset prebatching",
+        ),
+    ] = 1234,
+) -> None:
+    from ani_ftune.batching import batch
+    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
+    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
+        raise ValueError(
+            "One of src_paths or dataset_name must be specified, but not both"
+        )
+    ds = DatasetConfig(
+        lot=lot,
+        name=dataset_name,
+        src_paths=src_paths,
+        batch_size=batch_size,
+        fold_idx=-1,
+        folds=folds,
+        validation_frac=validation_frac,
+        train_frac=train_frac,
+        shuffle_seed=data_seed,
+    )
+    batch(ds, max_batches_per_packet=100)
 
 
 @app.command(help="Clean debug runs")
@@ -72,38 +153,38 @@ def clean(
             console.print("No debug finetuning runs to clean")
 
 
-def _select_run_path(
-    name_or_idx: str,
-    ftune: bool = False,
-    debug: bool = False,
-) -> Path:
-    try:
-        name = ""
-        idx = int(name_or_idx)
-    except ValueError:
-        name = name_or_idx
-        idx = None
-
-    if debug:
-        root = _DEBUG_FTUNE_PATH if ftune else _DEBUG_TRAIN_PATH
+def _select_paths(
+    names_or_idxs: tp.Iterable[str],
+    kind: DiskDataKind = DiskDataKind.TRAIN,
+) -> tp.List[Path]:
+    root: Path
+    if DiskDataKind is DiskDataKind.TRAIN:
+        root = _TRAIN_PATH
+    elif DiskDataKind is DiskDataKind.FTUNE:
+        root = _FTUNE_PATH
+    elif DiskDataKind is DiskDataKind.DEBUG_FTUNE:
+        root = _DEBUG_FTUNE_PATH
+    elif DiskDataKind is DiskDataKind.DEBUG_TRAIN:
+        root = _DEBUG_TRAIN_PATH
     else:
-        root = _FTUNE_PATH if ftune else _TRAIN_PATH
-
-    if idx is not None:
+        root = _BATCH_PATH
+    sorted_paths = sorted(root.iterdir())
+    selected_paths = []
+    for name_or_idx in names_or_idxs:
         try:
-            path = sorted(root.iterdir())[idx]
-        except IndexError:
-            raise ValueError(
-                f"Run {'ftune' if ftune else 'train'}-{idx} could not be found"
-            ) from None
-    else:
-        for p in sorted(root.iterdir()):
-            if p.name == name:
-                path = p
-                break
-        else:
-            raise ValueError(f"Run {name} could not be found") from None
-    return path
+            idx = int(name_or_idx)
+            if idx > len(sorted_paths) or idx < 0:
+                raise RuntimeError(f"Index {idx} invalid")
+            selected_paths.append(sorted_paths[idx])
+        except ValueError:
+            paths = [p for p in sorted_paths if p.name.startswith(name_or_idx)]
+            if not paths:
+                raise RuntimeError(f"No paths starting with name {name_or_idx} found") from None
+            elif len(paths) > 1:
+                raise DisambiguationError(f"More than one path starts with {name_or_idx}") from None
+            else:
+                selected_paths.append(paths[0])
+    return selected_paths
 
 
 @app.command(help="Continue a previously started training")
@@ -138,10 +219,12 @@ def restart(
     ):
         raise ValueError("One and only one of -f and -p should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
-    path = (
-        _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
-        / "config.pkl"
-    )
+    if debug:
+        kind = DiskDataKind.DEBUG_FTUNE if ftune_name_or_idx else DiskDataKind.DEBUG_TRAIN
+    else:
+        kind = DiskDataKind.FTUNE if ftune_name_or_idx else DiskDataKind.TRAIN
+
+    path = _select_paths((name_or_idx,), kind=kind)[0] / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -153,6 +236,7 @@ def restart(
 
 @app.command(help="Display training and finetuning runs")
 def ls() -> None:
+    batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
     ftune = sorted(_FTUNE_PATH.iterdir())
     debug_train = sorted(_DEBUG_TRAIN_PATH.iterdir())
@@ -161,9 +245,9 @@ def ls() -> None:
     if train or debug_train:
         console.print("Training runs:")
         for j, p in enumerate(train):
-            console.print(f"{j}. {p.name}", style="green")
+            console.print(f"{j}. {p.name}", style="green", highlight=False)
         for j, p in enumerate(debug_train):
-            console.print(f"(debug) {j}. {p.name}", style="yellow")
+            console.print(f"(debug) {j}. {p.name}", style="yellow", highlight=False)
     else:
         console.print("(No training runs found)")
 
@@ -171,48 +255,69 @@ def ls() -> None:
     if ftune or debug_ftune:
         console.print("Finetuning runs:")
         for j, p in enumerate(ftune):
-            console.print(f"{j}. {p.name}", style="blue")
+            console.print(f"[bold]{j}[/bold]. {p.name}", style="blue", highlight=False)
         for j, p in enumerate(debug_ftune):
-            console.print(f"(debug) {j}. {p.name}", style="yellow")
+            console.print(f"(debug) [bold]{j}[/bold]. {p.name}", style="yellow", highlight=False)
     else:
         console.print("(No finetuning runs found)")
+
+    console.print()
+    if batch:
+        console.print("Batched datasets:")
+        for j, p in enumerate(batch):
+            console.print(f"[bold]{j}[/bold]. {p.name}", style="magenta", highlight=False)
+    else:
+        console.print("(No batched datasets found)")
 
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
+    debug_ftune_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--df",
+            help="Name or idx of the run debug finetune",
+        ),
+    ] = None,
+    debug_ptrain_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--dp",
+            help="Name or idx of the run debug pretrain",
+        ),
+    ] = None,
     ftune_name_or_idx: tpx.Annotated[
-        str,
+        tp.Optional[tp.List[str]],
         Option(
             "-f",
-            help="Name or idx of the run",
+            help="Name or idx of the finetune run",
         ),
-    ] = "",
+    ] = None,
     ptrain_name_or_idx: tpx.Annotated[
-        str,
+        tp.Optional[tp.List[str]],
         Option(
             "-p",
-            help="Name or idx of the run",
+            help="Name or idx of the pretrain run",
         ),
-    ] = "",
-    debug: tpx.Annotated[
-        bool,
+    ] = None,
+    batch_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
         Option(
-            "-g/-G",
-            "--debug/--no-debug",
-            help="Remove a single debug run",
+            "-b",
+            help="Name or idx of the batched dataset",
         ),
-    ] = False,
+    ] = None,
 ) -> None:
-    if (
-        ftune_name_or_idx
-        and ptrain_name_or_idx
-        or not (ftune_name_or_idx or ptrain_name_or_idx)
+    for selectors, dkind in zip(
+        (debug_ftune_name_or_idx, debug_ptrain_name_or_idx, ftune_name_or_idx, ptrain_name_or_idx, batch_name_or_idx),
+        (DiskDataKind.DEBUG_FTUNE, DiskDataKind.DEBUG_TRAIN, DiskDataKind.FTUNE, DiskDataKind.TRAIN, DiskDataKind.BATCH),
     ):
-        raise ValueError("One and only one of -f and -p should be specified")
-    name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
-    path = _select_run_path(name_or_idx, ftune=bool(ftune_name_or_idx), debug=debug)
-    shutil.rmtree(path)
-    console.print(f"Removed run {path.name}")
+        if selectors is not None:
+            paths = _select_paths(selectors, kind=dkind)
+            for p in paths:
+                shutil.rmtree(p)
+                console.print(f"Removed {p.name}")
+            console.print()
 
 
 @app.command(help="Compare the params of a ftuned model and the original model")
@@ -256,13 +361,14 @@ def compare(
         pretrained_state_dict = model.state_dict()
     else:
         pretrained_path = (
-            _select_run_path(pretrained_name_or_idx, ftune=False, debug=debug)
+            _select_paths((pretrained_name_or_idx,), kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN)[0]
             / "best-model"
         )
         pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
 
     ftuned_path = (
-        _select_run_path(ftuned_name_or_idx, ftune=True, debug=debug) / "best-model"
+        _select_paths((ftuned_name_or_idx,), kind=DiskDataKind.FTUNE if not debug else DiskDataKind.DEBUG_FTUNE)[0]
+        / "best-model"
     )
     ftuned_state_dict = load_state_dict(ftuned_path / "best.ckpt")
     for k in pretrained_state_dict:
@@ -412,38 +518,46 @@ def train(
             help="Weight decay for optimizer",
         ),
     ] = 1e-7,
-    forces: tpx.Annotated[
-        bool,
+    energies: tpx.Annotated[
+        float,
         Option(
-            "-f/-F",
-            "--force/--no-force",
+            "-e",
+            "--energies-factor",
+            help="Train with energies",
+        ),
+    ] = 1.0,
+    forces: tpx.Annotated[
+        float,
+        Option(
+            "-f",
+            "--forces-factor",
             help="Train with forces",
         ),
-    ] = False,
+    ] = 0.0,
     dipoles: tpx.Annotated[
-        bool,
+        float,
         Option(
-            "-d/-D",
-            "--dipoles/--no-dipoles",
+            "-d",
+            "--dipoles-factor",
             help="Train with dipoles",
         ),
-    ] = False,
+    ] = 0.0,
     atomic_charges: tpx.Annotated[
-        bool,
+        float,
         Option(
-            "-a/-A",
-            "--atomic-charges/--no-atomic-charges",
+            "-a",
+            "--atomic-charges-factor",
             help="Train with atomic charges",
         ),
-    ] = False,
+    ] = 0.0,
     total_charge: tpx.Annotated[
-        bool,
+        float,
         Option(
-            "-q/-Q",
-            "--total-charge/--no-total-charge",
+            "-q",
+            "--total-charge-factor",
             help="Train with total charge",
         ),
-    ] = False,
+    ] = 0.0,
     debug: tpx.Annotated[
         bool,
         Option(
@@ -507,11 +621,17 @@ def train(
         console.print("Setting anomaly detection for debugging purposes")
         detect_anomaly = True
 
-    loss_terms_and_factors: tp.Tuple[tp.Tuple[str, float], ...]
-    if forces:
-        loss_terms_and_factors = (("Energies", 1.0), ("Forces", 0.1))
-    else:
-        loss_terms_and_factors = (("Energies", 1.0),)
+    terms_and_factors: tp.List[tp.Tuple[str, float]] = []
+    if energies > 0.0:
+        terms_and_factors.append(("Energies", energies))
+    if forces > 0.0:
+        terms_and_factors.append(("Forces", forces))
+    if dipoles > 0.0:
+        terms_and_factors.append(("Dipoles", dipoles))
+    if atomic_charges > 0.0:
+        terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if total_charge > 0.0:
+        terms_and_factors.append(("TotalCharge", total_charge))
 
     config = TrainConfig(
         name=name,
@@ -542,7 +662,7 @@ def train(
             ),
         ),
         loss=LossConfig(
-            terms_and_factors=loss_terms_and_factors,
+            terms_and_factors=tuple(terms_and_factors),
         ),
         optim=OptimizerConfig(lr=lr, weight_decay=weight_decay),
         scheduler=SchedulerConfig(),
@@ -710,7 +830,7 @@ def ftune(
         pretrained_state_dict_path = None
         pretrain_builtin = True
     else:
-        pretrained_path = _select_run_path(name_or_idx, ftune=False, debug=debug)
+        pretrained_path = _select_paths((name_or_idx,), kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN)[0]
         pretrained_config_path = pretrained_path / "config.pkl"
         if not pretrained_config_path.is_file():
             raise ValueError(f"{pretrained_config_path} is not a valid config file")
