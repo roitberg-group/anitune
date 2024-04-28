@@ -12,9 +12,10 @@ from typer import Option, Typer
 from rich.table import Table
 
 from ani_ftune.console import console
-from ani_ftune.utils import load_state_dict, DiskData, DisambiguationError
+from ani_ftune.utils import DiskData, select_paths
 from ani_ftune.lit_training import train_from_scratch
 from ani_ftune.config import (
+    load_state_dict,
     FinetuneConfig,
     TrainConfig,
     DatasetConfig,
@@ -157,44 +158,6 @@ def clean() -> None:
         console.print("No debug finetuning runs to clean")
 
 
-def _select_paths(
-    names_or_idxs: tp.Iterable[str],
-    kind: DiskData = DiskData.TRAIN,
-) -> tp.List[Path]:
-    root: Path
-    if kind is DiskData.TRAIN:
-        root = _TRAIN_PATH
-    elif kind is DiskData.FTUNE:
-        root = _FTUNE_PATH
-    elif kind is DiskData.DEBUG_FTUNE:
-        root = _DEBUG_FTUNE_PATH
-    elif kind is DiskData.DEBUG_TRAIN:
-        root = _DEBUG_TRAIN_PATH
-    else:
-        root = _BATCH_PATH
-    sorted_paths = sorted(root.iterdir())
-    selected_paths = []
-    for name_or_idx in names_or_idxs:
-        try:
-            idx = int(name_or_idx)
-            if idx > len(sorted_paths) or idx < 0:
-                raise RuntimeError(f"Index {idx} invalid")
-            selected_paths.append(sorted_paths[idx])
-        except ValueError:
-            paths = [p for p in sorted_paths if p.name.startswith(name_or_idx)]
-            if not paths:
-                raise RuntimeError(
-                    f"No paths starting with name {name_or_idx} found"
-                ) from None
-            elif len(paths) > 1:
-                raise DisambiguationError(
-                    f"More than one path starts with {name_or_idx}"
-                ) from None
-            else:
-                selected_paths.append(paths[0])
-    return selected_paths
-
-
 @app.command(help="Continue a previously started training")
 def restart(
     ftune_name_or_idx: tpx.Annotated[
@@ -234,7 +197,7 @@ def restart(
     else:
         kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
 
-    path = _select_paths((name_or_idx,), kind=kind)[0] / "config.pkl"
+    path = select_paths((name_or_idx,), kind=kind)[0] / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -394,7 +357,7 @@ def rm(
         ),
     ):
         if selectors is not None:
-            paths = _select_paths(selectors, kind=dkind)
+            paths = select_paths(selectors, kind=dkind)
             for p in paths:
                 shutil.rmtree(p)
                 console.print(f"Removed {p.name}")
@@ -442,7 +405,7 @@ def compare(
         pretrained_state_dict = model.state_dict()
     else:
         pretrained_path = (
-            _select_paths(
+            select_paths(
                 (pretrained_name_or_idx,),
                 kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
             )[0]
@@ -451,7 +414,7 @@ def compare(
         pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
 
     ftuned_path = (
-        _select_paths(
+        select_paths(
             (ftuned_name_or_idx,),
             kind=DiskData.FTUNE if not debug else DiskData.DEBUG_FTUNE,
         )[0]
@@ -670,7 +633,7 @@ def train(
         ),
     ] = 1234,
 ) -> None:
-    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
+    batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -832,7 +795,7 @@ def ftune(
         ),
     ] = False,
 ) -> None:
-    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
+    batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -859,7 +822,7 @@ def ftune(
         pretrained_state_dict_path = None
         pretrain_builtin = True
     else:
-        pretrained_path = _select_paths(
+        pretrained_path = select_paths(
             (name_or_idx,),
             kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
         )[0]
