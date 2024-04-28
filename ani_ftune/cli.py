@@ -57,14 +57,15 @@ def prebatch(
             help="Paths to data to fine-tune the model with",
         ),
     ] = None,
-    dataset_name: tpx.Annotated[
-        str,
+    _data_names: tpx.Annotated[
+        tp.Optional[tp.List[str]],
         Option(
             "-d",
-            "--dataset",
+            "--data-name",
             help="Builtin dataset name",
         ),
-    ] = "",
+    ] = None,
+    _properties: tpx.Annotated[tp.Optional[tp.List[str]], Option("-p", "--property", help="Properties to prebatch, all by default",),] = None,
     batch_size: tpx.Annotated[
         int,
         Option(
@@ -102,15 +103,13 @@ def prebatch(
     ] = 1234,
 ) -> None:
     from ani_ftune.batching import batch
-
+    properties = () if _properties is None else tuple(sorted(_properties))
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
-    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
-        raise ValueError(
-            "One of src_paths or dataset_name must be specified, but not both"
-        )
+    data_names = () if _data_names is None else tuple(sorted(_data_names))
     ds = DatasetConfig(
         lot=lot,
-        name=dataset_name,
+        properties=properties,
+        data_names=data_names,
         src_paths=src_paths,
         batch_size=batch_size,
         fold_idx=-1,
@@ -135,7 +134,7 @@ def clean(
     train: tpx.Annotated[
         bool,
         Option(
-            "-p/-P",
+            "-t/-T",
             "--pretrain/--no-pretrain",
             help="Clean train config",
         ),
@@ -207,7 +206,7 @@ def restart(
     ptrain_name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-p",
+            "-t",
             help="Name or idx of the run",
         ),
     ] = "",
@@ -225,7 +224,7 @@ def restart(
         and ptrain_name_or_idx
         or not (ftune_name_or_idx or ptrain_name_or_idx)
     ):
-        raise ValueError("One and only one of -f and -p should be specified")
+        raise ValueError("One and only one of -f and -t should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     if debug:
         kind = (
@@ -366,7 +365,7 @@ def rm(
     ptrain_name_or_idx: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "-p",
+            "-t",
             help="Name or idx of the pretrain run",
         ),
     ] = None,
@@ -407,7 +406,7 @@ def compare(
     pretrained_name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-p",
+            "-t",
             help="Name or idx of the pretrained run",
         ),
     ],
@@ -482,7 +481,7 @@ def bench(
     pretrained_name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-p",
+            "-t",
             help="Name or idx of the pretrained run",
         ),
     ],
@@ -507,6 +506,13 @@ def bench(
 
 @app.command(help="Train an ANI-style model from scratch")
 def train(
+    batch_name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-b",
+            help="Name or idx of the batched dataset",
+        ),
+    ],
     name: tpx.Annotated[
         str,
         Option(
@@ -542,29 +548,6 @@ def train(
             help="Add 2-body dispersion D3 term to the model",
         ),
     ] = False,
-    _src_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
-        Option(
-            "-s",
-            "--data-path",
-            help="Paths to data to fine-tune the model with",
-        ),
-    ] = None,
-    dataset_name: tpx.Annotated[
-        str,
-        Option(
-            "-d",
-            "--dataset",
-            help="Builtin dataset name",
-        ),
-    ] = "",
-    batch_size: tpx.Annotated[
-        int,
-        Option(
-            "--batch-size",
-            help="Batch size",
-        ),
-    ] = 2560,
     _fold_idx: tpx.Annotated[
         str,
         Option(
@@ -572,34 +555,6 @@ def train(
             help="Fold idx",
         ),
     ] = "single",
-    folds: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "--folds",
-            help="Number of folds to train an ensemble to",
-        ),
-    ] = None,
-    train_frac: tpx.Annotated[
-        float,
-        Option(
-            "--train-frac",
-            help="Training set fraction",
-        ),
-    ] = 0.8,
-    validation_frac: tpx.Annotated[
-        float,
-        Option(
-            "--validation-frac",
-            help="Validation set fraction",
-        ),
-    ] = 0.2,
-    batch_name_or_idx: tpx.Annotated[
-        tp.Optional[str],
-        Option(
-            "-b",
-            help="Name or idx of the batched dataset",
-        ),
-    ] = None,
     xc: tpx.Annotated[
         bool,
         Option(
@@ -712,30 +667,12 @@ def train(
         ),
     ] = 1234,
 ) -> None:
-    if batch_name_or_idx is not None:
-        batched_dataset_path = _select_paths(
-            (batch_name_or_idx,), kind=DiskDataKind.BATCH
-        )[0]
-        ds_config_path = batched_dataset_path / "ds_config.pkl"
-        with open(ds_config_path, mode="rb") as f:
-            ds_config = pickle.load(f)
-    else:
-        src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
-        if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
-            raise ValueError(
-                "One of src_paths or dataset_name must be specified, but not both"
-            )
-        ds_config = DatasetConfig(
-            lot=lot,
-            name=dataset_name,
-            src_paths=src_paths,
-            batch_size=batch_size,
-            fold_idx=-1,
-            folds=folds,
-            validation_frac=validation_frac,
-            train_frac=train_frac,
-            shuffle_seed=data_seed,
-        )
+    batched_dataset_path = _select_paths(
+        (batch_name_or_idx,), kind=DiskDataKind.BATCH
+    )[0]
+    ds_config_path = batched_dataset_path / "ds_config.pkl"
+    with open(ds_config_path, mode="rb") as f:
+        ds_config = pickle.load(f)
 
     fold_idx: tp.Union[str, int]
     try:
@@ -797,10 +734,17 @@ def train(
 
 @app.command(help="Fine tune a pretrained ANI model")
 def ftune(
+    batch_name_or_idx: tpx.Annotated[
+        str,
+        Option(
+            "-b",
+            help="Name or idx of the batched dataset",
+        ),
+    ],
     name_or_idx: tpx.Annotated[
         str,
         Option(
-            "-p",
+            "-t",
             help="Name or idx of the pretrained run, alternatively, ani1x:idx, ani2x:idx, etc. is also supported",
         ),
     ],
@@ -811,22 +755,6 @@ def ftune(
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
-    _src_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
-        Option(
-            "-s",
-            "--data-path",
-            help="Paths to data to fine-tune the model with",
-        ),
-    ] = None,
-    dataset_name: tpx.Annotated[
-        str,
-        Option(
-            "-d",
-            "--dataset",
-            help="Builtin dataset name",
-        ),
-    ] = "",
     name: tpx.Annotated[
         str,
         Option(
@@ -864,28 +792,6 @@ def ftune(
             help="Weight decay",
         ),
     ] = 1e-7,
-    batch_size: tpx.Annotated[
-        int,
-        Option(
-            "-b",
-            "--batch",
-            help="Batch size",
-        ),
-    ] = 64,
-    train_frac: tpx.Annotated[
-        float,
-        Option(
-            "--train-frac",
-            help="Training set fraction",
-        ),
-    ] = 0.8,
-    validation_frac: tpx.Annotated[
-        float,
-        Option(
-            "--validation-frac",
-            help="Validation set fraction",
-        ),
-    ] = 0.2,
     deterministic: tpx.Annotated[
         bool,
         Option(
@@ -907,13 +813,6 @@ def ftune(
             help="Limit number of batches or percent",
         ),
     ] = None,
-    data_seed: tpx.Annotated[
-        int,
-        Option(
-            "--data-seed",
-            help="Seed for dataset prebatching",
-        ),
-    ] = 1234,
     debug: tpx.Annotated[
         bool,
         Option(
@@ -930,11 +829,14 @@ def ftune(
         ),
     ] = True,
 ) -> None:
-    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
-    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
-        raise ValueError(
-            "One of src_paths or dataset_name must be specified, but not both"
-        )
+    batched_dataset_path = _select_paths(
+        (batch_name_or_idx,), kind=DiskDataKind.BATCH
+    )[0]
+    ds_config_path = batched_dataset_path / "ds_config.pkl"
+    with open(ds_config_path, mode="rb") as f:
+        ds_config = pickle.load(f)
+        ds_config.fold_idx = "single"
+
     if head_lr <= 0.0:
         raise ValueError(
             "Learning rate for the head of the model must be strictly positive"
@@ -980,16 +882,7 @@ def ftune(
 
     config = TrainConfig(
         name=run_name,
-        ds=DatasetConfig(
-            lot=lot,
-            name=dataset_name,
-            src_paths=src_paths,
-            batch_size=batch_size,
-            fold_idx="single",
-            validation_frac=validation_frac,
-            train_frac=train_frac,
-            shuffle_seed=data_seed,
-        ),
+        ds=ds_config,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,

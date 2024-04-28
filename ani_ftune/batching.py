@@ -16,25 +16,23 @@ def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
     else:
         split_kwargs = {"splits": config.split_dict}
 
-    if config.src_paths:
-        ds = datasets.ANIDataset(locations=config.src_paths)
-        if config.name:
-            raise ValueError(
-                "Dataset name should not be set if custom source paths are specified"
-            )
-
-    else:
-        ds = getattr(datasets, config.name)(
+    src_paths = list(config.src_paths)
+    for name in config.data_names:
+        ds = getattr(datasets, name)(
             skip_check=True,
             functional=config.functional,
             basis_set=config.basis_set,
         )
+        src_paths.extend(ds.store_locations)
+    src_paths = sorted(set(src_paths))
+
     datasets.create_batched_dataset(
-        locations=ds,
+        locations=datasets.ANIDataset(locations=src_paths),
         max_batches_per_packet=max_batches_per_packet,
         dest_path=config.path,
         batch_size=config.batch_size,
         shuffle_seed=config.shuffle_seed,
+        properties=config.properties,
         **split_kwargs,
     )
     config.fold_idx = -1
