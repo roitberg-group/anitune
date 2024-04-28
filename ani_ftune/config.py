@@ -1,3 +1,4 @@
+import itertools
 import hashlib
 
 import typing as tp
@@ -51,7 +52,8 @@ class DatasetConfig:
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
     validation_frac: float = 0.2
-    name: str = ""
+    properties: tp.Tuple[str, ...] = ()
+    data_names: tp.Tuple[str, ...] = ()
     src_paths: tp.Tuple[Path, ...] = ()
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
@@ -73,18 +75,22 @@ class DatasetConfig:
         }
 
     @property
+    def name(self) -> str:
+        return "_".join(
+            itertools.chain(
+                (p.stem.replace("-", "_") for p in sorted(self.src_paths)),
+                sorted(self.data_names),
+            )
+        )
+
+    @property
     def path(self) -> Path:
         dict_ = asdict(self)
         dict_.pop("fold_idx")
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        name = (
-            self.name
-            if self.name
-            else "_".join(p.stem.replace("-", "_") for p in sorted(self.src_paths))
-        )
-        _path = _BATCH_PATH / f"{name}-{hasher.hexdigest(4)}"
+        _path = _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
         print(f"Dataset path: {_path}")
         return _path
 
