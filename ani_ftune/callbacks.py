@@ -8,6 +8,10 @@ from ani_ftune.config import TrainConfig
 
 
 class SaveConfig(Callback):
+    r"""
+    Save the configuration of a training run at the start of the run
+    """
+
     def __init__(
         self,
         config: TrainConfig,
@@ -32,6 +36,10 @@ class SaveConfig(Callback):
 
 
 class MergeTensorBoardLogs(Callback):
+    r"""
+    Combine all of the tensorboard logs for different versions at the end of a run
+    """
+
     def __init__(self, src: str, dest: str = "tb-logs") -> None:
         super().__init__()
         self._src = src
