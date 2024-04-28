@@ -112,7 +112,6 @@ class DatasetConfig:
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
         _path = _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
-        print(f"Dataset path: {_path}")
         return _path
 
 
