@@ -8,7 +8,7 @@ import torchmetrics
 from torchani.models import BuiltinModel
 from torchani.units import hartree2kcalpermol
 
-from ani_ftune.losses import MultiTaskLoss, LossTerm, Energies
+from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 
 class LitModel(lightning.LightningModule):

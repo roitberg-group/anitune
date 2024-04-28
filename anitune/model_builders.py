@@ -9,7 +9,7 @@ from torchani.assembler import (
     ANIdr as _ANIdr,
     ANIala as _ANIala,
 )
-from ani_ftune.config import TrainConfig, ModelConfig
+from anitune.config import TrainConfig, ModelConfig
 
 
 def fetch_pretrained_config(name_or_idx: str) -> TrainConfig:

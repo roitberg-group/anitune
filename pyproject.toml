@@ -1,8 +1,8 @@
 [project]
-    name = "ani_ftune"
+    name = "anitune"
     authors = [{name = "Ignacio Pickering", email = "ign.pickering@gmail.com"}]
     license = {file = "LICENSE"}
-    description = "Python package ani_ftune"
+    description = "Python package anitune"
     requires-python = ">=3.8"
     dynamic = ["version", "readme"]
 
@@ -19,13 +19,13 @@
     documentation = "https://github.com/IgnacioJPickering/ani-ftune.git"
 
 [project.scripts]
-    ani="ani_ftune.cli:app"
+    ani="anitune.cli:app"
 
 # triggers using the scm version
 [tool.setuptools_scm]
 
 [tool.setuptools]
-packages = ["ani_ftune"]
+packages = ["anitune"]
 
 [tool.black]
     line-length = 88
