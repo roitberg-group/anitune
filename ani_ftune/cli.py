@@ -835,7 +835,7 @@ def ftune(
             "--cuda-ops/--no-cuda-ops",
             help="Use cuda acceleration",
         ),
-    ] = True,
+    ] = False,
 ) -> None:
     batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskDataKind.BATCH)[
         0
