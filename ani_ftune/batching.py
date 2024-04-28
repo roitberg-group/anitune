@@ -5,12 +5,11 @@ from ani_ftune.config import DatasetConfig, ConfigError
 
 def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
     from torchani import datasets
+
     split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
     if config.folds is not None:
         if config.train_frac != 0.8 or config.validation_frac != 0.2:
-            raise ConfigError(
-                "Train and val frac can't be set if training to folds"
-            )
+            raise ConfigError("Train and val frac can't be set if training to folds")
         if not isinstance(config.fold_idx, int):
             raise ConfigError("A fold idx must be present when training to folds")
         split_kwargs = {"folds": config.folds}

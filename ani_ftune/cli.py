@@ -99,6 +99,7 @@ def prebatch(
     ] = 1234,
 ) -> None:
     from ani_ftune.batching import batch
+
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
     if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
         raise ValueError(
@@ -179,9 +180,13 @@ def _select_paths(
         except ValueError:
             paths = [p for p in sorted_paths if p.name.startswith(name_or_idx)]
             if not paths:
-                raise RuntimeError(f"No paths starting with name {name_or_idx} found") from None
+                raise RuntimeError(
+                    f"No paths starting with name {name_or_idx} found"
+                ) from None
             elif len(paths) > 1:
-                raise DisambiguationError(f"More than one path starts with {name_or_idx}") from None
+                raise DisambiguationError(
+                    f"More than one path starts with {name_or_idx}"
+                ) from None
             else:
                 selected_paths.append(paths[0])
     return selected_paths
@@ -220,7 +225,9 @@ def restart(
         raise ValueError("One and only one of -f and -p should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     if debug:
-        kind = DiskDataKind.DEBUG_FTUNE if ftune_name_or_idx else DiskDataKind.DEBUG_TRAIN
+        kind = (
+            DiskDataKind.DEBUG_FTUNE if ftune_name_or_idx else DiskDataKind.DEBUG_TRAIN
+        )
     else:
         kind = DiskDataKind.FTUNE if ftune_name_or_idx else DiskDataKind.TRAIN
 
@@ -257,7 +264,9 @@ def ls() -> None:
         for j, p in enumerate(ftune):
             console.print(f"[bold]{j}[/bold]. {p.name}", style="blue", highlight=False)
         for j, p in enumerate(debug_ftune):
-            console.print(f"(debug) [bold]{j}[/bold]. {p.name}", style="yellow", highlight=False)
+            console.print(
+                f"(debug) [bold]{j}[/bold]. {p.name}", style="yellow", highlight=False
+            )
     else:
         console.print("(No finetuning runs found)")
 
@@ -265,7 +274,9 @@ def ls() -> None:
     if batch:
         console.print("Batched datasets:")
         for j, p in enumerate(batch):
-            console.print(f"[bold]{j}[/bold]. {p.name}", style="magenta", highlight=False)
+            console.print(
+                f"[bold]{j}[/bold]. {p.name}", style="magenta", highlight=False
+            )
     else:
         console.print("(No batched datasets found)")
 
@@ -309,8 +320,20 @@ def rm(
     ] = None,
 ) -> None:
     for selectors, dkind in zip(
-        (debug_ftune_name_or_idx, debug_ptrain_name_or_idx, ftune_name_or_idx, ptrain_name_or_idx, batch_name_or_idx),
-        (DiskDataKind.DEBUG_FTUNE, DiskDataKind.DEBUG_TRAIN, DiskDataKind.FTUNE, DiskDataKind.TRAIN, DiskDataKind.BATCH),
+        (
+            debug_ftune_name_or_idx,
+            debug_ptrain_name_or_idx,
+            ftune_name_or_idx,
+            ptrain_name_or_idx,
+            batch_name_or_idx,
+        ),
+        (
+            DiskDataKind.DEBUG_FTUNE,
+            DiskDataKind.DEBUG_TRAIN,
+            DiskDataKind.FTUNE,
+            DiskDataKind.TRAIN,
+            DiskDataKind.BATCH,
+        ),
     ):
         if selectors is not None:
             paths = _select_paths(selectors, kind=dkind)
@@ -361,13 +384,19 @@ def compare(
         pretrained_state_dict = model.state_dict()
     else:
         pretrained_path = (
-            _select_paths((pretrained_name_or_idx,), kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN)[0]
+            _select_paths(
+                (pretrained_name_or_idx,),
+                kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN,
+            )[0]
             / "best-model"
         )
         pretrained_state_dict = load_state_dict(pretrained_path / "best.ckpt")
 
     ftuned_path = (
-        _select_paths((ftuned_name_or_idx,), kind=DiskDataKind.FTUNE if not debug else DiskDataKind.DEBUG_FTUNE)[0]
+        _select_paths(
+            (ftuned_name_or_idx,),
+            kind=DiskDataKind.FTUNE if not debug else DiskDataKind.DEBUG_FTUNE,
+        )[0]
         / "best-model"
     )
     ftuned_state_dict = load_state_dict(ftuned_path / "best.ckpt")
@@ -830,7 +859,10 @@ def ftune(
         pretrained_state_dict_path = None
         pretrain_builtin = True
     else:
-        pretrained_path = _select_paths((name_or_idx,), kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN)[0]
+        pretrained_path = _select_paths(
+            (name_or_idx,),
+            kind=DiskDataKind.TRAIN if not debug else DiskDataKind.DEBUG_TRAIN,
+        )[0]
         pretrained_config_path = pretrained_path / "config.pkl"
         if not pretrained_config_path.is_file():
             raise ValueError(f"{pretrained_config_path} is not a valid config file")
