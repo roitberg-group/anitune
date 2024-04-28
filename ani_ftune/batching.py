@@ -4,6 +4,9 @@ from ani_ftune.config import DatasetConfig, ConfigError
 
 
 def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
+    r"""
+    Create a prebatched dataset from a given configuration
+    """
     from torchani import datasets
 
     split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
