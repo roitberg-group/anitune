@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+import json
 import warnings
 import pickle
 import shutil
@@ -8,6 +9,7 @@ import typing_extensions as tpx
 from pathlib import Path
 
 from typer import Option, Typer
+from rich.table import Table
 
 from ani_ftune.console import console
 from ani_ftune.utils import load_state_dict, DiskDataKind, DisambiguationError
@@ -58,6 +60,7 @@ def prebatch(
     dataset_name: tpx.Annotated[
         str,
         Option(
+            "-d",
             "--dataset",
             help="Builtin dataset name",
         ),
@@ -242,7 +245,9 @@ def restart(
 
 
 @app.command(help="Display training and finetuning runs")
-def ls() -> None:
+def ls(
+    sizes: tpx.Annotated[bool, Option("--sizes/--no-sizes", help="Show file sizes",),] = False,
+) -> None:
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
     ftune = sorted(_FTUNE_PATH.iterdir())
@@ -272,11 +277,58 @@ def ls() -> None:
 
     console.print()
     if batch:
-        console.print("Batched datasets:")
+        table = Table(title="Batched databases", box=None)
+        table.add_column("index")
+        table.add_column("name", style="magenta")
+        table.add_column("lot")
+        table.add_column("conformers")
+        table.add_column("symbols")
+        table.add_column("properties")
+        table.add_column("batch-size")
+        table.add_column("batching-seed")
+        table.add_column("divisions")
+        if sizes:
+            table.add_column("size (GB)")
         for j, p in enumerate(batch):
-            console.print(
-                f"[bold]{j}[/bold]. {p.name}", style="magenta", highlight=False
-            )
+            try:
+                with open(p / "ds_config.pkl", mode="rb") as fb:
+                    ds_config = pickle.load(fb)
+                with open(p / "creation_log.json", mode="rt") as ft:
+                    ds_log = json.load(ft)
+
+                row_args = [
+                    f"[bold][magenta]{j}[/magenta][/bold]",
+                    p.name,
+                    ds_config.lot,
+                    str(ds_log["num_conformers"]),
+                    str(ds_log["symbols"]),
+                    str(ds_log["properties"]),
+                    str(ds_config.batch_size),
+                    str(ds_config.shuffle_seed),
+                    f"{ds_config.folds}-folds"
+                    if ds_config.folds is not None
+                    else f"train:{ds_config.train_frac}, valid:{ds_config.validation_frac}",
+                ]
+                if sizes:
+                    size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
+                    row_args.append(format(size / 1024 ** 3, ".1f"))
+
+            except Exception:
+                row_args = [
+                    f"[bold][magenta]{j}[/magenta][/bold]",
+                    p.name,
+                    "?",
+                    "?",
+                    "?",
+                    "?",
+                    "?",
+                    "?",
+                    "?",
+                ]
+                if sizes:
+                    row_args.append("?")
+            table.add_row(*row_args)
+        console.print(table)
     else:
         console.print("(No batched datasets found)")
 
@@ -494,6 +546,7 @@ def train(
     dataset_name: tpx.Annotated[
         str,
         Option(
+            "-d",
             "--dataset",
             help="Builtin dataset name",
         ),
@@ -566,7 +619,7 @@ def train(
     dipoles: tpx.Annotated[
         float,
         Option(
-            "-d",
+            "-m",
             "--dipoles-factor",
             help="Train with dipoles",
         ),
@@ -726,6 +779,7 @@ def ftune(
     dataset_name: tpx.Annotated[
         str,
         Option(
+            "-d",
             "--dataset",
             help="Builtin dataset name",
         ),
