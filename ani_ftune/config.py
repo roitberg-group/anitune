@@ -5,23 +5,32 @@ import typing as tp
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ani_ftune.utils import load_state_dict
+from ani_ftune.utils import (
+    _BATCH_PATH,
+    _FTUNE_PATH,
+    _TRAIN_PATH,
+    _DEBUG_FTUNE_PATH,
+    _DEBUG_TRAIN_PATH,
+)
 
 
-_BATCH_PATH = Path.home().joinpath(".local/torchani/Batched")
-_BATCH_PATH.mkdir(exist_ok=True, parents=True)
+def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
+    r"""
+    Load a model's state dict either from a torch .pt file, or a lightning
+    .ckpt file (it is assumed that the model is located in a .model attribute
+    in the LightningModule in the latter case).
+    """
+    import torch  # noqa
 
-_TRAIN_PATH = Path.home().joinpath(".local/torchani/Train")
-_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
-
-_DEBUG_TRAIN_PATH = Path.home().joinpath(".local/torchani/DebugTrain")
-_DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
-
-_DEBUG_FTUNE_PATH = Path.home().joinpath(".local/torchani/DebugFtune")
-_DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
-
-_FTUNE_PATH = Path.home().joinpath(".local/torchani/Ftune")
-_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
+    _state_dict = torch.load(path, map_location="cpu")
+    if "state_dict" in _state_dict:
+        _state_dict = _state_dict["state_dict"]
+        return {
+            k.replace("model.", ""): v
+            for k, v in _state_dict.items()
+            if k.startswith("model.")
+        }
+    return _state_dict
 
 
 class ConfigError(RuntimeError):
