@@ -307,8 +307,8 @@ def ls(
                     p.name,
                     ds_config.lot,
                     str(ds_log["num_conformers"]),
-                    str(ds_log["symbols"]),
-                    str(ds_log["properties"]),
+                    ",".join(ds_log["symbols"]),
+                    "|".join(ds_log["properties"]),
                     str(ds_config.batch_size),
                     str(ds_config.shuffle_seed),
                     (
