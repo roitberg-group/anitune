@@ -65,6 +65,15 @@ def EnergiesXC(factor: float = 1.0) -> LossTerm:
     )
 
 
+def EnergiesXCSqrtAtoms(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="energies-xc",
+        is_extensive=True,
+        factor=factor,
+        scale_by_sqrt_atoms=True,
+    )
+
+
 def Dipoles(factor: float = 1.0) -> LossTerm:
     return LossTerm(
         label="dipoles",
@@ -76,9 +85,8 @@ def Dipoles(factor: float = 1.0) -> LossTerm:
 
 def AtomicCharges(factor: float = 1.0) -> LossTerm:
     return LossTerm(
-        label="dipoles",
-        is_extensive=False,
-        is_vec3=True,
+        label="atomic_charges",
+        is_extensive=True,
         factor=factor,
     )
 

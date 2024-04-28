@@ -162,13 +162,13 @@ def _select_paths(
     kind: DiskDataKind = DiskDataKind.TRAIN,
 ) -> tp.List[Path]:
     root: Path
-    if DiskDataKind is DiskDataKind.TRAIN:
+    if kind is DiskDataKind.TRAIN:
         root = _TRAIN_PATH
-    elif DiskDataKind is DiskDataKind.FTUNE:
+    elif kind is DiskDataKind.FTUNE:
         root = _FTUNE_PATH
-    elif DiskDataKind is DiskDataKind.DEBUG_FTUNE:
+    elif kind is DiskDataKind.DEBUG_FTUNE:
         root = _DEBUG_FTUNE_PATH
-    elif DiskDataKind is DiskDataKind.DEBUG_TRAIN:
+    elif kind is DiskDataKind.DEBUG_TRAIN:
         root = _DEBUG_TRAIN_PATH
     else:
         root = _BATCH_PATH
@@ -240,7 +240,6 @@ def restart(
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
-    console.print(f"Restarting run {path.name}")
     train_from_scratch(config, restart=True)
 
 
@@ -594,6 +593,20 @@ def train(
             help="Validation set fraction",
         ),
     ] = 0.2,
+    batch_name_or_idx: tpx.Annotated[
+        tp.Optional[str],
+        Option(
+            "-b",
+            help="Name or idx of the batched dataset",
+        ),
+    ] = None,
+    xc: tpx.Annotated[
+        bool,
+        Option(
+            "--xc/--no-xc",
+            help="Train to exchange-correlation energies",
+        ),
+    ] = False,
     lr: tpx.Annotated[
         float,
         Option(
@@ -616,6 +629,13 @@ def train(
             help="Train with energies",
         ),
     ] = 1.0,
+    sqrt_atoms: tpx.Annotated[
+        bool,
+        Option(
+            "--sqrt-atoms/--no-sqrt-atoms",
+            help="Use sqrt atoms in energies",
+        ),
+    ] = False,
     forces: tpx.Annotated[
         float,
         Option(
@@ -692,16 +712,38 @@ def train(
         ),
     ] = 1234,
 ) -> None:
-    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
-    if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
-        raise ValueError(
-            "One of src_paths or dataset_name must be specified, but not both"
+    if batch_name_or_idx is not None:
+        batched_dataset_path = _select_paths(
+            (batch_name_or_idx,), kind=DiskDataKind.BATCH
+        )[0]
+        ds_config_path = batched_dataset_path / "ds_config.pkl"
+        with open(ds_config_path, mode="rb") as f:
+            ds_config = pickle.load(f)
+    else:
+        src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
+        if (not (src_paths or dataset_name)) or (src_paths and dataset_name):
+            raise ValueError(
+                "One of src_paths or dataset_name must be specified, but not both"
+            )
+        ds_config = DatasetConfig(
+            lot=lot,
+            name=dataset_name,
+            src_paths=src_paths,
+            batch_size=batch_size,
+            fold_idx=-1,
+            folds=folds,
+            validation_frac=validation_frac,
+            train_frac=train_frac,
+            shuffle_seed=data_seed,
         )
+
     fold_idx: tp.Union[str, int]
     try:
         fold_idx = int(_fold_idx)
     except ValueError:
         fold_idx = _fold_idx
+
+    ds_config.fold_idx = fold_idx
     if debug:
         if limit is None:
             console.print("Setting train limit to 10 batches for debugging")
@@ -713,7 +755,10 @@ def train(
 
     terms_and_factors: tp.List[tp.Tuple[str, float]] = []
     if energies > 0.0:
-        terms_and_factors.append(("Energies", energies))
+        label = "EnergiesXC" if xc else "Energies"
+        terms_and_factors.append(
+            (label if not sqrt_atoms else f"{label}SqrtAtoms", energies)
+        )
     if forces > 0.0:
         terms_and_factors.append(("Forces", forces))
     if dipoles > 0.0:
@@ -726,17 +771,7 @@ def train(
     config = TrainConfig(
         name=name,
         debug=debug,
-        ds=DatasetConfig(
-            lot=lot,
-            name=dataset_name,
-            src_paths=src_paths,
-            batch_size=batch_size,
-            fold_idx=fold_idx,
-            folds=folds,
-            validation_frac=validation_frac,
-            train_frac=train_frac,
-            shuffle_seed=data_seed,
-        ),
+        ds=ds_config,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,

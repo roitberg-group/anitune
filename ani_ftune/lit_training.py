@@ -58,7 +58,7 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
             restart = True
 
     if restart:
-        console.print(f"Restarting run {path.name}")
+        console.print(f"Restarting run {config.path}")
 
     if ckpt_path.is_file():
         lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
