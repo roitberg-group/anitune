@@ -282,7 +282,7 @@ def ls(
 
     console.print()
     if batch:
-        table = Table(title="Batched databases", box=None)
+        table = Table(title="Batched datasets", box=None)
         table.add_column("index")
         table.add_column("name", style="magenta")
         table.add_column("lot")
