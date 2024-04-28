@@ -369,14 +369,14 @@ def rm(
 
 @app.command(help="Compare the params of a trained model and the original model")
 def compare(
-    ptrained_name_or_idx: tpx.Annotated[
+    ptrain_name_or_idx: tpx.Annotated[
         str,
         Option(
             "-t",
             help="Name or idx of the pretrained run",
         ),
     ] = "",
-    ftuned_name_or_idx: tpx.Annotated[
+    ftune_name_or_idx: tpx.Annotated[
         str,
         Option(
             "-f",
@@ -392,18 +392,22 @@ def compare(
         ),
     ] = False,
 ) -> None:
-    if (not (ftuned_name_or_idx or ptrained_name_or_idx)) or (
-        ftuned_name_or_idx and ptrained_name_or_idx
+    if (not (ftune_name_or_idx or ptrain_name_or_idx)) or (
+        ftune_name_or_idx and ptrain_name_or_idx
     ):
         raise ValueError("One and only one of -t or -f has to be specified")
+    if debug:
+        kind = DiskData.DEBUG_FTUNE if ftune_name_or_idx else DiskData.DEBUG_TRAIN
+    else:
+        kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
     root = select_paths(
-        (ptrained_name_or_idx or ftuned_name_or_idx,),
-        kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
+        (ptrain_name_or_idx or ftune_name_or_idx,),
+        kind=kind,
     )[0]
     trained_path = root / "best-model"
     trained_state_dict = load_state_dict(trained_path / "best.ckpt")
     init_path = root / "init-model"
-    init_state_dict = load_state_dict(init_path / "best.ckpt")
+    init_state_dict = load_state_dict(init_path / "init.ckpt")
 
     for k in init_state_dict:
         if "weight" in k or "bias" in k:
