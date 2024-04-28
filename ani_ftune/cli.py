@@ -114,7 +114,7 @@ def prebatch(
     data_seed: tpx.Annotated[
         int,
         Option(
-            "--data-seed",
+            "--batch-seed",
             help="Seed for dataset prebatching",
         ),
     ] = 1234,
@@ -255,7 +255,7 @@ def ls(
         table.add_column("symbols")
         table.add_column("properties")
         table.add_column("batch-size")
-        table.add_column("batching-seed")
+        table.add_column("batch-seed")
         table.add_column("divisions")
         if sizes:
             table.add_column("size (GB)")
@@ -613,13 +613,6 @@ def train(
             help="Use cuda acceleration",
         ),
     ] = False,
-    data_seed: tpx.Annotated[
-        int,
-        Option(
-            "--data-seed",
-            help="Seed for dataset prebatching",
-        ),
-    ] = 1234,
 ) -> None:
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
