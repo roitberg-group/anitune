@@ -1,6 +1,6 @@
 import typing as tp
 import pickle
-from ani_ftune.config import DatasetConfig, ConfigError
+from anitune.config import DatasetConfig, ConfigError
 
 
 def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:

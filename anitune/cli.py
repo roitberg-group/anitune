@@ -10,10 +10,10 @@ from pathlib import Path
 from typer import Option, Typer
 from rich.table import Table
 
-from ani_ftune.console import console
-from ani_ftune.utils import DiskData, select_paths
-from ani_ftune.lit_training import train_from_scratch
-from ani_ftune.config import (
+from anitune.console import console
+from anitune.utils import DiskData, select_paths
+from anitune.lit_training import train_from_scratch
+from anitune.config import (
     load_state_dict,
     FinetuneConfig,
     TrainConfig,
@@ -119,7 +119,7 @@ def prebatch(
         ),
     ] = 1234,
 ) -> None:
-    from ani_ftune.batching import batch
+    from anitune.batching import batch
 
     properties = () if _properties is None else tuple(sorted(_properties))
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
@@ -851,7 +851,7 @@ def ftune(
 
     pretrain_builtin: bool
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        from ani_ftune.model_builders import fetch_pretrained_config
+        from anitune.model_builders import fetch_pretrained_config
 
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None

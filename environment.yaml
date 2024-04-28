@@ -1,4 +1,4 @@
-name: ani-ftune
+name: anitune
 channels:
   - https://conda.anaconda.org/nvidia
   - https://conda.anaconda.org/pytorch

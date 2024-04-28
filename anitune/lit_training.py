@@ -6,8 +6,8 @@ import typing as tp
 
 from rich.prompt import Confirm
 
-from ani_ftune.console import console
-from ani_ftune.config import TrainConfig
+from anitune.console import console
+from anitune.config import TrainConfig
 
 
 def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
@@ -26,10 +26,10 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
     from torchani import datasets  # noqa
-    from ani_ftune.lit_models import LitModel  # noqa
-    from ani_ftune import model_builders  # noqa
-    from ani_ftune import losses  # noqa
-    from ani_ftune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
+    from anitune.lit_models import LitModel  # noqa
+    from anitune import model_builders  # noqa
+    from anitune import losses  # noqa
+    from anitune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
 
     if not config.ds.path.exists():
         raise RuntimeError("Dataset does not exist")

@@ -5,14 +5,14 @@
   "context": {
     "cookiecutter": {
       "access": "private",
-      "repo_name": "ani-ftune",
-      "package_name": "ani_ftune",
+      "repo_name": "anitune",
+      "package_name": "anitune",
       "command": "ani",
-      "conda_env_name": "ani-ftune",
+      "conda_env_name": "anitune",
       "author_name": "Ignacio Pickering",
       "author_git_profile": "IgnacioJPickering",
       "author_email": "ign.pickering@gmail.com",
-      "description": "Python package ani_ftune",
+      "description": "Python package anitune",
       "python_version_major": "3",
       "python_version_minor": "8",
       "year": "2023",

@@ -5,7 +5,7 @@ import typing as tp
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ani_ftune.utils import (
+from anitune.utils import (
     _BATCH_PATH,
     _FTUNE_PATH,
     _TRAIN_PATH,
