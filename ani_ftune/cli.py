@@ -246,7 +246,13 @@ def restart(
 
 @app.command(help="Display training and finetuning runs")
 def ls(
-    sizes: tpx.Annotated[bool, Option("--sizes/--no-sizes", help="Show file sizes",),] = False,
+    sizes: tpx.Annotated[
+        bool,
+        Option(
+            "--sizes/--no-sizes",
+            help="Show file sizes",
+        ),
+    ] = False,
 ) -> None:
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
@@ -305,13 +311,15 @@ def ls(
                     str(ds_log["properties"]),
                     str(ds_config.batch_size),
                     str(ds_config.shuffle_seed),
-                    f"{ds_config.folds}-folds"
-                    if ds_config.folds is not None
-                    else f"train:{ds_config.train_frac}, valid:{ds_config.validation_frac}",
+                    (
+                        f"{ds_config.folds}-folds"
+                        if ds_config.folds is not None
+                        else f"train:{ds_config.train_frac}, valid:{ds_config.validation_frac}"
+                    ),
                 ]
                 if sizes:
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
-                    row_args.append(format(size / 1024 ** 3, ".1f"))
+                    row_args.append(format(size / 1024**3, ".1f"))
 
             except Exception:
                 row_args = [
