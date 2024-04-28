@@ -12,6 +12,9 @@ from ani_ftune.losses import MultiTaskLoss, LossTerm, Energies
 
 
 class LitModel(lightning.LightningModule):
+    r"""
+    ANI Model wrapped with Lightning
+    """
     def __init__(
         self,
         model: BuiltinModel,
