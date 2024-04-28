@@ -58,6 +58,7 @@ class DatasetConfig:
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
     shuffle_seed: int = 1234
+    label: str = ""
 
     @property
     def functional(self) -> str:
@@ -76,6 +77,8 @@ class DatasetConfig:
 
     @property
     def name(self) -> str:
+        if self.label:
+            return self.label
         return "_".join(
             itertools.chain(
                 (p.stem.replace("-", "_") for p in sorted(self.src_paths)),
@@ -87,6 +90,7 @@ class DatasetConfig:
     def path(self) -> Path:
         dict_ = asdict(self)
         dict_.pop("fold_idx")
+        dict_.pop("label")
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())

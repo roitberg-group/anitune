@@ -7,7 +7,7 @@ class DisambiguationError(RuntimeError):
     pass
 
 
-class DiskDataKind(Enum):
+class DiskData(Enum):
     TRAIN = "train"
     FTUNE = "ftune"
     DEBUG_TRAIN = "debug-train"
