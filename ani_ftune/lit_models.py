@@ -15,6 +15,7 @@ class LitModel(lightning.LightningModule):
     r"""
     ANI Model wrapped with Lightning
     """
+
     def __init__(
         self,
         model: BuiltinModel,
