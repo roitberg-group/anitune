@@ -230,9 +230,7 @@ def restart(
         raise ValueError("One and only one of -f and -t should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     if debug:
-        kind = (
-            DiskData.DEBUG_FTUNE if ftune_name_or_idx else DiskData.DEBUG_TRAIN
-        )
+        kind = DiskData.DEBUG_FTUNE if ftune_name_or_idx else DiskData.DEBUG_TRAIN
     else:
         kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
 
@@ -672,9 +670,7 @@ def train(
         ),
     ] = 1234,
 ) -> None:
-    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[
-        0
-    ]
+    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -836,9 +832,7 @@ def ftune(
         ),
     ] = False,
 ) -> None:
-    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[
-        0
-    ]
+    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
