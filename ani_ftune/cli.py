@@ -249,6 +249,8 @@ def ls(
         table = Table(title="Batched datasets", box=None)
         table.add_column("index")
         table.add_column("name", style="magenta")
+        table.add_column("builtin-src", style="magenta")
+        table.add_column("other-src", style="magenta")
         table.add_column("lot")
         table.add_column("conformers")
         table.add_column("symbols")
@@ -268,6 +270,8 @@ def ls(
                 row_args = [
                     f"[bold][magenta]{j}[/magenta][/bold]",
                     p.name,
+                    "|".join(ds_config.data_names) or "--",
+                    "|".join((p.stem for p in ds_config.src_paths)) or "--",
                     ds_config.lot,
                     str(ds_log["num_conformers"]),
                     ",".join(ds_log["symbols"]),
@@ -289,7 +293,7 @@ def ls(
                     f"[bold][magenta]{j}[/magenta][/bold]",
                     p.name,
                 ]
-                row_args.extend(["?"] * 7)
+                row_args.extend(["?"] * 9)
                 if sizes:
                     row_args.append("?")
             table.add_row(*row_args)
