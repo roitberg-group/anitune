@@ -76,7 +76,12 @@ class DatasetConfig:
 
     @property
     def name(self) -> str:
-        return "_".join(itertools.chain((p.stem.replace("-", "_") for p in sorted(self.src_paths)), sorted(self.data_names)))
+        return "_".join(
+            itertools.chain(
+                (p.stem.replace("-", "_") for p in sorted(self.src_paths)),
+                sorted(self.data_names),
+            )
+        )
 
     @property
     def path(self) -> Path:

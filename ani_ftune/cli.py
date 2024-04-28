@@ -65,7 +65,14 @@ def prebatch(
             help="Builtin dataset name",
         ),
     ] = None,
-    _properties: tpx.Annotated[tp.Optional[tp.List[str]], Option("-p", "--property", help="Properties to prebatch, all by default",),] = None,
+    _properties: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-p",
+            "--property",
+            help="Properties to prebatch, all by default",
+        ),
+    ] = None,
     batch_size: tpx.Annotated[
         int,
         Option(
@@ -103,6 +110,7 @@ def prebatch(
     ] = 1234,
 ) -> None:
     from ani_ftune.batching import batch
+
     properties = () if _properties is None else tuple(sorted(_properties))
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
     data_names = () if _data_names is None else tuple(sorted(_data_names))
@@ -667,9 +675,9 @@ def train(
         ),
     ] = 1234,
 ) -> None:
-    batched_dataset_path = _select_paths(
-        (batch_name_or_idx,), kind=DiskDataKind.BATCH
-    )[0]
+    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskDataKind.BATCH)[
+        0
+    ]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -829,9 +837,9 @@ def ftune(
         ),
     ] = True,
 ) -> None:
-    batched_dataset_path = _select_paths(
-        (batch_name_or_idx,), kind=DiskDataKind.BATCH
-    )[0]
+    batched_dataset_path = _select_paths((batch_name_or_idx,), kind=DiskDataKind.BATCH)[
+        0
+    ]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
