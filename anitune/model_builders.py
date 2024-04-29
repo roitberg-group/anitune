@@ -1,14 +1,18 @@
+import warnings
 import typing as tp
-from torchani.models import BuiltinModel
-from torchani.assembler import (
-    FlexANI1 as _FlexANI1,
-    FlexANI2 as _FlexANI2,
-    ANI1x as _ANI1x,
-    ANI2x as _ANI2x,
-    ANI1ccx as _ANI1ccx,
-    ANIdr as _ANIdr,
-    ANIala as _ANIala,
-)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from torchani.models import BuiltinModel
+    from torchani.assembler import (
+        FlexANI1 as _FlexANI1,
+        FlexANI2 as _FlexANI2,
+        ANI1x as _ANI1x,
+        ANI2x as _ANI2x,
+        ANI1ccx as _ANI1ccx,
+        ANIdr as _ANIdr,
+        ANIala as _ANIala,
+    )
 from anitune.config import TrainConfig, ModelConfig
 
 

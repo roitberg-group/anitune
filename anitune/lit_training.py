@@ -1,4 +1,6 @@
+import logging
 import json
+import warnings
 from copy import deepcopy
 import pickle
 import sys
@@ -10,13 +12,15 @@ from anitune.console import console
 from anitune.config import TrainConfig
 
 
-def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
+def train_from_scratch(config: TrainConfig, restart: bool = False, verbose: bool = False) -> None:
     r"""
     Train an ANI-style model
     """
-
     import torch  # noqa
     import lightning  # noqa
+    if not verbose:
+        from lightning_utilities.core.rank_zero import log
+        log.setLevel(logging.ERROR)
     from lightning.pytorch.callbacks import (  # noqa
         LearningRateMonitor,
         EarlyStopping,
@@ -25,7 +29,9 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    from torchani import datasets  # noqa
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from torchani import datasets  # noqa
     from anitune.lit_models import LitModel  # noqa
     from anitune import model_builders  # noqa
     from anitune import losses  # noqa
@@ -150,12 +156,13 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         merge_tb_logs,
         save_model_config,
     ]
-
+    (config.path / "tb-versioned-logs").mkdir(exist_ok=True, parents=True)
     tb_logger = TensorBoardLogger(
         save_dir=config.path,
         version=None,
         name="tb-versioned-logs",
     )
+    (config.path / "csv-versioned-logs").mkdir(exist_ok=True, parents=True)
     csv_logger = CSVLogger(
         save_dir=config.path,
         version=None,
@@ -191,9 +198,15 @@ def train_from_scratch(config: TrainConfig, restart: bool = False) -> None:
         deterministic=config.accel.deterministic,
         detect_anomaly=config.accel.detect_anomaly,
     )
-    trainer.fit(
-        lit_model,
-        train_dataloaders=training,
-        val_dataloaders=validation,
-        ckpt_path=ckpt_path if ckpt_path.is_file() else None,
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            action="ignore",
+            message="Checkpoint directory.*",
+            category=UserWarning,
+        )
+        trainer.fit(
+            lit_model,
+            train_dataloaders=training,
+            val_dataloaders=validation,
+            ckpt_path=ckpt_path if ckpt_path.is_file() else None,
+        )

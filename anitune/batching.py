@@ -1,3 +1,4 @@
+import warnings
 import typing as tp
 import pickle
 from anitune.config import DatasetConfig, ConfigError
@@ -7,7 +8,9 @@ def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
     r"""
     Create a prebatched dataset from a given configuration
     """
-    from torchani import datasets
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from torchani import datasets
 
     split_kwargs: tp.Dict[str, tp.Union[int, tp.Dict[str, float]]]
     if config.folds is not None:
