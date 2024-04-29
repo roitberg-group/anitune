@@ -1,12 +1,15 @@
 import typing as tp
+import warnings
 
 import torch
 from torch import Tensor
 import lightning
 import torchmetrics
 
-from torchani.models import BuiltinModel
-from torchani.units import hartree2kcalpermol
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from torchani.models import BuiltinModel
+    from torchani.units import hartree2kcalpermol
 
 from anitune.losses import MultiTaskLoss, LossTerm, Energies
 

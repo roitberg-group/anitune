@@ -183,6 +183,14 @@ def restart(
             help="Restart a debug run",
         ),
     ] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     if (
         ftune_name_or_idx
@@ -202,7 +210,7 @@ def restart(
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
-    train_from_scratch(config, restart=True)
+    train_from_scratch(config, restart=True, verbose=verbose)
 
 
 @app.command(help="Display training and finetuning runs")
@@ -613,6 +621,14 @@ def train(
             help="Use cuda acceleration",
         ),
     ] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
@@ -674,7 +690,7 @@ def train(
         optim=OptimizerConfig(lr=lr, weight_decay=weight_decay),
         scheduler=SchedulerConfig(),
     )
-    train_from_scratch(config)
+    train_from_scratch(config, verbose=verbose)
 
 
 @app.command(help="Fine tune a pretrained ANI model")
@@ -829,6 +845,14 @@ def ftune(
             help="Use cuda acceleration",
         ),
     ] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
@@ -919,4 +943,4 @@ def ftune(
             backbone_lr=backbone_lr,
         ),
     )
-    train_from_scratch(config)
+    train_from_scratch(config, verbose=verbose)
