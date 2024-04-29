@@ -12,7 +12,7 @@ from rich.table import Table
 
 from anitune.console import console
 from anitune.utils import DiskData, select_paths
-from anitune.lit_training import train_from_scratch
+from anitune.lit_training import train_nnp
 from anitune.config import (
     load_state_dict,
     FinetuneConfig,
@@ -32,10 +32,11 @@ from anitune.config import (
 
 app = Typer(
     rich_markup_mode="markdown",
-    help=r"""## ANI
+    help=r"""
+    ## ANI
 
-    Utility for generating a fine-tuned models from pre trained ANI style models,
-    given a set of reference structures.
+    Utility for generating a fine-tuned models from pre trained ANI style
+    models, given a set of reference structures.
     """,
 )
 
@@ -210,7 +211,7 @@ def restart(
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
-    train_from_scratch(config, restart=True, verbose=verbose)
+    train_nnp(config, restart=True, verbose=verbose)
 
 
 @app.command(help="Display training and finetuning runs")
@@ -690,7 +691,7 @@ def train(
         optim=OptimizerConfig(lr=lr, weight_decay=weight_decay),
         scheduler=SchedulerConfig(),
     )
-    train_from_scratch(config, verbose=verbose)
+    train_nnp(config, verbose=verbose)
 
 
 @app.command(help="Fine tune a pretrained ANI model")
@@ -943,4 +944,4 @@ def ftune(
             backbone_lr=backbone_lr,
         ),
     )
-    train_from_scratch(config, verbose=verbose)
+    train_nnp(config, verbose=verbose)

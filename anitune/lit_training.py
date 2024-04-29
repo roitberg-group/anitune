@@ -12,7 +12,7 @@ from anitune.console import console
 from anitune.config import TrainConfig
 
 
-def train_from_scratch(
+def train_nnp(
     config: TrainConfig, restart: bool = False, verbose: bool = False
 ) -> None:
     r"""
