@@ -12,14 +12,18 @@ from anitune.console import console
 from anitune.config import TrainConfig
 
 
-def train_from_scratch(config: TrainConfig, restart: bool = False, verbose: bool = False) -> None:
+def train_from_scratch(
+    config: TrainConfig, restart: bool = False, verbose: bool = False
+) -> None:
     r"""
     Train an ANI-style model
     """
     import torch  # noqa
     import lightning  # noqa
+
     if not verbose:
         from lightning_utilities.core.rank_zero import log
+
         log.setLevel(logging.ERROR)
     from lightning.pytorch.callbacks import (  # noqa
         LearningRateMonitor,

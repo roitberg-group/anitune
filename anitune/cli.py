@@ -1,4 +1,5 @@
 r"""Command line interface entrypoints"""
+
 import json
 import pickle
 import shutil
@@ -182,7 +183,14 @@ def restart(
             help="Restart a debug run",
         ),
     ] = False,
-    verbose: tpx.Annotated[bool, Option("-v/ ", "--verbose/--no-verbose", help="Help string",),] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     if (
         ftune_name_or_idx
@@ -613,7 +621,14 @@ def train(
             help="Use cuda acceleration",
         ),
     ] = False,
-    verbose: tpx.Annotated[bool, Option("-v/ ", "--verbose/--no-verbose", help="Help string",),] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
@@ -830,7 +845,14 @@ def ftune(
             help="Use cuda acceleration",
         ),
     ] = False,
-    verbose: tpx.Annotated[bool, Option("-v/ ", "--verbose/--no-verbose", help="Help string",),] = False,
+    verbose: tpx.Annotated[
+        bool,
+        Option(
+            "-v/ ",
+            "--verbose/--no-verbose",
+            help="Help string",
+        ),
+    ] = False,
 ) -> None:
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
