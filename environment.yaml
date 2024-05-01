@@ -25,32 +25,36 @@ dependencies:
   # cli
   - typer  # handy cli library with support for type checking
   - rich  # colorful styles and terminal outputs
-  - psutil
-  #- click  # more involved cli library, backend for typer
-  #- shellingham  # autodetect shell for auto completion
+
+  # Core
+  - numpy=1.20
+  - mkl=2024.0.0
+  - pytorch=1.13.1
+  - cudatoolkit=11.6
+
+  # Data
+  - h5py  # HDF5 backend
+  - pyyaml  # builtin datasets specification
+
+  # Utils
+  - tqdm  # progress bar
+
+  # Ase interface (optional)
+  - ase
+
+  # Neurochem files (legacy)
+  - lark-parser
+  - requests
+
+  # Training
+  - lightning=2.2.1
+  - torchmetrics=1.3.2
+  - tensorboard
 
   # docs
   - sphinx  # documentation framework, uses restructured text (.rst)
   - sphinx_rtd_theme
   - sphinx-gallery
 
-  # DL
-  - numpy=1.20
-  - mkl=2024.0.0
-  - pytorch=1.13.1
-  - lightning=2.2.1
-  - torchmetrics=1.3.2
-  - cudatoolkit=11.6
-  - tensorboard
-
-  # Progress bars
-  - tqdm
-  - pkbar
-
-  # Legacy neurochem parser
-  - lark-parser
-  - pyyaml
-  - requests
-
-  # Ase interface
-  - ase
+  # Utils
+  - psutil
