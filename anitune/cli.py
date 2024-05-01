@@ -224,6 +224,22 @@ def ls(
             help="Show file sizes",
         ),
     ] = False,
+    best: tpx.Annotated[
+        bool,
+        Option(
+            "-b/-B",
+            "--best/--no-best",
+            help="Show best metrics",
+        ),
+    ] = True,
+    latest: tpx.Annotated[
+        bool,
+        Option(
+            "-l/-L",
+            "--latest/--no-latest",
+            help="Show latest metrics",
+        ),
+    ] = False,
 ) -> None:
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
@@ -292,22 +308,26 @@ def ls(
         table.add_column("builder")
         table.add_column("wd")
         table.add_column("lr")
-        table.add_column("best-epoch")
-        table.add_column("best-valid")
-        table.add_column("best-train")
-        table.add_column("epoch")
-        table.add_column("valid")
-        table.add_column("train")
+        if best:
+            table.add_column("best-epoch")
+            table.add_column("best-valid")
+            table.add_column("best-train")
+        if latest:
+            table.add_column("latest-epoch")
+            table.add_column("latest-valid")
+            table.add_column("latest-train")
         for j, p in enumerate(train):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
-                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                    metrics = pickle.load(fb)
-                    epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                    latest_metrics = pickle.load(fb)
-                    latest_epoch = latest_metrics.pop("epoch")
+                if best:
+                    with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                        metrics = pickle.load(fb)
+                        epoch = metrics.pop("epoch")
+                if latest:
+                    with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                        latest_metrics = pickle.load(fb)
+                        latest_epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
@@ -320,29 +340,39 @@ def ls(
                     config.model.builder,
                     str(config.optim.weight_decay),
                     str(config.optim.lr),
-                    str(epoch),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in metrics.items()
-                        if "valid" in k
-                    ),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in metrics.items()
-                        if "train" in k
-                    ),
-                    str(latest_epoch),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in latest_metrics.items()
-                        if "valid" in k
-                    ),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in latest_metrics.items()
-                        if "train" in k
-                    ),
                 ]
+                if best:
+                    row_args.extend(
+                        [
+                            str(epoch),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in metrics.items()
+                                if "valid" in k
+                            ),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in metrics.items()
+                                if "train" in k
+                            ),
+                        ]
+                    )
+                if latest:
+                    row_args.extend(
+                        [
+                            str(latest_epoch),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in latest_metrics.items()
+                                if "valid" in k
+                            ),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in latest_metrics.items()
+                                if "train" in k
+                            ),
+                        ]
+                    )
             except Exception:
                 row_args = [
                     f"[bold]{j}[/bold]",
@@ -366,22 +396,26 @@ def ls(
         table.add_column("head")
         table.add_column("head-lr")
         table.add_column("bbone-lr")
-        table.add_column("best-epoch")
-        table.add_column("best-valid")
-        table.add_column("best-train")
-        table.add_column("epoch")
-        table.add_column("valid")
-        table.add_column("train")
+        if best:
+            table.add_column("best-epoch")
+            table.add_column("best-valid")
+            table.add_column("best-train")
+        if latest:
+            table.add_column("latest-epoch")
+            table.add_column("latest-valid")
+            table.add_column("latest-train")
         for j, p in enumerate(ftune):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
-                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                    metrics = pickle.load(fb)
-                    epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                    latest_metrics = pickle.load(fb)
-                    latest_epoch = latest_metrics.pop("epoch")
+                if best:
+                    with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                        metrics = pickle.load(fb)
+                        epoch = metrics.pop("epoch")
+                if latest:
+                    with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                        latest_metrics = pickle.load(fb)
+                        latest_epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
@@ -396,29 +430,39 @@ def ls(
                     str(config.ftune.num_head_layers),
                     str(config.optim.lr),
                     str(config.ftune.backbone_lr),
-                    str(epoch),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in metrics.items()
-                        if "valid" in k
-                    ),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in metrics.items()
-                        if "train" in k
-                    ),
-                    str(latest_epoch),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in latest_metrics.items()
-                        if "valid" in k
-                    ),
-                    " ".join(
-                        f"{simplify_metric(k)}={v:.2f}"
-                        for k, v in latest_metrics.items()
-                        if "train" in k
-                    ),
                 ]
+                if best:
+                    row_args.extend(
+                        [
+                            str(epoch),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in metrics.items()
+                                if "valid" in k
+                            ),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in metrics.items()
+                                if "train" in k
+                            ),
+                        ]
+                    )
+                if latest:
+                    row_args.extend(
+                        [
+                            str(latest_epoch),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in latest_metrics.items()
+                                if "valid" in k
+                            ),
+                            " ".join(
+                                f"{simplify_metric(k)}={v:.2f}"
+                                for k, v in latest_metrics.items()
+                                if "train" in k
+                            ),
+                        ]
+                    )
             except Exception:
                 row_args = [
                     f"[bold]{j}[/bold]",
