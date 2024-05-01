@@ -108,6 +108,7 @@ class LitModel(lightning.LightningModule):
             c.reset()
             for name, v in m.items():
                 metrics[f"{name}_{k}"] = v
+                #  names of metrics are (energies|...)_(train|valid)_(rmse|mae)[kcal|mol[|ang]]
                 if "energies" in k:
                     metrics[f"{name}_{k}_kcal|mol"] = hartree2kcalpermol(v)
                 elif "forces" in k:

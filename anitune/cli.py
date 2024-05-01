@@ -11,7 +11,7 @@ from typer import Option, Typer
 from rich.table import Table
 
 from anitune.console import console
-from anitune.utils import DiskData, select_paths
+from anitune.utils import DiskData, select_paths, simplify_metric
 from anitune.lit_training import train_nnp
 from anitune.config import (
     load_state_dict,
@@ -219,8 +219,8 @@ def ls(
     sizes: tpx.Annotated[
         bool,
         Option(
-            "-l",
-            "--extra/--no-extra",
+            "-s/-S",
+            "--sizes/--no-sizes",
             help="Show file sizes",
         ),
     ] = False,
@@ -232,7 +232,7 @@ def ls(
         table = Table(title="Batched datasets", box=None)
         table.add_column("", style="magenta")
         table.add_column("data-name", style="magenta")
-        table.add_column("divisions", style="magenta")
+        table.add_column("divs", style="magenta")
         table.add_column("builtin-src")
         table.add_column("other-src")
         table.add_column("lot")
@@ -262,7 +262,7 @@ def ls(
                     " ".join((p.stem for p in ds_config.src_paths)) or "--",
                     ds_config.lot,
                     str(ds_log["num_conformers"]),
-                    ",".join(ds_log["symbols"]),
+                    " ".join(ds_log["symbols"]),
                     " ".join(ds_log["properties"]),
                     str(ds_config.batch_size),
                     str(ds_config.shuffle_seed),
@@ -270,7 +270,6 @@ def ls(
                 if sizes:
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
                     row_args.append(format(size / 1024**3, ".1f"))
-
             except Exception:
                 row_args = [
                     f"[bold]{j}[/bold]",
@@ -288,15 +287,27 @@ def ls(
         table = Table(title="Training runs", box=None)
         table.add_column("", style="green")
         table.add_column("run-name", style="green")
-        table.add_column("trained-on-data", style="magenta")
-        table.add_column("trained-on-div", style="magenta")
+        table.add_column("on-data", style="magenta")
+        table.add_column("on-div", style="magenta")
         table.add_column("builder")
-        table.add_column("weight-decay")
+        table.add_column("wd")
         table.add_column("lr")
+        table.add_column("best-epoch")
+        table.add_column("best-valid")
+        table.add_column("best-train")
+        table.add_column("epoch")
+        table.add_column("valid")
+        table.add_column("train")
         for j, p in enumerate(train):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    latest_epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
@@ -309,6 +320,12 @@ def ls(
                     config.model.builder,
                     str(config.optim.weight_decay),
                     str(config.optim.lr),
+                    str(epoch),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "valid" in k),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "train" in k),
+                    str(latest_epoch),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "valid" in k),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "train" in k),
                 ]
             except Exception:
                 row_args = [
@@ -327,16 +344,28 @@ def ls(
         table.add_column("", style="blue")
         table.add_column("run-name", style="blue")
         table.add_column("ftune-from", style="green")
-        table.add_column("trained-on-data", style="magenta")
-        table.add_column("trained-on-div", style="magenta")
-        table.add_column("weight-decay")
-        table.add_column("head-layers")
+        table.add_column("on-data", style="magenta")
+        table.add_column("on-div", style="magenta")
+        table.add_column("wd")
+        table.add_column("head")
         table.add_column("head-lr")
-        table.add_column("backbone-lr")
+        table.add_column("bbone-lr")
+        table.add_column("best-epoch")
+        table.add_column("best-valid")
+        table.add_column("best-train")
+        table.add_column("epoch")
+        table.add_column("valid")
+        table.add_column("train")
         for j, p in enumerate(ftune):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    latest_epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
@@ -351,6 +380,12 @@ def ls(
                     str(config.ftune.num_head_layers),
                     str(config.optim.lr),
                     str(config.ftune.backbone_lr),
+                    str(epoch),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "valid" in k),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "train" in k),
+                    str(latest_epoch),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "valid" in k),
+                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "train" in k),
                 ]
             except Exception:
                 row_args = [

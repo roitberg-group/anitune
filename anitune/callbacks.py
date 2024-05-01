@@ -2,9 +2,31 @@ import pickle
 import typing as tp
 from pathlib import Path
 
-from lightning.pytorch.callbacks import Callback
+from torch import Tensor
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning import Trainer, LightningModule
+
 from anitune.config import TrainConfig
+
+
+class ModelCheckpointWithMetrics(ModelCheckpoint):
+    r"""
+    Checkpoint a model and also save the callback metrics from the trainer
+    """
+    def _save_topk_checkpoint(self, trainer: Trainer, monitor_candidates: tp.Dict[str, Tensor]) -> None:
+        super()._save_topk_checkpoint(trainer, monitor_candidates)
+        #  names of metrics are (energies|...)_(train|valid)_(rmse|mae)[kcal|mol[|ang]]
+        if self.dirpath is not None:
+            dirpath = Path(self.dirpath).resolve()
+        else:
+            dirpath = Path(trainer.default_root_dir).resolve()
+
+        metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": monitor_candidates["epoch"].item()}
+        for k, v in monitor_candidates.items():
+            if "_rmse" in k or "_mae" in k:
+                metrics[k] = v.item()
+        with open(dirpath / "metrics.pkl", mode="wb") as fb:
+            pickle.dump(metrics, fb)
 
 
 class SaveConfig(Callback):
