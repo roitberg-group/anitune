@@ -224,8 +224,22 @@ def ls(
             help="Show file sizes",
         ),
     ] = False,
-    best: tpx.Annotated[bool, Option("-b/-B", "--best/--no-best", help="Show best metrics",),] = True,
-    latest: tpx.Annotated[bool, Option("-l/-L", "--latest/--no-latest", help="Show latest metrics",),] = False,
+    best: tpx.Annotated[
+        bool,
+        Option(
+            "-b/-B",
+            "--best/--no-best",
+            help="Show best metrics",
+        ),
+    ] = True,
+    latest: tpx.Annotated[
+        bool,
+        Option(
+            "-l/-L",
+            "--latest/--no-latest",
+            help="Show latest metrics",
+        ),
+    ] = False,
 ) -> None:
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
