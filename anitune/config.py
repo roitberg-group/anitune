@@ -42,7 +42,7 @@ class FinetuneConfig:
     r"""
     ftune-specific configurations
     """
-
+    pretrained_name: str
     state_dict_path: tp.Optional[Path]
     num_head_layers: int = 1
     backbone_lr: float = 0.0

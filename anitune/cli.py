@@ -291,6 +291,8 @@ def ls(
         table.add_column("trained-on-data", style="magenta")
         table.add_column("trained-on-div", style="magenta")
         table.add_column("builder")
+        table.add_column("weight-decay")
+        table.add_column("lr")
         for j, p in enumerate(train):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
@@ -305,15 +307,15 @@ def ls(
                         else "train"
                     ),
                     config.model.builder,
+                    str(config.optim.weight_decay),
+                    str(config.optim.lr),
                 ]
             except Exception:
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
-                    "?",
-                    "?",
-                    "?",
                 ]
+                row_args.extend(["?"] * 5)
             table.add_row(*row_args)
         console.print(table)
     else:
@@ -324,9 +326,13 @@ def ls(
         table = Table(title="Finetuning runs", box=None)
         table.add_column("", style="blue")
         table.add_column("run-name", style="blue")
+        table.add_column("ftune-from", style="green")
         table.add_column("trained-on-data", style="magenta")
         table.add_column("trained-on-div", style="magenta")
-        table.add_column("builder")
+        table.add_column("weight-decay")
+        table.add_column("head-layers")
+        table.add_column("head-lr")
+        table.add_column("backbone-lr")
         for j, p in enumerate(ftune):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
@@ -334,22 +340,24 @@ def ls(
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
+                    config.ftune.pretrained_name,
                     config.ds.path.name,
                     (
                         str(config.ds.fold_idx)
                         if config.ds.fold_idx != "single"
                         else "train"
                     ),
-                    config.model.builder,
+                    str(config.optim.weight_decay),
+                    str(config.ftune.num_head_layers),
+                    str(config.optim.lr),
+                    str(config.ftune.backbone_lr),
                 ]
             except Exception:
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
-                    "?",
-                    "?",
-                    "?",
                 ]
+                row_args.extend(["?"] * 7)
             table.add_row(*row_args)
         console.print(table)
     else:
@@ -927,11 +935,13 @@ def ftune(
 
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None
+        pretrained_name = name_or_idx
     else:
         pretrained_path = select_paths(
             (name_or_idx,),
             kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
         )[0]
+        pretrained_name = pretrained_path.name
         pretrained_config_path = pretrained_path / "config.pkl"
         if not pretrained_config_path.is_file():
             raise ValueError(f"{pretrained_config_path} is not a valid config file")
@@ -979,6 +989,7 @@ def ftune(
         ),
         scheduler=SchedulerConfig(),
         ftune=FinetuneConfig(
+            pretrained_name=pretrained_name,
             state_dict_path=pretrained_state_dict_path,
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
