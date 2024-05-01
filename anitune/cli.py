@@ -854,12 +854,24 @@ def ftune(
             help="Help string",
         ),
     ] = False,
+    _fold_idx: tpx.Annotated[
+        str,
+        Option(
+            "--fold-idx",
+            help="Fold idx",
+        ),
+    ] = "single",
 ) -> None:
+    fold_idx: tp.Union[str, int]
+    try:
+        fold_idx = int(_fold_idx)
+    except ValueError:
+        fold_idx = _fold_idx
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
-        ds_config.fold_idx = "single"
+        ds_config.fold_idx = fold_idx
 
     if head_lr <= 0.0:
         raise ValueError(
