@@ -13,7 +13,10 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
     r"""
     Checkpoint a model and also save the callback metrics from the trainer
     """
-    def _save_topk_checkpoint(self, trainer: Trainer, monitor_candidates: tp.Dict[str, Tensor]) -> None:
+
+    def _save_topk_checkpoint(
+        self, trainer: Trainer, monitor_candidates: tp.Dict[str, Tensor]
+    ) -> None:
         super()._save_topk_checkpoint(trainer, monitor_candidates)
         #  names of metrics are (energies|...)_(train|valid)_(rmse|mae)[kcal|mol[|ang]]
         if self.dirpath is not None:
@@ -21,7 +24,9 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
         else:
             dirpath = Path(trainer.default_root_dir).resolve()
 
-        metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": monitor_candidates["epoch"].item()}
+        metrics: tp.Dict[str, tp.Union[int, float]] = {
+            "epoch": monitor_candidates["epoch"].item()
+        }
         for k, v in monitor_candidates.items():
             if "_rmse" in k or "_mae" in k:
                 metrics[k] = v.item()

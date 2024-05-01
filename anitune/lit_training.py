@@ -38,7 +38,11 @@ def train_nnp(
     from anitune.lit_models import LitModel  # noqa
     from anitune import model_builders  # noqa
     from anitune import losses  # noqa
-    from anitune.callbacks import MergeTensorBoardLogs, SaveConfig, ModelCheckpointWithMetrics  # noqa
+    from anitune.callbacks import (
+        MergeTensorBoardLogs,
+        SaveConfig,
+        ModelCheckpointWithMetrics,
+    )  # noqa
 
     if not config.ds.path.exists():
         raise RuntimeError("Dataset does not exist")

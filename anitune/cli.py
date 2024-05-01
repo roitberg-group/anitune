@@ -321,11 +321,27 @@ def ls(
                     str(config.optim.weight_decay),
                     str(config.optim.lr),
                     str(epoch),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "valid" in k),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "train" in k),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "train" in k
+                    ),
                     str(latest_epoch),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "valid" in k),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "train" in k),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "train" in k
+                    ),
                 ]
             except Exception:
                 row_args = [
@@ -381,11 +397,27 @@ def ls(
                     str(config.optim.lr),
                     str(config.ftune.backbone_lr),
                     str(epoch),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "valid" in k),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in metrics.items() if "train" in k),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "train" in k
+                    ),
                     str(latest_epoch),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "valid" in k),
-                    " ".join(f"{simplify_metric(k)}={v:.2f}" for k, v in latest_metrics.items() if "train" in k),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "train" in k
+                    ),
                 ]
             except Exception:
                 row_args = [

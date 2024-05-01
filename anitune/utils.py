@@ -71,8 +71,7 @@ def select_paths(
 
 def simplify_metric(arg: str) -> str:
     return (
-        arg
-        .replace("valid_", "")
+        arg.replace("valid_", "")
         .replace("train_", "")
         .replace("mae_energies", "Eₘₐₑ")
         .replace("rmse_energies", "E")
