@@ -4,7 +4,7 @@ import pickle
 from anitune.config import DatasetConfig, ConfigError
 
 
-def batch(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
+def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None:
     r"""
     Create a prebatched dataset from a given configuration
     """
