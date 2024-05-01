@@ -272,7 +272,7 @@ def ls(
                     (
                         f"{ds_config.folds}-folds"
                         if ds_config.folds is not None
-                        else f"train: {ds_config.train_frac}, valid: {ds_config.validation_frac}"
+                        else f"train:{ds_config.train_frac} valid:{ds_config.validation_frac}"
                     ),
                     " ".join(ds_config.data_names) or "--",
                     " ".join((p.stem for p in ds_config.src_paths)) or "--",
