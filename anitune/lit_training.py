@@ -114,10 +114,10 @@ def train_nnp(
         "batch_size": None,
     }
     training_label = (
-        f"training{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
+        f"training{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
     )
     validation_label = (
-        f"validation{config.ds.fold_idx if config.ds.fold_idx != 'single' else ''}"
+        f"validation{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
     )
     training = torch.utils.data.DataLoader(
         datasets.ANIBatchedDataset(config.ds.path, split=training_label),

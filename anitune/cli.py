@@ -42,13 +42,13 @@ app = Typer(
 
 
 @app.command(help="Prebatch a dataset")
-def prebatch(
+def batch(
     name: tpx.Annotated[
         str,
         Option(
             "-n",
             "--name",
-            help="Name for the prebatched dataset",
+            help="Name for the batched dataset",
         ),
     ] = "",
     lot: tpx.Annotated[
@@ -79,7 +79,7 @@ def prebatch(
         Option(
             "-p",
             "--property",
-            help="Properties to prebatch, all by default",
+            help="Properties to batch, all by default",
         ),
     ] = None,
     batch_size: tpx.Annotated[
@@ -116,11 +116,11 @@ def prebatch(
         int,
         Option(
             "--batch-seed",
-            help="Seed for dataset prebatching",
+            help="Seed for dataset batching",
         ),
     ] = 1234,
 ) -> None:
-    from anitune.batching import batch
+    from anitune.batching import batch_data
 
     properties = () if _properties is None else tuple(sorted(_properties))
     src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
@@ -138,7 +138,7 @@ def prebatch(
         train_frac=train_frac,
         shuffle_seed=data_seed,
     )
-    batch(ds, max_batches_per_packet=100)
+    batch_data(ds, max_batches_per_packet=100)
 
 
 @app.command(help="Clean debug runs")
@@ -332,11 +332,7 @@ def ls(
                     f"[bold]{j}[/bold]",
                     p.name,
                     config.ds.path.name,
-                    (
-                        str(config.ds.fold_idx)
-                        if config.ds.fold_idx != "single"
-                        else "train"
-                    ),
+                    str(config.ds.fold_idx),
                     config.model.builder,
                     str(config.optim.weight_decay),
                     str(config.optim.lr),
@@ -421,11 +417,7 @@ def ls(
                     p.name,
                     config.ftune.pretrained_name,
                     config.ds.path.name,
-                    (
-                        str(config.ds.fold_idx)
-                        if config.ds.fold_idx != "single"
-                        else "train"
-                    ),
+                    str(config.ds.fold_idx),
                     str(config.optim.weight_decay),
                     str(config.ftune.num_head_layers),
                     str(config.optim.lr),
@@ -683,7 +675,7 @@ def train(
             "--fold-idx",
             help="Fold idx",
         ),
-    ] = "single",
+    ] = "train",
     lr: tpx.Annotated[
         float,
         Option(
@@ -1027,7 +1019,7 @@ def ftune(
             "--fold-idx",
             help="Fold idx",
         ),
-    ] = "single",
+    ] = "train",
 ) -> None:
     fold_idx: tp.Union[str, int]
     try:
@@ -1093,7 +1085,7 @@ def ftune(
         terms_and_factors.append(("TotalCharge", total_charge))
 
     config = TrainConfig(
-        name=f"{name}-{ds_config.fold_idx}",
+        name=name,
         ds=ds_config,
         accel=AccelConfig(
             max_batches_per_packet=100,

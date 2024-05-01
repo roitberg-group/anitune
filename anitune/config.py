@@ -66,7 +66,7 @@ class DatasetConfig:
     dataset-specific configurations
     """
 
-    fold_idx: tp.Union[int, str] = "single"
+    fold_idx: tp.Union[int, str] = "train"
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
     validation_frac: float = 0.2
@@ -234,4 +234,4 @@ class TrainConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        return root / f"{self.name}-{self.ds.fold_idx}-{hasher.hexdigest(4)}"
+        return root / f"{self.name}-{hasher.hexdigest(4)}"
