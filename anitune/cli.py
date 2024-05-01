@@ -299,7 +299,11 @@ def ls(
                     f"[bold]{j}[/bold]",
                     p.name,
                     config.ds.path.name,
-                    str(config.ds.fold_idx) if config.ds.fold_idx != "single" else "train",
+                    (
+                        str(config.ds.fold_idx)
+                        if config.ds.fold_idx != "single"
+                        else "train"
+                    ),
                     config.model.builder,
                 ]
             except Exception:
@@ -331,7 +335,11 @@ def ls(
                     f"[bold]{j}[/bold]",
                     p.name,
                     config.ds.path.name,
-                    str(config.ds.fold_idx) if config.ds.fold_idx != "single" else "train",
+                    (
+                        str(config.ds.fold_idx)
+                        if config.ds.fold_idx != "single"
+                        else "train"
+                    ),
                     config.model.builder,
                 ]
             except Exception:
