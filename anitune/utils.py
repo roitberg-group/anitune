@@ -67,3 +67,16 @@ def select_paths(
             else:
                 selected_paths.append(paths[0])
     return selected_paths
+
+
+def simplify_metric(arg: str) -> str:
+    return (
+        arg.replace("valid_", "")
+        .replace("train_", "")
+        .replace("mae_energies", "Eₘₐₑ")
+        .replace("rmse_energies", "E")
+        .replace("mae_forces", "Fₘₐₑ")
+        .replace("rmse_forces", "F")
+        .replace("|ang", "/Å")
+        .replace("_kcal|mol", "㎉㏖")
+    )

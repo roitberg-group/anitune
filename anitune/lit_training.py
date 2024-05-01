@@ -28,7 +28,6 @@ def train_nnp(
     from lightning.pytorch.callbacks import (  # noqa
         LearningRateMonitor,
         EarlyStopping,
-        ModelCheckpoint,
         BackboneFinetuning,
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
@@ -39,7 +38,11 @@ def train_nnp(
     from anitune.lit_models import LitModel  # noqa
     from anitune import model_builders  # noqa
     from anitune import losses  # noqa
-    from anitune.callbacks import MergeTensorBoardLogs, SaveConfig  # noqa
+    from anitune.callbacks import (
+        MergeTensorBoardLogs,
+        SaveConfig,
+        ModelCheckpointWithMetrics,
+    )  # noqa
 
     if not config.ds.path.exists():
         raise RuntimeError("Dataset does not exist")
@@ -134,7 +137,7 @@ def train_nnp(
         mode="min",
         patience=lit_model.hparams.plateau_patience * 2,  # type: ignore
     )
-    best_model_ckpt = ModelCheckpoint(
+    best_model_ckpt = ModelCheckpointWithMetrics(
         dirpath=config.path / "best-model",
         filename="best",
         save_top_k=1,
@@ -144,7 +147,7 @@ def train_nnp(
         mode="min",
         save_weights_only=True,
     )
-    latest_model_ckpt = ModelCheckpoint(
+    latest_model_ckpt = ModelCheckpointWithMetrics(
         dirpath=config.path / "latest-model",
         filename="latest",
         save_top_k=1,

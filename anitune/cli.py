@@ -11,7 +11,7 @@ from typer import Option, Typer
 from rich.table import Table
 
 from anitune.console import console
-from anitune.utils import DiskData, select_paths
+from anitune.utils import DiskData, select_paths, simplify_metric
 from anitune.lit_training import train_nnp
 from anitune.config import (
     load_state_dict,
@@ -219,8 +219,8 @@ def ls(
     sizes: tpx.Annotated[
         bool,
         Option(
-            "-l",
-            "--extra/--no-extra",
+            "-s/-S",
+            "--sizes/--no-sizes",
             help="Show file sizes",
         ),
     ] = False,
@@ -228,44 +228,19 @@ def ls(
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
     ftune = sorted(_FTUNE_PATH.iterdir())
-    debug_train = sorted(_DEBUG_TRAIN_PATH.iterdir())
-    debug_ftune = sorted(_DEBUG_FTUNE_PATH.iterdir())
-
-    if train or debug_train:
-        console.print("Training runs:")
-        for j, p in enumerate(train):
-            console.print(f"{j}. {p.name}", style="green", highlight=False)
-        for j, p in enumerate(debug_train):
-            console.print(f"(debug) {j}. {p.name}", style="yellow", highlight=False)
-    else:
-        console.print("(No training runs found)")
-
-    console.print()
-    if ftune or debug_ftune:
-        console.print("Finetuning runs:")
-        for j, p in enumerate(ftune):
-            console.print(f"[bold]{j}[/bold]. {p.name}", style="blue", highlight=False)
-        for j, p in enumerate(debug_ftune):
-            console.print(
-                f"(debug) [bold]{j}[/bold]. {p.name}", style="yellow", highlight=False
-            )
-    else:
-        console.print("(No finetuning runs found)")
-
-    console.print()
     if batch:
         table = Table(title="Batched datasets", box=None)
-        table.add_column("index")
-        table.add_column("name", style="magenta")
-        table.add_column("builtin-src", style="magenta")
-        table.add_column("other-src", style="magenta")
+        table.add_column("", style="magenta")
+        table.add_column("data-name", style="magenta")
+        table.add_column("divs", style="magenta")
+        table.add_column("builtin-src")
+        table.add_column("other-src")
         table.add_column("lot")
         table.add_column("conformers")
         table.add_column("symbols")
         table.add_column("properties")
         table.add_column("batch-size")
         table.add_column("batch-seed")
-        table.add_column("divisions")
         if sizes:
             table.add_column("size (GB)")
         for j, p in enumerate(batch):
@@ -276,29 +251,28 @@ def ls(
                     ds_log = json.load(ft)
 
                 row_args = [
-                    f"[bold][magenta]{j}[/magenta][/bold]",
+                    f"[bold]{j}[/bold]",
                     p.name,
-                    "|".join(ds_config.data_names) or "--",
-                    "|".join((p.stem for p in ds_config.src_paths)) or "--",
-                    ds_config.lot,
-                    str(ds_log["num_conformers"]),
-                    ",".join(ds_log["symbols"]),
-                    "|".join(ds_log["properties"]),
-                    str(ds_config.batch_size),
-                    str(ds_config.shuffle_seed),
                     (
                         f"{ds_config.folds}-folds"
                         if ds_config.folds is not None
-                        else f"train:{ds_config.train_frac}, valid:{ds_config.validation_frac}"
+                        else f"train: {ds_config.train_frac}, valid: {ds_config.validation_frac}"
                     ),
+                    " ".join(ds_config.data_names) or "--",
+                    " ".join((p.stem for p in ds_config.src_paths)) or "--",
+                    ds_config.lot,
+                    str(ds_log["num_conformers"]),
+                    " ".join(ds_log["symbols"]),
+                    " ".join(ds_log["properties"]),
+                    str(ds_config.batch_size),
+                    str(ds_config.shuffle_seed),
                 ]
                 if sizes:
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
                     row_args.append(format(size / 1024**3, ".1f"))
-
             except Exception:
                 row_args = [
-                    f"[bold][magenta]{j}[/magenta][/bold]",
+                    f"[bold]{j}[/bold]",
                     p.name,
                 ]
                 row_args.extend(["?"] * 9)
@@ -308,6 +282,155 @@ def ls(
         console.print(table)
     else:
         console.print("(No batched datasets found)")
+
+    if train:
+        table = Table(title="Training runs", box=None)
+        table.add_column("", style="green")
+        table.add_column("run-name", style="green")
+        table.add_column("on-data", style="magenta")
+        table.add_column("on-div", style="magenta")
+        table.add_column("builder")
+        table.add_column("wd")
+        table.add_column("lr")
+        table.add_column("best-epoch")
+        table.add_column("best-valid")
+        table.add_column("best-train")
+        table.add_column("epoch")
+        table.add_column("valid")
+        table.add_column("train")
+        for j, p in enumerate(train):
+            try:
+                with open(p / "config.pkl", mode="rb") as fb:
+                    config = pickle.load(fb)
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    latest_epoch = latest_metrics.pop("epoch")
+                row_args = [
+                    f"[bold]{j}[/bold]",
+                    p.name,
+                    config.ds.path.name,
+                    (
+                        str(config.ds.fold_idx)
+                        if config.ds.fold_idx != "single"
+                        else "train"
+                    ),
+                    config.model.builder,
+                    str(config.optim.weight_decay),
+                    str(config.optim.lr),
+                    str(epoch),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "train" in k
+                    ),
+                    str(latest_epoch),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "train" in k
+                    ),
+                ]
+            except Exception:
+                row_args = [
+                    f"[bold]{j}[/bold]",
+                    p.name,
+                ]
+                row_args.extend(["?"] * 5)
+            table.add_row(*row_args)
+        console.print(table)
+    else:
+        console.print("(No training runs found)")
+
+    console.print()
+    if ftune:
+        table = Table(title="Finetuning runs", box=None)
+        table.add_column("", style="blue")
+        table.add_column("run-name", style="blue")
+        table.add_column("ftune-from", style="green")
+        table.add_column("on-data", style="magenta")
+        table.add_column("on-div", style="magenta")
+        table.add_column("wd")
+        table.add_column("head")
+        table.add_column("head-lr")
+        table.add_column("bbone-lr")
+        table.add_column("best-epoch")
+        table.add_column("best-valid")
+        table.add_column("best-train")
+        table.add_column("epoch")
+        table.add_column("valid")
+        table.add_column("train")
+        for j, p in enumerate(ftune):
+            try:
+                with open(p / "config.pkl", mode="rb") as fb:
+                    config = pickle.load(fb)
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    latest_epoch = latest_metrics.pop("epoch")
+                row_args = [
+                    f"[bold]{j}[/bold]",
+                    p.name,
+                    config.ftune.pretrained_name,
+                    config.ds.path.name,
+                    (
+                        str(config.ds.fold_idx)
+                        if config.ds.fold_idx != "single"
+                        else "train"
+                    ),
+                    str(config.optim.weight_decay),
+                    str(config.ftune.num_head_layers),
+                    str(config.optim.lr),
+                    str(config.ftune.backbone_lr),
+                    str(epoch),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in metrics.items()
+                        if "train" in k
+                    ),
+                    str(latest_epoch),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "valid" in k
+                    ),
+                    " ".join(
+                        f"{simplify_metric(k)}={v:.2f}"
+                        for k, v in latest_metrics.items()
+                        if "train" in k
+                    ),
+                ]
+            except Exception:
+                row_args = [
+                    f"[bold]{j}[/bold]",
+                    p.name,
+                ]
+                row_args.extend(["?"] * 7)
+            table.add_row(*row_args)
+        console.print(table)
+    else:
+        console.print("(No finetuning runs found)")
+
+    console.print()
 
 
 @app.command(help="Delete specific training or finetuning run")
@@ -886,35 +1009,29 @@ def ftune(
     if num_head_layers < 1:
         raise ValueError("There must be at least one head layer")
 
-    pretrain_builtin: bool
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
         from anitune.model_builders import fetch_pretrained_config
 
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None
-        pretrain_builtin = True
+        pretrained_name = name_or_idx
     else:
         pretrained_path = select_paths(
             (name_or_idx,),
             kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
         )[0]
+        pretrained_name = pretrained_path.name
         pretrained_config_path = pretrained_path / "config.pkl"
         if not pretrained_config_path.is_file():
             raise ValueError(f"{pretrained_config_path} is not a valid config file")
 
         with open(pretrained_config_path, mode="rb") as f:
             pretrained_config = pickle.load(f)
-        pretrain_builtin = False
 
         pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
 
         if not pretrained_state_dict_path.is_file():
             raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
-
-    if pretrain_builtin:
-        run_name = f"{name}-from_{name_or_idx}"
-    else:
-        run_name = f"{name}-from_{pretrained_config.ds.fold_idx}"
 
     terms_and_factors: tp.List[tp.Tuple[str, float]] = []
     if energies > 0.0:
@@ -932,7 +1049,7 @@ def ftune(
         terms_and_factors.append(("TotalCharge", total_charge))
 
     config = TrainConfig(
-        name=run_name,
+        name=f"{name}-{ds_config.fold_idx}",
         ds=ds_config,
         accel=AccelConfig(
             max_batches_per_packet=100,
@@ -951,6 +1068,7 @@ def ftune(
         ),
         scheduler=SchedulerConfig(),
         ftune=FinetuneConfig(
+            pretrained_name=pretrained_name,
             state_dict_path=pretrained_state_dict_path,
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
