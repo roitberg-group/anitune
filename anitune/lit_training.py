@@ -16,7 +16,7 @@ def train_nnp(
     config: TrainConfig, restart: bool = False, verbose: bool = False
 ) -> None:
     r"""
-    Train an ANI-style model
+    Train an ANI-style neural network potential
     """
     import torch  # noqa
     import lightning  # noqa

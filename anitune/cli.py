@@ -180,6 +180,13 @@ def restart(
             help="Restart a debug run",
         ),
     ] = False,
+    max_epochs: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = None,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -207,6 +214,8 @@ def restart(
 
     with open(path, mode="rb") as f:
         config = pickle.load(f)
+    if max_epochs is not None:
+        config.accel.max_epochs = max_epochs
     train_nnp(config, restart=True, verbose=verbose)
 
 
@@ -525,6 +534,13 @@ def train(
             help="Use cuda acceleration",
         ),
     ] = False,
+    max_epochs: tpx.Annotated[
+        int,
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = 2000,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -580,6 +596,7 @@ def train(
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
             use_cuda_ops=use_cuda_ops,
+            max_epochs=max_epochs,
         ),
         model=ModelConfig(
             builder=builder,
@@ -749,6 +766,13 @@ def ftune(
             help="Use cuda acceleration",
         ),
     ] = False,
+    max_epochs: tpx.Annotated[
+        int,
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = 2000,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -837,6 +861,7 @@ def ftune(
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
             use_cuda_ops=use_cuda_ops,
+            max_epochs=max_epochs,
         ),
         model=pretrained_config.model,
         loss=LossConfig(
