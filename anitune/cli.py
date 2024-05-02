@@ -40,7 +40,13 @@ app = Typer(
 
 @app.command(help="Generate an ensemble from a set of models")
 def ensemble(
-    name: tpx.Annotated[str, Option("--name", help="Name for ensemble",),] = "ensemble",
+    name: tpx.Annotated[
+        str,
+        Option(
+            "--name",
+            help="Name for ensemble",
+        ),
+    ] = "ensemble",
     ftune_names_or_idxs: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
@@ -83,8 +89,9 @@ def ensemble(
     state_dict = merge_state_dicts(paths)
 
     import torch
+
     _hash = hasher.hexdigest(4)
-    path = (_ENSEMBLE_PATH / f"{name}-{_hash}")
+    path = _ENSEMBLE_PATH / f"{name}-{_hash}"
     path.mkdir(exist_ok=True, parents=True)
     src_config = {
         "train-src": tuple(p.name for p in ptrain_paths),
