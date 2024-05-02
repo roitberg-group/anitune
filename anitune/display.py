@@ -281,7 +281,7 @@ def ls(
                     f"{config.optim.weight_decay:.1e}",
                     str(config.ftune.num_head_layers),
                     f"{config.optim.lr:.1e}|{config.ftune.backbone_lr:.1e}",
-                    f"{epoch}({best_epoch})"
+                    f"{epoch}({best_epoch})",
                 ]
                 if best:
                     if not mae:
