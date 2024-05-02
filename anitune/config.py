@@ -9,8 +9,6 @@ from anitune.utils import (
     _BATCH_PATH,
     _FTUNE_PATH,
     _TRAIN_PATH,
-    _DEBUG_FTUNE_PATH,
-    _DEBUG_TRAIN_PATH,
 )
 
 
@@ -210,20 +208,9 @@ class TrainConfig:
     accel: AccelConfig = AccelConfig()
 
     @property
-    def ftune_mode(self) -> bool:
-        return self.ftune is not None
-
-    @property
     def path(self) -> Path:
         dict_ = asdict(self)
-        if self.ftune_mode:
-            root = _FTUNE_PATH
-            if self.debug:
-                root = _DEBUG_FTUNE_PATH
-        else:
-            root = _TRAIN_PATH
-            if self.debug:
-                root = _DEBUG_TRAIN_PATH
+        root = _FTUNE_PATH if self.ftune is not None else _TRAIN_PATH
 
         dict_.pop("debug")
         dict_.pop("accel")

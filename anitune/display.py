@@ -6,10 +6,11 @@ from typer import Option
 from rich.table import Table
 
 from anitune.console import console
-from anitune.config import (
+from anitune.utils import (
     _TRAIN_PATH,
     _FTUNE_PATH,
     _BATCH_PATH,
+    _ENSEMBLE_PATH,
 )
 
 
@@ -70,6 +71,7 @@ def ls(
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
     ftune = sorted(_FTUNE_PATH.iterdir())
+    ensemble = sorted(_ENSEMBLE_PATH.iterdir())
     if batch:
         table = Table(title="Batched datasets", box=None)
         table.add_column("", style="magenta")
@@ -241,7 +243,6 @@ def ls(
         console.print(table)
     else:
         console.print("(No training runs found)")
-
     console.print()
     if ftune:
         table = Table(title="Finetuning runs", box=None)
@@ -361,4 +362,26 @@ def ls(
         console.print(table)
     else:
         console.print("(No finetuning runs found)")
+    console.print()
+    if ensemble:
+        table = Table(title="Ensembles", box=None)
+        table.add_column("", style="cyan")
+        table.add_column("name", style="cyan")
+        table.add_column("ftune-src", style="blue")
+        table.add_column("train-src", style="green")
+        table.add_column("num")
+        for j, p in enumerate(ensemble):
+            with open(p / "src_config.pkl", mode="rb") as fb:
+                config = pickle.load(fb)
+            row_args = [
+                f"[bold]{j}[/bold]",
+                p.name,
+                " ".join(config["ftune-src"]) or "--",
+                " ".join(config["train-src"]) or "--",
+                str(config["num"]),
+            ]
+            table.add_row(*row_args)
+        console.print(table)
+    else:
+        console.print("(No ensembles found)")
     console.print()
