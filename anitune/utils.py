@@ -6,22 +6,18 @@ from pathlib import Path
 class DiskData(Enum):
     TRAIN = "train"
     FTUNE = "ftune"
-    DEBUG_TRAIN = "debug-train"
-    DEBUG_FTUNE = "debug-ftune"
     BATCH = "batch"
+    ENSEMBLE = "ensemble"
 
+
+_ENSEMBLE_PATH = Path.home().joinpath(".local/torchani/Ensemble")
+_ENSEMBLE_PATH.mkdir(exist_ok=True, parents=True)
 
 _BATCH_PATH = Path.home().joinpath(".local/torchani/Batched")
 _BATCH_PATH.mkdir(exist_ok=True, parents=True)
 
 _TRAIN_PATH = Path.home().joinpath(".local/torchani/Train")
 _TRAIN_PATH.mkdir(exist_ok=True, parents=True)
-
-_DEBUG_TRAIN_PATH = Path.home().joinpath(".local/torchani/DebugTrain")
-_DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
-
-_DEBUG_FTUNE_PATH = Path.home().joinpath(".local/torchani/DebugFtune")
-_DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
 
 _FTUNE_PATH = Path.home().joinpath(".local/torchani/Ftune")
 _FTUNE_PATH.mkdir(exist_ok=True, parents=True)
@@ -40,12 +36,12 @@ def select_paths(
         root = _TRAIN_PATH
     elif kind is DiskData.FTUNE:
         root = _FTUNE_PATH
-    elif kind is DiskData.DEBUG_FTUNE:
-        root = _DEBUG_FTUNE_PATH
-    elif kind is DiskData.DEBUG_TRAIN:
-        root = _DEBUG_TRAIN_PATH
-    else:
+    elif kind is DiskData.ENSEMBLE:
+        root = _ENSEMBLE_PATH
+    elif kind is DiskData.BATCH:
         root = _BATCH_PATH
+    else:
+        raise ValueError("Incorrect disk data")
     sorted_paths = sorted(root.iterdir())
     selected_paths = []
     for name_or_idx in names_or_idxs:

@@ -1,6 +1,9 @@
 r"""Command line interface entrypoints"""
 
+from copy import deepcopy
+import hashlib
 import pickle
+import warnings
 import shutil
 import typing as tp
 import typing_extensions as tpx
@@ -9,7 +12,7 @@ from pathlib import Path
 from typer import Option, Typer
 
 from anitune.console import console
-from anitune.utils import DiskData, select_paths
+from anitune.utils import DiskData, select_paths, _ENSEMBLE_PATH
 from anitune.lit_training import train_nnp
 from anitune.config import (
     load_state_dict,
@@ -21,8 +24,6 @@ from anitune.config import (
     LossConfig,
     OptimizerConfig,
     SchedulerConfig,
-    _DEBUG_TRAIN_PATH,
-    _DEBUG_FTUNE_PATH,
 )
 from anitune.display import ls
 
@@ -35,6 +36,64 @@ app = Typer(
     models, given a set of reference structures.
     """,
 )
+
+
+@app.command(help="Generate an ensemble from a set of models")
+def ensemble(
+    name: tpx.Annotated[str, Option("--name", help="Name for ensemble",),] = "ensemble",
+    ftune_names_or_idxs: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-f",
+            "--ftune-run",
+            help="Name or idx of the run",
+        ),
+    ] = None,
+    ptrain_names_or_idxs: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-t",
+            "--train-run",
+            help="Name or idx of the run",
+        ),
+    ] = None,
+) -> None:
+    if ptrain_names_or_idxs is None:
+        ptrain_names_or_idxs = []
+    if ftune_names_or_idxs is None:
+        ftune_names_or_idxs = []
+    ptrain_paths = select_paths(
+        ptrain_names_or_idxs,
+        kind=DiskData.TRAIN,
+    )
+    ftune_paths = select_paths(
+        ftune_names_or_idxs,
+        kind=DiskData.FTUNE,
+    )
+    paths = deepcopy(ptrain_paths)
+    paths.extend(ftune_paths)
+    hasher = hashlib.shake_128()
+    for p in paths:
+        hasher.update(p.name.encode("utf-8"))
+    paths = [(p / "best-model") / "best.ckpt" for p in paths]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from torchani.utils import merge_state_dicts
+    state_dict = merge_state_dicts(paths)
+
+    import torch
+    _hash = hasher.hexdigest(4)
+    path = (_ENSEMBLE_PATH / f"{name}-{_hash}")
+    path.mkdir(exist_ok=True, parents=True)
+    src_config = {
+        "train-src": tuple(p.name for p in ptrain_paths),
+        "ftune-src": tuple(p.name for p in ftune_paths),
+        "num": len(paths),
+    }
+    with open(path / "src_config.pkl", mode="wb") as bf:
+        pickle.dump(src_config, bf)
+    torch.save(state_dict, path / "model.pt")
 
 
 @app.command(help="Prebatch a dataset")
@@ -137,23 +196,6 @@ def batch(
     batch_data(ds, max_batches_per_packet=100)
 
 
-@app.command(help="Clean debug runs")
-def clean() -> None:
-    if any(_DEBUG_TRAIN_PATH.iterdir()):
-        shutil.rmtree(_DEBUG_TRAIN_PATH)
-        _DEBUG_TRAIN_PATH.mkdir(exist_ok=True, parents=True)
-        console.print("Cleaned all training debug runs")
-    else:
-        console.print("No debug training runs to clean")
-    console.print()
-    if any(_DEBUG_FTUNE_PATH.iterdir()):
-        shutil.rmtree(_DEBUG_FTUNE_PATH)
-        _DEBUG_FTUNE_PATH.mkdir(exist_ok=True, parents=True)
-        console.print("Cleaned all finetuning debug runs")
-    else:
-        console.print("No debug finetuning runs to clean")
-
-
 @app.command(help="Continue a previously started training")
 def restart(
     ftune_name_or_idx: tpx.Annotated[
@@ -172,14 +214,6 @@ def restart(
             help="Name or idx of the run",
         ),
     ] = "",
-    debug: tpx.Annotated[
-        bool,
-        Option(
-            "-g/-G",
-            "--debug/--no-debug",
-            help="Restart a debug run",
-        ),
-    ] = False,
     max_epochs: tpx.Annotated[
         tp.Optional[int],
         Option(
@@ -203,10 +237,7 @@ def restart(
     ):
         raise ValueError("One and only one of -f and -t should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
-    if debug:
-        kind = DiskData.DEBUG_FTUNE if ftune_name_or_idx else DiskData.DEBUG_TRAIN
-    else:
-        kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
+    kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
 
     path = select_paths((name_or_idx,), kind=kind)[0] / "config.pkl"
     if not path.is_file():
@@ -224,22 +255,6 @@ ls = app.command(help="Display training and finetuning runs")(ls)
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    debug_ftune_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "--df",
-            "--debug-ftune-run",
-            help="Name or idx of the run debug finetune",
-        ),
-    ] = None,
-    debug_ptrain_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "--dt",
-            "--debug-train-run",
-            help="Name or idx of the run debug pretrain",
-        ),
-    ] = None,
     ftune_name_or_idx: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
@@ -263,21 +278,26 @@ def rm(
             help="Name or idx of the batched dataset",
         ),
     ] = None,
+    ensemble_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-e",
+            help="Name or idx of the ensemble",
+        ),
+    ] = None,
 ) -> None:
     for selectors, dkind in zip(
         (
-            debug_ftune_name_or_idx,
-            debug_ptrain_name_or_idx,
             ftune_name_or_idx,
             ptrain_name_or_idx,
             batch_name_or_idx,
+            ensemble_name_or_idx,
         ),
         (
-            DiskData.DEBUG_FTUNE,
-            DiskData.DEBUG_TRAIN,
             DiskData.FTUNE,
             DiskData.TRAIN,
             DiskData.BATCH,
+            DiskData.ENSEMBLE,
         ),
     ):
         if selectors is not None:
@@ -304,23 +324,12 @@ def compare(
             help="Name or idx of the finetuned run",
         ),
     ] = "",
-    debug: tpx.Annotated[
-        bool,
-        Option(
-            "-g/-G",
-            "--debug/--no-debug",
-            help="Run debug",
-        ),
-    ] = False,
 ) -> None:
     if (not (ftune_name_or_idx or ptrain_name_or_idx)) or (
         ftune_name_or_idx and ptrain_name_or_idx
     ):
         raise ValueError("One and only one of -t or -f has to be specified")
-    if debug:
-        kind = DiskData.DEBUG_FTUNE if ftune_name_or_idx else DiskData.DEBUG_TRAIN
-    else:
-        kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
+    kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
     root = select_paths(
         (ptrain_name_or_idx or ftune_name_or_idx,),
         kind=kind,
@@ -573,9 +582,9 @@ def train(
         if limit is None:
             console.print("Setting train limit to 10 batches for debugging")
             limit = 10
-        console.print("Setting deterministic training for debugging purposes")
+        console.print("Setting deterministic training for debugging")
         deterministic = True
-        console.print("Setting anomaly detection for debugging purposes")
+        console.print("Setting anomaly detection for debugging")
         detect_anomaly = True
 
     terms_and_factors: tp.List[tp.Tuple[str, float]] = []
@@ -837,7 +846,7 @@ def ftune(
     else:
         pretrained_path = select_paths(
             (name_or_idx,),
-            kind=DiskData.TRAIN if not debug else DiskData.DEBUG_TRAIN,
+            kind=DiskData.TRAIN,
         )[0]
         pretrained_name = pretrained_path.name
         pretrained_config_path = pretrained_path / "config.pkl"
