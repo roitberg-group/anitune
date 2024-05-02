@@ -369,7 +369,7 @@ def ls(
         table.add_column("name", style="cyan")
         table.add_column("ftune-src", style="blue")
         table.add_column("train-src", style="green")
-        table.add_column("num")
+        table.add_column("num-networks")
         for j, p in enumerate(ensemble):
             with open(p / "src_config.pkl", mode="rb") as fb:
                 config = pickle.load(fb)
