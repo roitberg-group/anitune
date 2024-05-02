@@ -38,7 +38,7 @@ def ls(
     best: tpx.Annotated[
         bool,
         Option(
-            "-b/-B",
+            "-k/-K",
             "--best/--no-best",
             help="Show best metrics",
         ),
@@ -46,9 +46,9 @@ def ls(
     latest: tpx.Annotated[
         bool,
         Option(
-            "-l/-L",
-            "--latest/--no-latest",
-            help="Show latest metrics",
+            "-c/-C",
+            "--current/--no-current",
+            help="Show current metrics",
         ),
     ] = False,
     mae: tpx.Annotated[
@@ -134,34 +134,32 @@ def ls(
         table.add_column("builder")
         table.add_column("wd")
         table.add_column("lr")
+        table.add_column("epoch(best)")
         if best:
-            table.add_column("best-epoch")
             table.add_column("best-valid")
             table.add_column("best-train")
         if latest:
-            table.add_column("curr-epoch")
             table.add_column("curr-valid")
             table.add_column("curr-train")
         for j, p in enumerate(train):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
-                if best:
-                    with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                        metrics = pickle.load(fb)
-                        epoch = metrics.pop("epoch")
-                if latest:
-                    with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                        latest_metrics = pickle.load(fb)
-                        latest_epoch = latest_metrics.pop("epoch")
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    best_epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
                     config.ds.path.name,
                     str(config.ds.fold_idx),
                     config.model.builder,
-                    str(config.optim.weight_decay),
-                    str(config.optim.lr),
+                    f"{config.optim.weight_decay:.1e}",
+                    f"{config.optim.lr:.1e}",
+                    f"{epoch}({best_epoch})",
                 ]
                 if best:
                     if not mae:
@@ -186,7 +184,6 @@ def ls(
                         }
                     row_args.extend(
                         [
-                            str(epoch),
                             " ".join(
                                 f"{simplify_metric(k)}={v:.2f}"
                                 for k, v in metrics.items()
@@ -224,7 +221,6 @@ def ls(
                         }
                     row_args.extend(
                         [
-                            str(latest_epoch),
                             " ".join(
                                 f"{simplify_metric(k)}={v:.2f}"
                                 for k, v in latest_metrics.items()
@@ -258,38 +254,34 @@ def ls(
         table.add_column("on-div", style="magenta")
         table.add_column("wd")
         table.add_column("head")
-        table.add_column("head-lr")
-        table.add_column("bbone-lr")
+        table.add_column("head|bbone-lr")
+        table.add_column("epoch(best)")
         if best:
-            table.add_column("best-epoch")
             table.add_column("best-valid")
             table.add_column("best-train")
         if latest:
-            table.add_column("curr-epoch")
             table.add_column("curr-valid")
             table.add_column("curr-train")
         for j, p in enumerate(ftune):
             try:
                 with open(p / "config.pkl", mode="rb") as fb:
                     config = pickle.load(fb)
-                if best:
-                    with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                        metrics = pickle.load(fb)
-                        epoch = metrics.pop("epoch")
-                if latest:
-                    with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                        latest_metrics = pickle.load(fb)
-                        latest_epoch = latest_metrics.pop("epoch")
+                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
+                    metrics = pickle.load(fb)
+                    best_epoch = metrics.pop("epoch")
+                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
+                    latest_metrics = pickle.load(fb)
+                    epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
                     config.ftune.pretrained_name,
                     config.ds.path.name,
                     str(config.ds.fold_idx),
-                    str(config.optim.weight_decay),
+                    f"{config.optim.weight_decay:.1e}",
                     str(config.ftune.num_head_layers),
-                    str(config.optim.lr),
-                    str(config.ftune.backbone_lr),
+                    f"{config.optim.lr:.1e}|{config.ftune.backbone_lr:.1e}",
+                    f"{epoch}({best_epoch})"
                 ]
                 if best:
                     if not mae:
@@ -314,7 +306,6 @@ def ls(
                         }
                     row_args.extend(
                         [
-                            str(epoch),
                             " ".join(
                                 f"{simplify_metric(k)}={v:.2f}"
                                 for k, v in metrics.items()
@@ -352,7 +343,6 @@ def ls(
                         }
                     row_args.extend(
                         [
-                            str(latest_epoch),
                             " ".join(
                                 f"{simplify_metric(k)}={v:.2f}"
                                 for k, v in latest_metrics.items()
