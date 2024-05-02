@@ -28,7 +28,7 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
         super()._save_topk_checkpoint(trainer, monitor_candidates)
         # In this case check_monitor_top_k is not called, and the
         # metrics should be dump every step
-        if self.monitor is None:
+        if self.monitor is not None:
             return
         self._dump_metrics(trainer)
 
