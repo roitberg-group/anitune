@@ -167,9 +167,23 @@ def ls(
                     if not mae:
                         metrics = {k: v for k, v in metrics.items() if "mae" not in k}
                     if not hartree:
-                        metrics = {k: v for k, v in metrics.items() if not (("energies" in k and "kcal" not in k) or ("forces" in k and "kcal" not in k))}
+                        metrics = {
+                            k: v
+                            for k, v in metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" not in k)
+                                or ("forces" in k and "kcal" not in k)
+                            )
+                        }
                     else:
-                        metrics = {k: v for k, v in metrics.items() if not (("energies" in k and "kcal" in k) or ("forces" in k and "kcal" in k))}
+                        metrics = {
+                            k: v
+                            for k, v in metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" in k)
+                                or ("forces" in k and "kcal" in k)
+                            )
+                        }
                     row_args.extend(
                         [
                             str(epoch),
@@ -187,11 +201,27 @@ def ls(
                     )
                 if latest:
                     if not mae:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if "mae" not in k}
+                        latest_metrics = {
+                            k: v for k, v in latest_metrics.items() if "mae" not in k
+                        }
                     if not hartree:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if not (("energies" in k and "kcal" not in k) or ("forces" in k and "kcal" not in k))}
+                        latest_metrics = {
+                            k: v
+                            for k, v in latest_metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" not in k)
+                                or ("forces" in k and "kcal" not in k)
+                            )
+                        }
                     else:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if not (("energies" in k and "kcal" in k) or ("forces" in k and "kcal" in k))}
+                        latest_metrics = {
+                            k: v
+                            for k, v in latest_metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" in k)
+                                or ("forces" in k and "kcal" in k)
+                            )
+                        }
                     row_args.extend(
                         [
                             str(latest_epoch),
@@ -265,9 +295,23 @@ def ls(
                     if not mae:
                         metrics = {k: v for k, v in metrics.items() if "mae" not in k}
                     if not hartree:
-                        metrics = {k: v for k, v in metrics.items() if not (("energies" in k and "kcal" not in k) or ("forces" in k and "kcal" not in k))}
+                        metrics = {
+                            k: v
+                            for k, v in metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" not in k)
+                                or ("forces" in k and "kcal" not in k)
+                            )
+                        }
                     else:
-                        metrics = {k: v for k, v in metrics.items() if not (("energies" in k and "kcal" in k) or ("forces" in k and "kcal" in k))}
+                        metrics = {
+                            k: v
+                            for k, v in metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" in k)
+                                or ("forces" in k and "kcal" in k)
+                            )
+                        }
                     row_args.extend(
                         [
                             str(epoch),
@@ -285,11 +329,27 @@ def ls(
                     )
                 if latest:
                     if not mae:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if "mae" not in k}
+                        latest_metrics = {
+                            k: v for k, v in latest_metrics.items() if "mae" not in k
+                        }
                     if not hartree:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if not (("energies" in k and "kcal" not in k) or ("forces" in k and "kcal" not in k))}
+                        latest_metrics = {
+                            k: v
+                            for k, v in latest_metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" not in k)
+                                or ("forces" in k and "kcal" not in k)
+                            )
+                        }
                     else:
-                        latest_metrics = {k: v for k, v in latest_metrics.items() if not (("energies" in k and "kcal" in k) or ("forces" in k and "kcal" in k))}
+                        latest_metrics = {
+                            k: v
+                            for k, v in latest_metrics.items()
+                            if not (
+                                ("energies" in k and "kcal" in k)
+                                or ("forces" in k and "kcal" in k)
+                            )
+                        }
                     row_args.extend(
                         [
                             str(latest_epoch),

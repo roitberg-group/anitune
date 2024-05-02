@@ -23,9 +23,6 @@ from anitune.config import (
     SchedulerConfig,
     _DEBUG_TRAIN_PATH,
     _DEBUG_FTUNE_PATH,
-    _TRAIN_PATH,
-    _FTUNE_PATH,
-    _BATCH_PATH,
 )
 from anitune.display import ls
 
