@@ -178,6 +178,7 @@ class AccelConfig:
     limit: tp.Optional[int] = None
     deterministic: bool = False
     detect_anomaly: bool = False
+    profiler: tp.Optional[str] = None
 
     @property
     def log_interval(self) -> tp.Optional[int]:

@@ -204,6 +204,7 @@ def train_nnp(
         log_every_n_steps=config.accel.log_interval,
         deterministic=config.accel.deterministic,
         detect_anomaly=config.accel.detect_anomaly,
+        profiler=config.accel.profiler,
     )
     with warnings.catch_warnings():
         warnings.filterwarnings(

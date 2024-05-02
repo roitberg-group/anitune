@@ -393,6 +393,13 @@ def train(
             help="Name of the run",
         ),
     ] = "train",
+    profiler: tpx.Annotated[
+        tp.Optional[str],
+        Option(
+            "--profiler",
+            help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
+        ),
+    ] = None,
     lot: tpx.Annotated[
         str,
         Option(
@@ -597,6 +604,7 @@ def train(
             detect_anomaly=detect_anomaly,
             use_cuda_ops=use_cuda_ops,
             max_epochs=max_epochs,
+            profiler=profiler,
         ),
         model=ModelConfig(
             builder=builder,
@@ -631,6 +639,13 @@ def ftune(
             help="Name or idx of the pretrained run, alternatively, ani1x:idx, ani2x:idx, etc. is also supported",
         ),
     ],
+    profiler: tpx.Annotated[
+        tp.Optional[str],
+        Option(
+            "--profiler",
+            help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
+        ),
+    ] = None,
     lot: tpx.Annotated[
         str,
         Option(
@@ -862,6 +877,7 @@ def ftune(
             detect_anomaly=detect_anomaly,
             use_cuda_ops=use_cuda_ops,
             max_epochs=max_epochs,
+            profiler=profiler,
         ),
         model=pretrained_config.model,
         loss=LossConfig(
