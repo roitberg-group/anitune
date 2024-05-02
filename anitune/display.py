@@ -129,8 +129,7 @@ def ls(
         table = Table(title="Training runs", box=None)
         table.add_column("", style="green")
         table.add_column("run-name", style="green")
-        table.add_column("on-data", style="magenta")
-        table.add_column("on-div", style="magenta")
+        table.add_column("data|div", style="magenta")
         table.add_column("builder")
         table.add_column("wd")
         table.add_column("lr")
@@ -154,11 +153,10 @@ def ls(
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
-                    config.ds.path.name,
-                    str(config.ds.fold_idx),
+                    f"{config.ds.path.name}|{config.ds.fold_idx}",
                     config.model.builder,
-                    f"{config.optim.weight_decay:.1e}",
-                    f"{config.optim.lr:.1e}",
+                    f"{config.optim.weight_decay:.0e}",
+                    f"{config.optim.lr:.0e}",
                     f"{epoch}({best_epoch})",
                 ]
                 if best:
@@ -249,11 +247,10 @@ def ls(
         table = Table(title="Finetuning runs", box=None)
         table.add_column("", style="blue")
         table.add_column("run-name", style="blue")
-        table.add_column("ftune-from", style="green")
-        table.add_column("on-data", style="magenta")
-        table.add_column("on-div", style="magenta")
-        table.add_column("wd")
+        table.add_column("data|div", style="magenta")
+        table.add_column("from", style="green")
         table.add_column("head")
+        table.add_column("wd")
         table.add_column("head|bbone-lr")
         table.add_column("epoch(best)")
         if best:
@@ -275,12 +272,11 @@ def ls(
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
+                    f"{config.ds.path.name}|{config.ds.fold_idx}",
                     config.ftune.pretrained_name,
-                    config.ds.path.name,
-                    str(config.ds.fold_idx),
-                    f"{config.optim.weight_decay:.1e}",
                     str(config.ftune.num_head_layers),
-                    f"{config.optim.lr:.1e}|{config.ftune.backbone_lr:.1e}",
+                    f"{config.optim.weight_decay:.0e}",
+                    f"{config.optim.lr:.0e}|{config.ftune.backbone_lr:.0e}",
                     f"{epoch}({best_epoch})",
                 ]
                 if best:
