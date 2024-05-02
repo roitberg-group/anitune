@@ -180,7 +180,13 @@ def restart(
             help="Restart a debug run",
         ),
     ] = False,
-    max_epochs: tpx.Annotated[tp.Optional[int], Option("--max-epochs", help="Maximum number of epochs to train",),] = None,
+    max_epochs: tpx.Annotated[
+        tp.Optional[int],
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = None,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -528,7 +534,13 @@ def train(
             help="Use cuda acceleration",
         ),
     ] = False,
-    max_epochs: tpx.Annotated[int, Option("--max-epochs", help="Maximum number of epochs to train",),] = 2000,
+    max_epochs: tpx.Annotated[
+        int,
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = 2000,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -754,7 +766,13 @@ def ftune(
             help="Use cuda acceleration",
         ),
     ] = False,
-    max_epochs: tpx.Annotated[int, Option("--max-epochs", help="Maximum number of epochs to train",),] = 2000,
+    max_epochs: tpx.Annotated[
+        int,
+        Option(
+            "--max-epochs",
+            help="Maximum number of epochs to train",
+        ),
+    ] = 2000,
     verbose: tpx.Annotated[
         bool,
         Option(
