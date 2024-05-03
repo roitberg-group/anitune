@@ -1,6 +1,7 @@
 r"""
 This module holds default values for different architectures, optimizers and lr schedulers
 """
+
 import typing as tp
 from dataclasses import dataclass, asdict
 from anitune.utils import Scalar, ScalarTuple
