@@ -2,6 +2,9 @@ import typing as tp
 from enum import Enum
 from pathlib import Path
 
+Scalar = tp.Union[bool, int, float, str, None]
+ScalarTuple = tp.Tuple[str, tp.Union[bool, int, float, str, None]]
+
 
 class DiskData(Enum):
     TRAIN = "train"

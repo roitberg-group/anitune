@@ -1,5 +1,4 @@
 r"""Command line interface entrypoints"""
-
 from copy import deepcopy
 import hashlib
 import pickle
@@ -26,6 +25,7 @@ from anitune.config import (
     SchedulerConfig,
 )
 from anitune.display import ls
+from anitune.defaults import resolve_options
 
 app = Typer(
     rich_markup_mode="markdown",
@@ -423,28 +423,22 @@ def train(
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
-    builder: tpx.Annotated[
+    arch_fn: tpx.Annotated[
         str,
         Option(
-            "-r",
-            "--builder",
-            help="Builder function",
+            "-a",
+            "--arch-fn",
+            help="Basic network architecture function",
         ),
     ] = "FlexANI2",
-    repulsion_xtb: tpx.Annotated[
-        bool,
+    arch_options: tpx.Annotated[
+        tp.Optional[tp.List[str]],
         Option(
-            "--repulsion-xtb/--no-repulsion-xtb",
-            help="Add a repulsion XTB term to the model",
+            "-o",
+            "--arch-options",
+            help="Options passed to the arch function in the form key=value. Different arch functions accept different options",
         ),
-    ] = False,
-    dispersion_2body_d3: tpx.Annotated[
-        bool,
-        Option(
-            "--dispersion-2body-d3/--no-dispersion-2body-d3",
-            help="Add 2-body dispersion D3 term to the model",
-        ),
-    ] = False,
+    ] = None,
     _fold_idx: tpx.Annotated[
         str,
         Option(
@@ -484,7 +478,7 @@ def train(
         float,
         Option(
             "-e",
-            "--energies-factor",
+            "--energies",
             help="Train with energies",
         ),
     ] = 1.0,
@@ -492,7 +486,7 @@ def train(
         float,
         Option(
             "-f",
-            "--forces-factor",
+            "--forces",
             help="Train with forces",
         ),
     ] = 0.0,
@@ -500,23 +494,22 @@ def train(
         float,
         Option(
             "-m",
-            "--dipoles-factor",
+            "--dipoles",
             help="Train with dipoles",
         ),
     ] = 0.0,
     atomic_charges: tpx.Annotated[
         float,
         Option(
-            "-a",
-            "--atomic-charges-factor",
+            "-q",
+            "--atomic-charges",
             help="Train with atomic charges",
         ),
     ] = 0.0,
     total_charge: tpx.Annotated[
         float,
         Option(
-            "-q",
-            "--total-charge-factor",
+            "--total-charge",
             help="Train with total charge",
         ),
     ] = 0.0,
@@ -548,13 +541,6 @@ def train(
         Option(
             "--detect-anomaly/--no-detect-anomaly",
             help="Detect anomalies during training (has a performance penalty)",
-        ),
-    ] = False,
-    use_cuda_ops: tpx.Annotated[
-        bool,
-        Option(
-            "--cuda-ops/--no-cuda-ops",
-            help="Use cuda acceleration",
         ),
     ] = False,
     max_epochs: tpx.Annotated[
@@ -608,7 +594,6 @@ def train(
         terms_and_factors.append(("AtomicCharges", atomic_charges))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
-
     config = TrainConfig(
         name=name,
         debug=debug,
@@ -618,16 +603,12 @@ def train(
             limit=limit,
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
-            use_cuda_ops=use_cuda_ops,
             max_epochs=max_epochs,
             profiler=profiler,
         ),
         model=ModelConfig(
-            builder=builder,
-            kwargs=(
-                ("dispersion_2body_d3", dispersion_2body_d3),
-                ("repulsion_xtb", repulsion_xtb),
-            ),
+            arch_fn=arch_fn,
+            arch_options=resolve_options(arch_options, arch_fn),
         ),
         loss=LossConfig(
             terms_and_factors=tuple(terms_and_factors),
@@ -724,7 +705,7 @@ def ftune(
         float,
         Option(
             "-e",
-            "--energies-factor",
+            "--energies",
             help="Train with energies",
         ),
     ] = 1.0,
@@ -732,7 +713,7 @@ def ftune(
         float,
         Option(
             "-f",
-            "--forces-factor",
+            "--forces",
             help="Train with forces",
         ),
     ] = 0.0,
@@ -740,23 +721,22 @@ def ftune(
         float,
         Option(
             "-m",
-            "--dipoles-factor",
+            "--dipoles",
             help="Train with dipoles",
         ),
     ] = 0.0,
     atomic_charges: tpx.Annotated[
         float,
         Option(
-            "-a",
-            "--atomic-charges-factor",
+            "-q",
+            "--atomic-charges",
             help="Train with atomic charges",
         ),
     ] = 0.0,
     total_charge: tpx.Annotated[
         float,
         Option(
-            "-q",
-            "--total-charge-factor",
+            "--total-charge",
             help="Train with total charge",
         ),
     ] = 0.0,
@@ -788,13 +768,6 @@ def ftune(
             "-g/-G",
             "--debug/--no-debug",
             help="Debug finetune run",
-        ),
-    ] = False,
-    use_cuda_ops: tpx.Annotated[
-        bool,
-        Option(
-            "--cuda-ops/--no-cuda-ops",
-            help="Use cuda acceleration",
         ),
     ] = False,
     max_epochs: tpx.Annotated[
@@ -845,7 +818,7 @@ def ftune(
         raise ValueError("There must be at least one head layer")
 
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        from anitune.model_builders import fetch_pretrained_config
+        from anitune.arch import fetch_pretrained_config
 
         pretrained_config = fetch_pretrained_config(name_or_idx)
         pretrained_state_dict_path = None
@@ -891,7 +864,6 @@ def ftune(
             limit=limit,
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
-            use_cuda_ops=use_cuda_ops,
             max_epochs=max_epochs,
             profiler=profiler,
         ),

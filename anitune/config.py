@@ -9,6 +9,8 @@ from anitune.utils import (
     _BATCH_PATH,
     _FTUNE_PATH,
     _TRAIN_PATH,
+    Scalar,
+    ScalarTuple,
 )
 
 
@@ -120,13 +122,13 @@ class ModelConfig:
     model-specific configurations
     """
 
-    kwargs: tp.Tuple[tp.Tuple[str, tp.Union[bool, int, float, str, None]], ...] = ()
-    builder: str = "FlexibleANI"
+    arch_fn: str = ""
+    arch_options: tp.Tuple[ScalarTuple, ...] = ()
     symbols: tp.Optional[tp.Tuple[str, ...]] = None
 
     @property
-    def kwargs_dict(self) -> tp.Dict[str, tp.Union[bool, int, float, str, None]]:
-        return {k: v for k, v in self.kwargs}
+    def arch_dict(self) -> tp.Dict[str, Scalar]:
+        return {k: v for k, v in self.arch_options}
 
 
 @dataclass
@@ -168,7 +170,6 @@ class AccelConfig:
     """
 
     device: str = "gpu"
-    use_cuda_ops: bool = True
     max_batches_per_packet: int = 300
     num_workers: int = 2
     prefetch_factor: int = 2

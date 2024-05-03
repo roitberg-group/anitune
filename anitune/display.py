@@ -132,7 +132,7 @@ def ls(
         table.add_column("", style="green")
         table.add_column("run-name", style="green")
         table.add_column("data|div", style="magenta")
-        table.add_column("builder")
+        table.add_column("arch")
         table.add_column("wd")
         table.add_column("lr")
         table.add_column("epoch(best)")
@@ -156,7 +156,7 @@ def ls(
                     f"[bold]{j}[/bold]",
                     p.name,
                     f"{config.ds.path.name}|{config.ds.fold_idx}",
-                    config.model.builder,
+                    config.model.arch_fn,
                     f"{config.optim.weight_decay:.0e}",
                     f"{config.optim.lr:.0e}",
                     f"{epoch}({best_epoch})",
