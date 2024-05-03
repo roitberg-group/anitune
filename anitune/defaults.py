@@ -1,7 +1,6 @@
 r"""
 This module holds default values for different architectures, optimizers and lr schedulers
 """
-
 import typing as tp
 from dataclasses import dataclass, asdict
 from anitune.utils import Scalar, ScalarTuple
@@ -14,8 +13,12 @@ class Options:
 
 
 @dataclass
-class FlexANI1(Options):
-    neighborlist: str = "full_pairwise"
+class ArchArgs(Options):
+    pass
+
+
+@dataclass
+class FlexANI1(ArchArgs):
     # AEV
     radial_cutoff: float = 5.2
     angular_cutoff: float = 3.5
@@ -36,20 +39,7 @@ class FlexANI1(Options):
 
 
 @dataclass
-class FlexANI2(FlexANI1):
-    # AEV
-    angular_shifts: int = 8
-    angle_sections: int = 4
-    radial_precision: float = 19.7
-    angular_precision: float = 12.5
-    angular_zeta: float = 14.1
-    # Networks
-    atomic_maker: str = "ani2x"
-
-
-@dataclass
-class AutoscaleANI2(Options):
-    neighborlist: str = "full_pairwise"
+class FlexANI2(ArchArgs):
     # AEV
     radial_cutoff: float = 5.2
     angular_cutoff: float = 3.5
@@ -60,9 +50,51 @@ class AutoscaleANI2(Options):
     angular_precision: float = 12.5
     angular_zeta: float = 14.1
     # Networks
-    # Also accepts explicit numbers, 5 items -> 4 layers
-    layer_dims: str = "in,1/4,2/3,1/2,1"
+    atomic_maker: str = "ani2x"
     activation: str = "gelu"
+    bias: bool = False
+    # Potentials and cutoff
+    cutoff_fn: str = "smooth2"
+    dispersion: bool = False
+    repulsion: bool = True
+
+
+@dataclass
+class ScaleANI1(ArchArgs):
+    # AEV
+    radial_cutoff: float = 5.2
+    angular_cutoff: float = 3.5
+    radial_shifts: int = 16
+    angular_shifts: int = 4
+    angle_sections: int = 8
+    radial_precision: float = 16.0
+    angular_precision: float = 8.0
+    angular_zeta: float = 32.0
+    # Networks, 3 items -> 4 layers
+    layer_dims: str = "1/4,2/3,1/2"
+    activation: str = "gelu"
+    bias: bool = False
+    # Potentials and cutoff
+    cutoff_fn: str = "smooth2"
+    dispersion: bool = False
+    repulsion: bool = True
+
+
+@dataclass
+class ScaleANI2(ArchArgs):
+    # AEV
+    radial_cutoff: float = 5.2
+    angular_cutoff: float = 3.5
+    radial_shifts: int = 16
+    angular_shifts: int = 8
+    angle_sections: int = 4
+    radial_precision: float = 19.7
+    angular_precision: float = 12.5
+    angular_zeta: float = 14.1
+    # Networks, 5 items -> 4 layers
+    layer_dims: str = "1/4,2/3,1/2"
+    activation: str = "gelu"
+    bias: bool = False
     # Potentials and cutoff
     cutoff_fn: str = "smooth2"
     dispersion: bool = False
@@ -106,18 +138,6 @@ class OptimizerArgs(Options):
 
 
 # eps for Adamax, Radam, Adam, AdamW is not shown, and it is always 1e-8
-# Has no fused impl
-@dataclass
-class Adamax(OptimizerArgs):
-    pass
-
-
-# Has no fused impl
-@dataclass
-class Radam(OptimizerArgs):
-    decoupled: bool = True  # decoupled_weight_decay
-
-
 @dataclass
 class Adam(OptimizerArgs):
     amsgrad: bool = False
@@ -125,8 +145,21 @@ class Adam(OptimizerArgs):
 
 
 @dataclass
-class AdamW(Adam):
+class AdamW(OptimizerArgs):
+    amsgrad: bool = False
+    fused: bool = True  # Fused is not shown
+
+
+@dataclass
+class Radam(OptimizerArgs):
+    decoupled: bool = True  # decoupled_weight_decay
+    # Has no fused impl
+
+
+@dataclass
+class Adamax(OptimizerArgs):
     pass
+    # Has no fused impl
 
 
 @dataclass
