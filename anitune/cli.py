@@ -26,7 +26,13 @@ from anitune.config import (
     SchedulerConfig,
 )
 from anitune.display import ls
-from anitune.defaults import resolve_options
+from anitune.defaults import (
+    resolve_options_raw,
+    resolve_options,
+    parse_scheduler_str,
+    parse_optimizer_str,
+    make_scalar_tuples,
+)
 
 app = Typer(
     rich_markup_mode="markdown",
@@ -429,15 +435,47 @@ def train(
         Option(
             "-a",
             "--arch",
-            help="Basic network architecture function",
+            help="Network architecture",
         ),
     ] = "FlexANI2",
     arch_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "-o",
+            "--ao",
             "--arch-option",
             help="Options passed to the arch function in the form key=value. Different arch functions accept different options",
+        ),
+    ] = None,
+    optimizer: tpx.Annotated[
+        str,
+        Option(
+            "-o",
+            "--optimizer",
+            help="Type of optimizer",
+        ),
+    ] = "AdamW",
+    optimizer_options: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--oo",
+            "--optimizer-option",
+            help="Options passed to the optimizer in the form key=value. Different optimizers accept different options (lr and wd are passed separately)",
+        ),
+    ] = None,
+    scheduler: tpx.Annotated[
+        str,
+        Option(
+            "-l",
+            "--scheduler",
+            help="Type of lr-scheduler",
+        ),
+    ] = "Plateau",
+    scheduler_options: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--lo",
+            "--scheduler-option",
+            help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),
     ] = None,
     fold_idx: tpx.Annotated[
@@ -526,7 +564,6 @@ def train(
     limit: tpx.Annotated[
         tp.Optional[int],
         Option(
-            "-l",
             "--limit",
             help="Limit number of batches or percent",
         ),
@@ -552,6 +589,13 @@ def train(
             help="Maximum number of epochs to train",
         ),
     ] = 2000,
+    early_stop_patience: tpx.Annotated[
+        int,
+        Option(
+            "--early-stop-patience",
+            help="Maximum number of epochs with no improvement in validation metric before early stopping",
+        ),
+    ] = 300,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -593,7 +637,13 @@ def train(
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
     arch_fn = arch_fn.capitalize().replace("ani", "ANI").replace("Ani", "ANI")
-    _arch_options = resolve_options(arch_options, arch_fn)
+
+    scheduler = parse_scheduler_str(scheduler)
+    optimizer = parse_optimizer_str(optimizer)
+    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options.update({"lr": lr, "weight_decay": weight_decay})
+    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
+
     config = TrainConfig(
         name=name,
         debug=debug,
@@ -604,17 +654,24 @@ def train(
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
             max_epochs=max_epochs,
+            early_stop_patience=early_stop_patience,
             profiler=profiler,
         ),
         model=ModelConfig(
             arch_fn=arch_fn,
-            arch_options=_arch_options,
+            arch_options=resolve_options(arch_options, arch_fn),
         ),
         loss=LossConfig(
             terms_and_factors=tuple(terms_and_factors),
         ),
-        optim=OptimizerConfig(lr=lr, weight_decay=weight_decay),
-        scheduler=SchedulerConfig(),
+        optim=OptimizerConfig(
+            cls=optimizer,
+            options=make_scalar_tuples(_optimizer_options),
+        ),
+        scheduler=SchedulerConfig(
+            cls=scheduler,
+            options=make_scalar_tuples(_scheduler_options),
+        ),
     )
     train_nnp(config, verbose=verbose)
 
@@ -777,6 +834,13 @@ def ftune(
             help="Maximum number of epochs to train",
         ),
     ] = 2000,
+    early_stop_patience: tpx.Annotated[
+        int,
+        Option(
+            "--early-stop-patience",
+            help="Maximum number of epochs with no improvement in validation metric before early stopping",
+        ),
+    ] = 300,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -791,6 +855,38 @@ def ftune(
             "-i",
             "--fold-idx",
             help="Fold idx",
+        ),
+    ] = None,
+    optimizer: tpx.Annotated[
+        str,
+        Option(
+            "-o",
+            "--optimizer",
+            help="Type of optimizer",
+        ),
+    ] = "AdamW",
+    optimizer_options: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--oo",
+            "--optimizer-option",
+            help="Options passed to the optimizer in the form key=value. Different optimizers accept different options (lr and wd are passed separately)",
+        ),
+    ] = None,
+    scheduler: tpx.Annotated[
+        str,
+        Option(
+            "-l",
+            "--scheduler",
+            help="Type of lr-scheduler",
+        ),
+    ] = "Plateau",
+    scheduler_options: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "--lo",
+            "--scheduler-option",
+            help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),
     ] = None,
 ) -> None:
@@ -854,6 +950,12 @@ def ftune(
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
 
+    scheduler = parse_scheduler_str(scheduler)
+    optimizer = parse_optimizer_str(optimizer)
+    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options.update({"lr": head_lr, "weight_decay": weight_decay})
+    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
+
     config = TrainConfig(
         name=name,
         ds=ds_config,
@@ -863,6 +965,7 @@ def ftune(
             deterministic=deterministic,
             detect_anomaly=detect_anomaly,
             max_epochs=max_epochs,
+            early_stop_patience=early_stop_patience,
             profiler=profiler,
         ),
         model=pretrained_config.model,
@@ -870,10 +973,13 @@ def ftune(
             terms_and_factors=tuple(terms_and_factors),
         ),
         optim=OptimizerConfig(
-            lr=head_lr,
-            weight_decay=weight_decay,
+            cls=optimizer,
+            options=make_scalar_tuples(_optimizer_options),
         ),
-        scheduler=SchedulerConfig(),
+        scheduler=SchedulerConfig(
+            cls=scheduler,
+            options=make_scalar_tuples(_scheduler_options),
+        ),
         ftune=FinetuneConfig(
             pretrained_name=pretrained_name,
             state_dict_path=pretrained_state_dict_path,

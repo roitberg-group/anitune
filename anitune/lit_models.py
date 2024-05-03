@@ -11,6 +11,7 @@ with warnings.catch_warnings():
     from torchani.models import BuiltinModel
     from torchani.units import hartree2kcalpermol
 
+from anitune.utils import Scalar
 from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 
@@ -22,17 +23,20 @@ class LitModel(lightning.LightningModule):
     def __init__(
         self,
         model: BuiltinModel,
-        lr: float = 0.5e-3,
-        weight_decay: float = 1e-7,
-        plateau_factor: float = 0.5,
-        plateau_patience: int = 100,
-        plateau_threshold: float = 0.0,
+        optimizer_options: tp.Dict[str, Scalar],
+        scheduler_options: tp.Dict[str, Scalar],
         monitor_label: str = "energies",
+        optimizer_cls: str = "AdamW",
+        scheduler_cls: str = "ReduceLROnPlateau",
         loss_terms: tp.Sequence[LossTerm] = (Energies(),),
         uncertainty_weighted: bool = False,
         num_head_layers: int = 0,
     ) -> None:
         super().__init__()
+        self.optimizer_options = optimizer_options
+        self.scheduler_options = scheduler_options
+        self.optimizer_cls = optimizer_cls
+        self.scheduler_cls = scheduler_cls
         self.train_metrics = torch.nn.ModuleDict()
         self.train_losses = torch.nn.ModuleDict()
         self.valid_metrics = torch.nn.ModuleDict()
@@ -142,30 +146,24 @@ class LitModel(lightning.LightningModule):
         batch["coordinates"].requires_grad_(False)
         return pred
 
-    def configure_optimizers(self) -> tp.Tuple[tp.List[tp.Any], tp.List[tp.Any]]:
-        hparams: tp.Any = self.hparams  # Mypy can't correctly understand lit's hparams
-
+    def configure_optimizers(self) -> tp.Tuple[torch.optim.Optimizer, tp.Any]:
         # Optimizer setup
-        optimizer = torch.optim.AdamW(
+        opt_type = getattr(torch.optim, self.optimizer_cls)
+        optimizer = opt_type(
             self.model.parameters(),
-            lr=hparams.lr,
-            weight_decay=hparams.weight_decay,
+            **self.optimizer_options
         )
 
+        scheduler_type = getattr(torch.optim.lr_scheduler, self.scheduler_cls)
         # Schedulers setup
-        schedulers: tp.List[tp.Any] = []
-        plateau = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        scheduler = scheduler_type(
             optimizer=optimizer,
-            factor=hparams.plateau_factor,
-            patience=hparams.plateau_patience,
-            threshold=hparams.plateau_threshold,
+            **self.scheduler_options,
         )
-        schedulers.append(
-            {
-                "scheduler": plateau,
-                "interval": "epoch",
-                "strict": True,
-                "monitor": self.monitor_label,
-            }
-        )
-        return [optimizer], schedulers
+        scheduler_config = {
+            "scheduler": scheduler,
+            "interval": "epoch",
+            "strict": True,
+            "monitor": self.monitor_label,
+        }
+        return {"optimizer": optimizer, "lr_scheduler": scheduler_config}

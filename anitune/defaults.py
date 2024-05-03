@@ -117,20 +117,20 @@ class ReduceLROnPlateau(SchedulerArgs):
 
 @dataclass
 class StepLR(SchedulerArgs):
-    factor: float = 0.5  # gamma
-    interval: int = 150  # step_size in epochs
+    gamma: float = 0.5  # gamma
+    step_size: int = 150  # step_size in epochs
 
 
 @dataclass
 class ExponentialLR(SchedulerArgs):
-    factor: float = 0.99  # gamma
+    gamma: float = 0.99
 
 
 # max_epochs is set to scheduler.max_epochs automatically
 @dataclass
 class CosineAnnealingLR(SchedulerArgs):
     total_epochs: int = 500
-    final_lr: float = 0.0  # eta_min
+    eta_min: float = 0.0  # eta_min
 
 
 @dataclass
@@ -143,25 +143,28 @@ class OptimizerArgs(Options):
 @dataclass
 class Adam(OptimizerArgs):
     amsgrad: bool = False
-    fused: bool = True  # Fused is not shown
 
 
 @dataclass
 class AdamW(OptimizerArgs):
     amsgrad: bool = False
-    fused: bool = True  # Fused is not shown
 
 
 @dataclass
-class Radam(OptimizerArgs):
-    decoupled: bool = True  # decoupled_weight_decay
-    # Has no fused impl
+class RMSprop(OptimizerArgs):
+    momentum: float = 0.0
+    alpha: float = 0.99
+    centered: bool = True
+
+
+# @dataclass
+# class Radam(OptimizerArgs):
+    # decoupled_weight_decay: bool = True  # decoupled_weight_decay
 
 
 @dataclass
 class Adamax(OptimizerArgs):
     pass
-    # Has no fused impl
 
 
 @dataclass
@@ -169,12 +172,12 @@ class SGD(OptimizerArgs):
     momentum: float = 0.0
     dampening: float = 0.0
     nesterov: bool = False
-    fused: bool = True
+    # Has no fused impl
 
 
-def resolve_options(
+def resolve_options_raw(
     _options: tp.Optional[tp.List[str]], cls: str
-) -> tp.Tuple[ScalarTuple, ...]:
+) -> tp.Dict[str, Scalar]:
     if _options is None:
         _options = []
     try:
@@ -200,4 +203,43 @@ def resolve_options(
                 raise RuntimeError(f"Incorrect value in option {kv}") from None
             options.update({k: v})
     default_options.update(options)
-    return tuple(sorted((k, v) for k, v in default_options.items()))
+    return default_options
+
+
+def make_scalar_tuples(options: tp.Dict[str, Scalar]) -> tp.Tuple[ScalarTuple, ...]:
+    return tuple(sorted((k, v) for k, v in options.items()))
+    raise NotImplementedError()
+
+
+def resolve_options(
+    _options: tp.Optional[tp.List[str]], cls: str
+) -> tp.Tuple[ScalarTuple, ...]:
+    return make_scalar_tuples(resolve_options_raw(_options, cls))
+
+
+def parse_scheduler_str(scheduler: str) -> str:
+    scheduler = scheduler.capitalize()
+    if "LR" not in scheduler:
+        scheduler = "".join((scheduler, "LR"))
+    if scheduler == "PlateauLR":
+        scheduler = "ReduceLROnPlateau"
+    elif scheduler in ["CosineLR", "CosLR"]:
+        scheduler = "CosineAnnealingLR"
+    elif scheduler in ["ExponentialLR", "ExpLR"]:
+        scheduler = "ExponentialLR"
+    elif scheduler == "StepLR":
+        pass
+    else:
+        raise ValueError(f"Unsupported scheduler {scheduler}")
+    return scheduler
+
+
+def parse_optimizer_str(optimizer: str) -> str:
+    optimizer = optimizer.capitalize()
+    if optimizer.lower() == "rmsprop":
+        optimizer = "RMSprop"
+    if optimizer.lower() == "sgd":
+        optimizer = "SGD"
+    if optimizer.lower() == "adamw":
+        optimizer = "AdamW"
+    return optimizer
