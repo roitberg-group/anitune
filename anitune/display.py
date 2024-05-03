@@ -165,7 +165,9 @@ def ls(
                     f"{epoch}({best_epoch})",
                 ]
                 if arch_detail:
-                    options = " ".join(sorted(f"{k}={v}" for k, v in config.model.arch_dict.items()))
+                    options = " ".join(
+                        sorted(f"{k}={v}" for k, v in config.model.arch_dict.items())
+                    )
                     row_args.insert(4, options)
                 if best:
                     if not mae:

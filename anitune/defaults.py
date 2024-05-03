@@ -178,7 +178,9 @@ def resolve_options(
     if _options is None:
         _options = []
     try:
-        default_options: tp.Dict[str, Scalar] = getattr(sys.modules[__name__], cls)().as_dict()
+        default_options: tp.Dict[str, Scalar] = getattr(
+            sys.modules[__name__], cls
+        )().as_dict()
     except AttributeError:
         raise RuntimeError(f"Unknown class {cls}")
     options: tp.Dict[str, Scalar] = dict()
