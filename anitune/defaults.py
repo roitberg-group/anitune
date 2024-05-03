@@ -2,6 +2,7 @@ r"""
 This module holds default values for different architectures, optimizers and lr schedulers
 """
 
+import sys
 import typing as tp
 from dataclasses import dataclass, asdict
 from anitune.utils import Scalar, ScalarTuple
@@ -9,7 +10,7 @@ from anitune.utils import Scalar, ScalarTuple
 
 @dataclass
 class Options:
-    def asdict(self) -> tp.Dict[str, Scalar]:
+    def as_dict(self) -> tp.Dict[str, Scalar]:
         return asdict(self)
 
 
@@ -177,11 +178,9 @@ def resolve_options(
     if _options is None:
         _options = []
     try:
-        default_options_cls: Options = getattr(__name__, cls)
+        default_options: tp.Dict[str, Scalar] = getattr(sys.modules[__name__], cls)().as_dict()
     except AttributeError:
         raise RuntimeError(f"Unknown class {cls}")
-    _tp = default_options_cls.__annotations__
-    default_options = default_options_cls.asdict()
     options: tp.Dict[str, Scalar] = dict()
     if _options is not None:
         for kv in _options:
@@ -192,9 +191,9 @@ def resolve_options(
             k = kv.split("=")[0]
             if k not in default_options:
                 raise RuntimeError(f"Incorrect key in option {kv}")
-            _v = kv.split("=")[1]
             try:
-                v = _tp[k](_v)
+                _v = kv.split("=")[1].replace("true", "True").replace("false", "False")
+                v = eval(_v)
             except Exception:
                 raise RuntimeError(f"Incorrect value in option {kv}") from None
             options.update({k: v})

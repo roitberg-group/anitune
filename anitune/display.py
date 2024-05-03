@@ -67,6 +67,13 @@ def ls(
             help="Show metrics in hartrees",
         ),
     ] = False,
+    arch_detail: tpx.Annotated[
+        bool,
+        Option(
+            "--arch/--no-arch",
+            help="Show architecture options",
+        ),
+    ] = False,
 ) -> None:
     batch = sorted(_BATCH_PATH.iterdir())
     train = sorted(_TRAIN_PATH.iterdir())
@@ -115,13 +122,7 @@ def ls(
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
                     row_args.append(format(size / 1024**3, ".1f"))
             except Exception:
-                row_args = [
-                    f"[bold]{j}[/bold]",
-                    p.name,
-                ]
-                row_args.extend(["?"] * 9)
-                if sizes:
-                    row_args.append("?")
+                row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
     else:
@@ -133,6 +134,8 @@ def ls(
         table.add_column("run-name", style="green")
         table.add_column("data|div", style="magenta")
         table.add_column("arch")
+        if arch_detail:
+            table.add_column("arch-options")
         table.add_column("wd")
         table.add_column("lr")
         table.add_column("epoch(best)")
@@ -161,6 +164,9 @@ def ls(
                     f"{config.optim.lr:.0e}",
                     f"{epoch}({best_epoch})",
                 ]
+                if arch_detail:
+                    options = " ".join(sorted(f"{k}={v}" for k, v in config.model.arch_dict.items()))
+                    row_args.insert(4, options)
                 if best:
                     if not mae:
                         metrics = {k: v for k, v in metrics.items() if "mae" not in k}
@@ -234,11 +240,7 @@ def ls(
                         ]
                     )
             except Exception:
-                row_args = [
-                    f"[bold]{j}[/bold]",
-                    p.name,
-                ]
-                row_args.extend(["?"] * 5)
+                row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
     else:
@@ -353,11 +355,7 @@ def ls(
                         ]
                     )
             except Exception:
-                row_args = [
-                    f"[bold]{j}[/bold]",
-                    p.name,
-                ]
-                row_args.extend(["?"] * 7)
+                row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
     else:

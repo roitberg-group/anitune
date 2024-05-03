@@ -428,7 +428,7 @@ def train(
         str,
         Option(
             "-a",
-            "--arch-fn",
+            "--arch",
             help="Basic network architecture function",
         ),
     ] = "FlexANI2",
@@ -436,7 +436,7 @@ def train(
         tp.Optional[tp.List[str]],
         Option(
             "-o",
-            "--arch-options",
+            "--arch-option",
             help="Options passed to the arch function in the form key=value. Different arch functions accept different options",
         ),
     ] = None,
@@ -595,6 +595,8 @@ def train(
         terms_and_factors.append(("AtomicCharges", atomic_charges))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
+    arch_fn = arch_fn.capitalize().replace("ani", "ANI").replace("Ani", "ANI")
+    _arch_options = resolve_options(arch_options, arch_fn)
     config = TrainConfig(
         name=name,
         debug=debug,
@@ -609,7 +611,7 @@ def train(
         ),
         model=ModelConfig(
             arch_fn=arch_fn,
-            arch_options=resolve_options(arch_options, arch_fn),
+            arch_options=_arch_options,
         ),
         loss=LossConfig(
             terms_and_factors=tuple(terms_and_factors),

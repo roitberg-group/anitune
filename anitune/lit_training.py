@@ -52,7 +52,7 @@ def train_nnp(
     with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
         symbols = json.load(f)["symbols"]
 
-    model = getattr(arch, config.model.arch_fn)(
+    model = getattr(arch, config.model.arch_fn)()(
         lot=config.ds.lot,
         symbols=config.model.symbols or symbols,
         **config.model.arch_dict,
