@@ -1,6 +1,7 @@
 r"""
 This module holds default values for different architectures, optimizers and lr schedulers
 """
+
 import typing as tp
 from dataclasses import dataclass, asdict
 from anitune.utils import Scalar, ScalarTuple
@@ -120,7 +121,7 @@ class Radam(OptimizerArgs):
 @dataclass
 class Adam(OptimizerArgs):
     amsgrad: bool = False
-    fused: bool = True   # Fused is not shown
+    fused: bool = True  # Fused is not shown
 
 
 @dataclass
@@ -136,7 +137,9 @@ class SGD(OptimizerArgs):
     fused: bool = True
 
 
-def resolve_options(_options: tp.Optional[tp.List[str]], cls: str) -> tp.Tuple[ScalarTuple, ...]:
+def resolve_options(
+    _options: tp.Optional[tp.List[str]], cls: str
+) -> tp.Tuple[ScalarTuple, ...]:
     if _options is None:
         _options = []
     try:
@@ -149,7 +152,9 @@ def resolve_options(_options: tp.Optional[tp.List[str]], cls: str) -> tp.Tuple[S
     if _options is not None:
         for kv in _options:
             if "=" not in kv:
-                raise RuntimeError(f"Incorrect format for option {kv}, should be key=value")
+                raise RuntimeError(
+                    f"Incorrect format for option {kv}, should be key=value"
+                )
             k = kv.split("=")[0]
             if k not in default_options:
                 raise RuntimeError(f"Incorrect key in option {kv}")

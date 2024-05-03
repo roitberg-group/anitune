@@ -23,7 +23,7 @@ def fetch_pretrained_config(name_or_idx: str) -> TrainConfig:
     name, idx = name_or_idx.split(":")
     config = TrainConfig()
     config.ds.fold_idx = idx
-    if (("1x" in name) or ("1ccx" in name)):
+    if ("1x" in name) or ("1ccx" in name):
         symbols = ELEMENTS_1X
     else:
         symbols = ELEMENTS_2X
