@@ -440,14 +440,14 @@ def train(
             help="Options passed to the arch function in the form key=value. Different arch functions accept different options",
         ),
     ] = None,
-    _fold_idx: tpx.Annotated[
-        str,
+    fold_idx: tpx.Annotated[
+        tp.Optional[int],
         Option(
             "-i",
             "--fold-idx",
             help="Fold idx",
         ),
-    ] = "train",
+    ] = None,
     lr: tpx.Annotated[
         float,
         Option(
@@ -565,14 +565,10 @@ def train(
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
+    ds_config.fold_idx = "train" if fold_idx is None else fold_idx
+    if fold_idx is not None:
+        name = f"{str(fold_idx).zfill(2)}-{name}"
 
-    fold_idx: tp.Union[str, int]
-    try:
-        fold_idx = int(_fold_idx)
-    except ValueError:
-        fold_idx = _fold_idx
-
-    ds_config.fold_idx = fold_idx
     if debug:
         if limit is None:
             console.print("Setting train limit to 10 batches for debugging")
@@ -789,25 +785,22 @@ def ftune(
             help="Help string",
         ),
     ] = False,
-    _fold_idx: tpx.Annotated[
-        str,
+    fold_idx: tpx.Annotated[
+        tp.Optional[int],
         Option(
             "-i",
             "--fold-idx",
             help="Fold idx",
         ),
-    ] = "train",
+    ] = None,
 ) -> None:
-    fold_idx: tp.Union[str, int]
-    try:
-        fold_idx = int(_fold_idx)
-    except ValueError:
-        fold_idx = _fold_idx
     batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
-        ds_config.fold_idx = fold_idx
+    ds_config.fold_idx = "train" if fold_idx is None else fold_idx
+    if fold_idx is not None:
+        name = f"{str(fold_idx).zfill(2)}-{name}"
 
     if head_lr <= 0.0:
         raise ValueError(
