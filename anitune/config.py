@@ -146,6 +146,7 @@ class OptimizerConfig:
     r"""
     Optimizer configuration
     """
+
     cls: str = "AdamW"
     options: tp.Tuple[ScalarTuple, ...] = ()
 

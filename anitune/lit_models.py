@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 import lightning
 import torchmetrics
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -146,13 +147,10 @@ class LitModel(lightning.LightningModule):
         batch["coordinates"].requires_grad_(False)
         return pred
 
-    def configure_optimizers(self) -> tp.Tuple[torch.optim.Optimizer, tp.Any]:
+    def configure_optimizers(self) -> OptimizerLRScheduler:
         # Optimizer setup
         opt_type = getattr(torch.optim, self.optimizer_cls)
-        optimizer = opt_type(
-            self.model.parameters(),
-            **self.optimizer_options
-        )
+        optimizer = opt_type(self.model.parameters(), **self.optimizer_options)
 
         scheduler_type = getattr(torch.optim.lr_scheduler, self.scheduler_cls)
         # Schedulers setup

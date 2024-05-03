@@ -159,7 +159,7 @@ class RMSprop(OptimizerArgs):
 
 # @dataclass
 # class Radam(OptimizerArgs):
-    # decoupled_weight_decay: bool = True  # decoupled_weight_decay
+# decoupled_weight_decay: bool = True  # decoupled_weight_decay
 
 
 @dataclass

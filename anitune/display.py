@@ -70,24 +70,21 @@ def ls(
     arch_detail: tpx.Annotated[
         bool,
         Option(
-            "-a/-A"
-            "--arch/--no-arch",
+            "-a/-A" "--arch/--no-arch",
             help="Show architecture options",
         ),
     ] = False,
     optim_detail: tpx.Annotated[
         bool,
         Option(
-            "-o/-O"
-            "--optim/--no-optim",
+            "-o/-O" "--optim/--no-optim",
             help="Show optimizer options",
         ),
     ] = False,
     scheduler_detail: tpx.Annotated[
         bool,
         Option(
-            "-l/-L"
-            "--scheduler/--no-scheduler",
+            "-l/-L" "--scheduler/--no-scheduler",
             help="Show scheduler options",
         ),
     ] = False,
@@ -194,13 +191,19 @@ def ls(
                     row_args.insert(4, options)
                 if optim_detail:
                     options = " ".join(
-                        sorted(f"{k}={v}" for k, v in config.optim.options_dict.items() if k not in ["lr", "weight_decay"])
+                        sorted(
+                            f"{k}={v}"
+                            for k, v in config.optim.options_dict.items()
+                            if k not in ["lr", "weight_decay"]
+                        )
                     )
                     row_args.insert(3, options or "--")
                     row_args.insert(3, config.optim.cls)
                 if scheduler_detail:
                     options = " ".join(
-                        sorted(f"{k}={v}" for k, v in config.scheduler.options_dict.items())
+                        sorted(
+                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                        )
                     )
                     row_args.insert(3, options or "--")
                     row_args.insert(3, config.scheduler.cls)
@@ -327,13 +330,19 @@ def ls(
                 ]
                 if optim_detail:
                     options = " ".join(
-                        sorted(f"{k}={v}" for k, v in config.optim.options_dict.items() if k not in ["lr", "weight_decay"])
+                        sorted(
+                            f"{k}={v}"
+                            for k, v in config.optim.options_dict.items()
+                            if k not in ["lr", "weight_decay"]
+                        )
                     )
                     row_args.insert(4, options or "--")
                     row_args.insert(4, config.optim.cls)
                 if scheduler_detail:
                     options = " ".join(
-                        sorted(f"{k}={v}" for k, v in config.scheduler.options_dict.items())
+                        sorted(
+                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                        )
                     )
                     row_args.insert(4, options or "--")
                     row_args.insert(4, config.scheduler.cls)
