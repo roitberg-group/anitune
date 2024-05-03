@@ -443,6 +443,7 @@ def train(
     _fold_idx: tpx.Annotated[
         str,
         Option(
+            "-i",
             "--fold-idx",
             help="Fold idx",
         ),
@@ -791,6 +792,7 @@ def ftune(
     _fold_idx: tpx.Annotated[
         str,
         Option(
+            "-i",
             "--fold-idx",
             help="Fold idx",
         ),
