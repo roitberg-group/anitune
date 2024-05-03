@@ -13,7 +13,9 @@ from anitune.config import TrainConfig
 
 
 def train_nnp(
-    config: TrainConfig, restart: bool = False, verbose: bool = False
+    config: TrainConfig,
+    restart: bool = False,
+    verbose: bool = False,
 ) -> None:
     r"""
     Train an ANI-style neural network potential
@@ -36,7 +38,7 @@ def train_nnp(
         warnings.simplefilter("ignore")
         from torchani import datasets  # noqa
     from anitune.lit_models import LitModel  # noqa
-    from anitune import model_builders  # noqa
+    from anitune import arch  # noqa
     from anitune import losses  # noqa
     from anitune.callbacks import (
         MergeTensorBoardLogs,
@@ -50,11 +52,10 @@ def train_nnp(
     with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
         symbols = json.load(f)["symbols"]
 
-    model = getattr(model_builders, config.model.builder)(
+    model = getattr(arch, config.model.arch_fn)()(
         lot=config.ds.lot,
-        symbols=config.model.symbols if config.model.symbols is not None else symbols,
-        use_cuda_ops=config.accel.use_cuda_ops,
-        **config.model.kwargs_dict,
+        symbols=config.model.symbols or symbols,
+        **config.model.arch_dict,
     )
     if config.ftune is not None:
         if config.ftune.pretrained_state_dict:
