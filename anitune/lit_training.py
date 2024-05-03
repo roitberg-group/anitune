@@ -86,16 +86,16 @@ def train_nnp(
                 getattr(losses, name)(factor=factor)
                 for name, factor in config.loss.terms_and_factors
             ),
+            monitor_label=config.monitor_label,
             # Loss
             uncertainty_weighted=config.loss.uncertainty_weighted,
             # Optim
-            weight_decay=config.optim.weight_decay,
-            lr=config.optim.lr,
+            optimizer_cls=config.optim.cls,
+            optimizer_options=config.optim.options_dict,
             # Scheduler
-            monitor_label=config.scheduler.monitor_label,
-            plateau_factor=config.scheduler.factor,
-            plateau_patience=config.scheduler.patience,
-            plateau_threshold=config.scheduler.threshold,
+            scheduler_cls=config.scheduler.cls,
+            scheduler_options=config.scheduler.options_dict,
+            # Ftune
             num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
         )
 
@@ -136,7 +136,7 @@ def train_nnp(
         monitor=lit_model.monitor_label,
         strict=True,
         mode="min",
-        patience=lit_model.hparams.plateau_patience * 2,  # type: ignore
+        patience=config.accel.early_stop_patience,  # type: ignore
     )
     best_model_ckpt = ModelCheckpointWithMetrics(
         dirpath=config.path / "best-model",

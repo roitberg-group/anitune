@@ -31,7 +31,7 @@ def ls(
     sizes: tpx.Annotated[
         bool,
         Option(
-            "-s/-S",
+            "-g/-G",
             "--sizes/--no-sizes",
             help="Show file sizes",
         ),
@@ -70,8 +70,22 @@ def ls(
     arch_detail: tpx.Annotated[
         bool,
         Option(
-            "--arch/--no-arch",
+            "-a/-A" "--arch/--no-arch",
             help="Show architecture options",
+        ),
+    ] = False,
+    optim_detail: tpx.Annotated[
+        bool,
+        Option(
+            "-o/-O" "--optim/--no-optim",
+            help="Show optimizer options",
+        ),
+    ] = False,
+    scheduler_detail: tpx.Annotated[
+        bool,
+        Option(
+            "-l/-L" "--scheduler/--no-scheduler",
+            help="Show scheduler options",
         ),
     ] = False,
 ) -> None:
@@ -133,6 +147,12 @@ def ls(
         table.add_column("", style="green")
         table.add_column("run-name", style="green")
         table.add_column("data|div", style="magenta")
+        if scheduler_detail:
+            table.add_column("sched")
+            table.add_column("sched-options")
+        if optim_detail:
+            table.add_column("optim")
+            table.add_column("optim-options")
         table.add_column("arch")
         if arch_detail:
             table.add_column("arch-options")
@@ -169,6 +189,24 @@ def ls(
                         sorted(f"{k}={v}" for k, v in config.model.arch_dict.items())
                     )
                     row_args.insert(4, options)
+                if optim_detail:
+                    options = " ".join(
+                        sorted(
+                            f"{k}={v}"
+                            for k, v in config.optim.options_dict.items()
+                            if k not in ["lr", "weight_decay"]
+                        )
+                    )
+                    row_args.insert(3, options or "--")
+                    row_args.insert(3, config.optim.cls)
+                if scheduler_detail:
+                    options = " ".join(
+                        sorted(
+                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                        )
+                    )
+                    row_args.insert(3, options or "--")
+                    row_args.insert(3, config.scheduler.cls)
                 if best:
                     if not mae:
                         metrics = {k: v for k, v in metrics.items() if "mae" not in k}
@@ -254,6 +292,12 @@ def ls(
         table.add_column("run-name", style="blue")
         table.add_column("data|div", style="magenta")
         table.add_column("from", style="green")
+        if scheduler_detail:
+            table.add_column("sched")
+            table.add_column("sched-options")
+        if optim_detail:
+            table.add_column("optim")
+            table.add_column("optim-options")
         table.add_column("head")
         table.add_column("wd")
         table.add_column("head|bbone-lr")
@@ -284,6 +328,24 @@ def ls(
                     f"{config.optim.lr:.0e}|{config.ftune.backbone_lr:.0e}",
                     f"{epoch}({best_epoch})",
                 ]
+                if optim_detail:
+                    options = " ".join(
+                        sorted(
+                            f"{k}={v}"
+                            for k, v in config.optim.options_dict.items()
+                            if k not in ["lr", "weight_decay"]
+                        )
+                    )
+                    row_args.insert(4, options or "--")
+                    row_args.insert(4, config.optim.cls)
+                if scheduler_detail:
+                    options = " ".join(
+                        sorted(
+                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                        )
+                    )
+                    row_args.insert(4, options or "--")
+                    row_args.insert(4, config.scheduler.cls)
                 if best:
                     if not mae:
                         metrics = {k: v for k, v in metrics.items() if "mae" not in k}

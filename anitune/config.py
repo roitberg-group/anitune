@@ -147,8 +147,20 @@ class OptimizerConfig:
     Optimizer configuration
     """
 
-    lr: float = 0.5e-3
-    weight_decay: float = 1e-7
+    cls: str = "AdamW"
+    options: tp.Tuple[ScalarTuple, ...] = ()
+
+    @property
+    def lr(self) -> float:
+        return tp.cast(float, self.options_dict["lr"])
+
+    @property
+    def weight_decay(self) -> float:
+        return tp.cast(float, self.options_dict["weight_decay"])
+
+    @property
+    def options_dict(self) -> tp.Dict[str, Scalar]:
+        return {k: v for k, v in self.options}
 
 
 @dataclass
@@ -157,10 +169,12 @@ class SchedulerConfig:
     lr-Scheduler configuration
     """
 
-    monitor_label: str = "energies"
-    factor: float = 0.5
-    patience: int = 100
-    threshold: float = 0.0
+    cls: str = "ReduceLROnPlateau"
+    options: tp.Tuple[ScalarTuple, ...] = ()
+
+    @property
+    def options_dict(self) -> tp.Dict[str, Scalar]:
+        return {k: v for k, v in self.options}
 
 
 @dataclass
@@ -178,6 +192,7 @@ class AccelConfig:
     deterministic: bool = False
     detect_anomaly: bool = False
     profiler: tp.Optional[str] = None
+    early_stop_patience: int = 300
 
     @property
     def log_interval(self) -> tp.Optional[int]:
@@ -199,6 +214,7 @@ class TrainConfig:
     """
 
     name: str = "run"
+    monitor_label: str = "energies"
     ds: DatasetConfig = DatasetConfig()
     model: ModelConfig = ModelConfig()
     loss: LossConfig = LossConfig()
