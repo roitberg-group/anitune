@@ -1,50 +1,47 @@
 name: anitune
 channels:
+  - nodefaults
   - https://conda.anaconda.org/nvidia
   - https://conda.anaconda.org/pytorch
   - https://conda.anaconda.org/conda-forge
 dependencies:
   # general
-  - python=3.9
+  - python=3.10
   - pip  # python packaging tool
+
+  # Required dependencies for ani:
+  - numpy>=1.24
+  - pytorch=2.3
+  - pytorch-cuda=11.8
+  - typing_extensions>=4.0.0
+  - h5py  # HDF5 backend for datasets
+  - tqdm  # progress bar util
+  - lark-parser  # legacy neurochem files
+
+  # Optional dependencies follow:
+  # For building the extensions, the cuda libraries speciefied by the pytorch-cuda
+  # metapackage are not enough, we need the *-dev versions with the headers.
+  # We also need nvcc-11.8 to use as a compiler
+  - nvidia::cuda-libraries-dev=11.8
+  - nvidia::cuda-nvcc=11.8
 
   # automatic linters / checkers / tests / CI
   - pre-commit  # runs pre commit/push hooks
   - black  # code formatter
   - flake8  # pep8 linter
-  - autoflake  # remove unused imports / variables
 
   # non automatic
   - mypy  # type checker
-  - pylint  # heavyweight linter
   - coverage  # code coverage
   - pytest  # python testing framework
   - cruft # keep up with cookiecutter updates
-  - h5py  # HDF5 backend
 
   # cli
   - typer  # handy cli library with support for type checking
   - rich  # colorful styles and terminal outputs
 
-  # Core
-  - numpy=1.20
-  - mkl=2024.0.0
-  - pytorch=1.13.1
-  - cudatoolkit=11.6
-
-  # Data
-  - h5py  # HDF5 backend
-  - pyyaml  # builtin datasets specification
-
-  # Utils
-  - tqdm  # progress bar
-
   # Ase interface (optional)
   - ase
-
-  # Neurochem files (legacy)
-  - lark-parser
-  - requests
 
   # Training
   - lightning=2.2.1
