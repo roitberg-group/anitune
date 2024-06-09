@@ -91,6 +91,7 @@ def ensemble(
 
     import torch
     from torchani.utils import merge_state_dicts
+
     state_dict = merge_state_dicts(paths)
 
     _hash = hasher.hexdigest(4)
