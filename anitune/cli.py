@@ -3,7 +3,6 @@ r"""Command line interface entrypoints"""
 from copy import deepcopy
 import hashlib
 import pickle
-import warnings
 import shutil
 import typing as tp
 import typing_extensions as tpx
@@ -90,12 +89,9 @@ def ensemble(
         hasher.update(p.name.encode("utf-8"))
     paths = [(p / "best-model") / "best.ckpt" for p in paths]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        from torchani.utils import merge_state_dicts
-    state_dict = merge_state_dicts(paths)
-
     import torch
+    from torchani.utils import merge_state_dicts
+    state_dict = merge_state_dicts(paths)
 
     _hash = hasher.hexdigest(4)
     path = _ENSEMBLE_PATH / f"{name}-{_hash}"

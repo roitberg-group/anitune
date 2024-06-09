@@ -20,31 +20,29 @@ def train_nnp(
     r"""
     Train an ANI-style neural network potential
     """
-    import torch  # noqa
-    import lightning  # noqa
+    import torch
+    import lightning
 
     if not verbose:
         from lightning_utilities.core.rank_zero import log
 
         log.setLevel(logging.ERROR)
-    from lightning.pytorch.callbacks import (  # noqa
+    from lightning.pytorch.callbacks import (
         LearningRateMonitor,
         EarlyStopping,
         BackboneFinetuning,
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        from torchani import datasets  # noqa
-    from anitune.lit_models import LitModel  # noqa
-    from anitune import arch  # noqa
-    from anitune import losses  # noqa
+    from torchani import datasets
+    from anitune.lit_models import LitModel
+    from anitune import arch
+    from anitune import losses
     from anitune.callbacks import (
         MergeTensorBoardLogs,
         SaveConfig,
         ModelCheckpointWithMetrics,
-    )  # noqa
+    )
 
     if not config.ds.path.exists():
         raise RuntimeError("Dataset does not exist")

@@ -20,7 +20,7 @@ def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
     .ckpt file (it is assumed that the model is located in a .model attribute
     in the LightningModule in the latter case).
     """
-    import torch  # noqa
+    import torch
 
     _state_dict = torch.load(path, map_location="cpu")
     if "state_dict" in _state_dict:
