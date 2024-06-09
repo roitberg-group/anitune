@@ -7,7 +7,7 @@ channels:
 dependencies:
   # general
   - python=3.10
-  - pip  # python packaging tool
+  - pip>=24.0  # python packaging tool
 
   # Required dependencies for ani:
   - numpy>=1.24
