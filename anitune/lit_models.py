@@ -1,5 +1,5 @@
+import itertools
 import typing as tp
-import warnings
 
 import torch
 from torch import Tensor
@@ -7,10 +7,8 @@ import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    from torchani.models import BuiltinModel
-    from torchani.units import hartree2kcalpermol
+from torchani.models import BuiltinModel
+from torchani.units import hartree2kcalpermol
 
 from anitune.utils import Scalar
 from anitune.losses import MultiTaskLoss, LossTerm, Energies
@@ -68,13 +66,10 @@ class LitModel(lightning.LightningModule):
         module_list = torch.nn.ModuleList()
         if num_head_layers > 0:
             for k in model.get_chemical_symbols():
-                j = 0
-                for layer in reversed(model.neural_networks[k]):
-                    if isinstance(layer, torch.nn.Linear):
-                        if j < num_head_layers:
-                            j += 1
-                            continue
-                        module_list.append(layer)
+                layers = model.neural_networks.atomics[k].layers
+                last_layer = model.neural_networks.atomics[k].last_layer
+                rev_layers = itertools.chain([last_layer], reversed(layers))
+                module_list.extend(list(rev_layers)[:num_head_layers])
         self.backbone = module_list
 
     def training_step(
