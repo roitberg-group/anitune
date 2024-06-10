@@ -42,3 +42,4 @@ repos:
     hooks:
       - id: mypy
         stages: [push]
+        types: [file, python]
