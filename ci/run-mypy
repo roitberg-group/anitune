@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-set -o errexit
-
-# Go to root directory
-cd "$(dirname "$(dirname "$0")")"
-
-# Run mypy on everything
-mypy --ignore-missing --exclude "submodules/.*" .
