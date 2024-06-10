@@ -38,4 +38,5 @@ packages = ["anitune"]
     disallow_incomplete_defs = true
     disallow_untyped_defs = true
     disallow_any_generics = true
-    python_version = 3.8
+    python_version = '3.10'
+    exclude = "submodules/.*"

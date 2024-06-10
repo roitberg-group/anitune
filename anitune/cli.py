@@ -39,7 +39,7 @@ app = Typer(
     ## ANI
 
     Utility for generating a fine-tuned models from pre trained ANI style
-    models, given a set of reference structures.
+    models, given a set of reference structures
     """,
 )
 
