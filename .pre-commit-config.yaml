@@ -41,7 +41,6 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        verbose: true
         entry: "pwd"
         # this makes pre-commit fetch python the executable inside the enclosing conda
         # env instead of generating its own venv
