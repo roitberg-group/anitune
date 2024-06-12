@@ -16,7 +16,6 @@ dependencies:
   - typing_extensions>=4.0.0
   - h5py  # HDF5 backend for datasets
   - tqdm  # progress bar util
-  - lark-parser  # legacy neurochem files
 
   # Optional dependencies follow:
   # For building the extensions, the cuda libraries speciefied by the pytorch-cuda
@@ -41,15 +40,12 @@ dependencies:
   - typer  # handy cli library with support for type checking
   - rich  # colorful styles and terminal outputs
 
-  # Ase interface (optional)
-  - ase
-
   # Training
   - lightning=2.2.1
   - torchmetrics=1.3.2
   - tensorboard
 
-  # docs
+  # Docs
   - sphinx  # documentation framework, uses restructured text (.rst)
   - sphinx_rtd_theme
   - sphinx-gallery
