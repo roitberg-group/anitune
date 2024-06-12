@@ -29,9 +29,9 @@ dependencies:
   - pre-commit  # runs pre commit/push hooks
   - black  # code formatter
   - flake8  # pep8 linter
+  - mypy  # type checker
 
   # non automatic
-  - mypy  # type checker
   - coverage  # code coverage
   - pytest  # python testing framework
   - cruft # keep up with cookiecutter updates
