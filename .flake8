@@ -1,9 +1,10 @@
 [flake8]
-# ignore line length warnings and breaking before binary operators
-ignore = E501, W503
+ignore = W503
+max-line-length = 88
 exclude =
     .git,
     __pycache__,
     build,
     .eggs,
+    anitune.egg-info,
     docs
