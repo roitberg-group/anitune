@@ -1,8 +1,8 @@
 name: anitune
 channels:
   - nodefaults
-  - https://conda.anaconda.org/nvidia
   - https://conda.anaconda.org/pytorch
+  - https://conda.anaconda.org/nvidia
   - https://conda.anaconda.org/conda-forge
 dependencies:
   # general
