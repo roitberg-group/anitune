@@ -1,14 +1,15 @@
-# ani-ftune
+# anitune
 
 ## Overview
 
 ## Installation
 
-For developers:
+From source:
 
 ```bash
-bash ./make_env.sh
-# or conda|mamba env create --file ./environment.yaml, and manually check dependencies
-# of the submodules
-pip install -e .
+cd ./submodules/torchani_sandbox/
+pip install --no-deps --no-build-isolation --config-settings=--global-option=ext --verbose --editable .
+cd ../..
+mamba env create --file ./environment.yaml
+pip install --verbose --editable .
 ```
