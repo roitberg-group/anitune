@@ -8,7 +8,6 @@ import argparse
 import torch
 import torch.utils.tensorboard
 from torch.optim import lr_scheduler
-from ruamel.yaml import YAML
 
 from torchani.utils import sorted_gsaes
 
@@ -51,7 +50,7 @@ def main():
     )
     args = parser.parse_args()
     print("Running on device", torch.cuda.get_device_name())
-    yaml = YAML(typ="rt")
+    yaml = ...  # old ruamel parser
     config = yaml.load(Path(args.config).resolve())
 
     model_num = args.model_num

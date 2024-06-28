@@ -10,7 +10,6 @@ import torch
 from torch.optim import Optimizer
 import torch.utils.tensorboard
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
-from ruamel.yaml import YAML
 
 import torchani
 
@@ -280,7 +279,7 @@ def execute_training(
             "Running in DEBUG mode, checkpoints and tensorboard files will not be saved!!!"
         )
     else:
-        yaml = YAML(typ="rt")
+        yaml = ...  # old ruamel parser
         if run_output_path.is_dir() and any(run_output_path.iterdir()):
             is_restart = True
             _load_checkpoint(run_output_path, persistent_objects, kind="latest")
