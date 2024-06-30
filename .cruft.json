@@ -1,6 +1,6 @@
 {
   "template": "git@github.com:IgnacioJPickering/cookiecutter-pycargo",
-  "commit": "8794be4a48b1d1a3cfb283016389c9cc9b9a7a10",
+  "commit": "1dbe3a185e62fb9dc6852cb7fcf12269dc640d98",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -8,17 +8,10 @@
       "repo_name": "anitune",
       "package_name": "anitune",
       "command": "ani",
-      "conda_env_name": "anitune",
       "author_name": "Ignacio Pickering",
       "author_git_profile": "IgnacioJPickering",
       "author_email": "ign.pickering@gmail.com",
-      "description": "Python package anitune",
-      "python_version_major": "3",
       "python_version_minor": "8",
-      "year": "2023",
-      "github_dir": "IgnacioJPickering",
-      "python_version": "3.8",
-      "python_version_joint": "38",
       "_template": "git@github.com:IgnacioJPickering/cookiecutter-pycargo"
     }
   },
