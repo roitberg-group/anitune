@@ -51,3 +51,18 @@ repos:
         # Print output on success
         verbose: true
         stages: [push]
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: "pytest -m fast ./tests"
+        # Don't generate a venv for the exe
+        language: system
+        types: [python]
+        # Pass no files but run regardless
+        files: $^
+        always_run: true
+        # Print output on success
+        verbose: true
+        stages: [push]

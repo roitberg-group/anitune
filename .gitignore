@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Setuptools-scm file
+_version.py
+
 # C extensions and binaries
 *.so
 *.o
