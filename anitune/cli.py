@@ -1,4 +1,3 @@
-# noqa:E501
 r"""Command line interface entrypoints"""
 from copy import deepcopy
 import hashlib

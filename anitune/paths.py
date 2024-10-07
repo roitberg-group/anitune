@@ -1,6 +1,7 @@
 r"""
 Default location for various ANITune resources
 """
+
 import typing as tp
 from pathlib import Path
 from enum import Enum
