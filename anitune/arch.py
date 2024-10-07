@@ -13,7 +13,7 @@ from torchani.assembler import (
     ELEMENTS_2X,
 )
 from anitune.config import TrainConfig, ModelConfig
-from anitune.utils import Scalar
+from anitune.annotations import Scalar
 
 
 def fetch_pretrained_config(name_or_idx: str) -> TrainConfig:

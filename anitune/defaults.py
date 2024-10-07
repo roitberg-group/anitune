@@ -5,7 +5,7 @@ Default values for different architectures, optimizers and lr schedulers
 import sys
 import typing as tp
 from dataclasses import dataclass, asdict
-from anitune.utils import Scalar, ScalarTuple
+from anitune.annotations import Scalar, ScalarTuple
 
 
 @dataclass
