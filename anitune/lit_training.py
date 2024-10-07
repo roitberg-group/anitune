@@ -76,7 +76,10 @@ def train_nnp(
             restart = True
 
     if ckpt_path.is_file():
-        lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
+        lit_model = LitModel.load_from_checkpoint(
+            ckpt_path,
+            model=model,
+        )
     else:
         lit_model = LitModel(
             model,
