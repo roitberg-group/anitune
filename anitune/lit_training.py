@@ -76,7 +76,11 @@ def train_nnp(
             restart = True
 
     if ckpt_path.is_file():
-        lit_model = LitModel.load_from_checkpoint(ckpt_path, model=model)
+        # Not sure what the problem with mypy is here
+        lit_model = LitModel.load_from_checkpoint(  # type: ignore
+            ckpt_path,
+            model=model,
+        )
     else:
         lit_model = LitModel(
             model,
