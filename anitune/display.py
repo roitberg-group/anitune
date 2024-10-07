@@ -6,11 +6,11 @@ from typer import Option
 from rich.table import Table
 
 from anitune.console import console
-from anitune.utils import (
-    _TRAIN_PATH,
-    _FTUNE_PATH,
-    _BATCH_PATH,
-    _ENSEMBLE_PATH,
+from anitune.paths import (
+    TRAIN_PATH,
+    FTUNE_PATH,
+    BATCH_PATH,
+    ENSEMBLE_PATH,
 )
 
 
@@ -89,10 +89,10 @@ def ls(
         ),
     ] = False,
 ) -> None:
-    batch = sorted(_BATCH_PATH.iterdir())
-    train = sorted(_TRAIN_PATH.iterdir())
-    ftune = sorted(_FTUNE_PATH.iterdir())
-    ensemble = sorted(_ENSEMBLE_PATH.iterdir())
+    batch = sorted(BATCH_PATH.iterdir())
+    train = sorted(TRAIN_PATH.iterdir())
+    ftune = sorted(FTUNE_PATH.iterdir())
+    ensemble = sorted(ENSEMBLE_PATH.iterdir())
     if batch:
         table = Table(title="Batched datasets", box=None)
         table.add_column("", style="magenta")
@@ -121,7 +121,7 @@ def ls(
                     (
                         f"{ds_config.folds}-folds"
                         if ds_config.folds is not None
-                        else f"train:{ds_config.train_frac} valid:{ds_config.validation_frac}"
+                        else f"train:{ds_config.train_frac} valid:{ds_config.validation_frac}"  # noqa:E501
                     ),
                     " ".join(ds_config.data_names) or "--",
                     " ".join((p.stem for p in ds_config.src_paths)) or "--",

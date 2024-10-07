@@ -1,6 +1,5 @@
 r"""
-This module holds default values for different architectures, optimizers and lr
-schedulers
+Default values for different architectures, optimizers and lr schedulers
 """
 
 import sys
