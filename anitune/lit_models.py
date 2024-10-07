@@ -10,7 +10,7 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torchani.models import BuiltinModel
 from torchani.units import hartree2kcalpermol
 
-from anitune.utils import Scalar
+from anitune.annotations import Scalar
 from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 

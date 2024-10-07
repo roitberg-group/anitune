@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from anitune.paths import BATCH_PATH, FTUNE_PATH, TRAIN_PATH
-from anitune.utils import Scalar, ScalarTuple
+from anitune.annotations import Scalar, ScalarTuple
 
 
 def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
