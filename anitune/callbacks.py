@@ -1,3 +1,6 @@
+r"""
+Custom Lightning compatible callbacks
+"""
 import pickle
 import typing as tp
 from pathlib import Path

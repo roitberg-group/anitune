@@ -5,13 +5,8 @@ import typing as tp
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from anitune.utils import (
-    _BATCH_PATH,
-    _FTUNE_PATH,
-    _TRAIN_PATH,
-    Scalar,
-    ScalarTuple,
-)
+from anitune.paths import BATCH_PATH, FTUNE_PATH, TRAIN_PATH
+from anitune.utils import Scalar, ScalarTuple
 
 
 def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
@@ -112,7 +107,7 @@ class DatasetConfig:
         state = sorted((k, v) for k, v in dict_.items())
         hasher = hashlib.shake_128()
         hasher.update(str(state).encode())
-        _path = _BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
+        _path = BATCH_PATH / f"{self.name}-{hasher.hexdigest(4)}"
         return _path
 
 
@@ -227,7 +222,7 @@ class TrainConfig:
     @property
     def path(self) -> Path:
         dict_ = asdict(self)
-        root = _FTUNE_PATH if self.ftune is not None else _TRAIN_PATH
+        root = FTUNE_PATH if self.ftune is not None else TRAIN_PATH
 
         dict_.pop("debug")
         dict_.pop("accel")

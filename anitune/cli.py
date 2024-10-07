@@ -1,5 +1,5 @@
+# noqa:E501
 r"""Command line interface entrypoints"""
-
 from copy import deepcopy
 import hashlib
 import pickle
@@ -11,7 +11,7 @@ from pathlib import Path
 from typer import Option, Typer
 
 from anitune.console import console
-from anitune.utils import DiskData, select_paths, _ENSEMBLE_PATH
+from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
 from anitune.lit_training import train_nnp
 from anitune.config import (
     load_state_dict,
@@ -74,13 +74,13 @@ def ensemble(
         ptrain_names_or_idxs = []
     if ftune_names_or_idxs is None:
         ftune_names_or_idxs = []
-    ptrain_paths = select_paths(
+    ptrain_paths = select_subdirs(
         ptrain_names_or_idxs,
-        kind=DiskData.TRAIN,
+        kind=DataKind.TRAIN,
     )
-    ftune_paths = select_paths(
+    ftune_paths = select_subdirs(
         ftune_names_or_idxs,
-        kind=DiskData.FTUNE,
+        kind=DataKind.FTUNE,
     )
     paths = deepcopy(ptrain_paths)
     paths.extend(ftune_paths)
@@ -95,7 +95,7 @@ def ensemble(
     state_dict = merge_state_dicts(paths)
 
     _hash = hasher.hexdigest(4)
-    path = _ENSEMBLE_PATH / f"{name}-{_hash}"
+    path = ENSEMBLE_PATH / f"{name}-{_hash}"
     path.mkdir(exist_ok=True, parents=True)
     src_config = {
         "train-src": tuple(p.name for p in ptrain_paths),
@@ -248,9 +248,9 @@ def restart(
     ):
         raise ValueError("One and only one of -f and -t should be specified")
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
-    kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
+    kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
 
-    path = select_paths((name_or_idx,), kind=kind)[0] / "config.pkl"
+    path = select_subdirs((name_or_idx,), kind=kind)[0] / "config.pkl"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
@@ -305,14 +305,14 @@ def rm(
             ensemble_name_or_idx,
         ),
         (
-            DiskData.FTUNE,
-            DiskData.TRAIN,
-            DiskData.BATCH,
-            DiskData.ENSEMBLE,
+            DataKind.FTUNE,
+            DataKind.TRAIN,
+            DataKind.BATCH,
+            DataKind.ENSEMBLE,
         ),
     ):
         if selectors is not None:
-            paths = select_paths(selectors, kind=dkind)
+            paths = select_subdirs(selectors, kind=dkind)
             for p in paths:
                 shutil.rmtree(p)
                 console.print(f"Removed {p.name}")
@@ -340,8 +340,8 @@ def compare(
         ftune_name_or_idx and ptrain_name_or_idx
     ):
         raise ValueError("One and only one of -t or -f has to be specified")
-    kind = DiskData.FTUNE if ftune_name_or_idx else DiskData.TRAIN
-    root = select_paths(
+    kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
+    root = select_subdirs(
         (ptrain_name_or_idx or ftune_name_or_idx,),
         kind=kind,
     )[0]
@@ -602,7 +602,7 @@ def train(
         ),
     ] = False,
 ) -> None:
-    batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
+    batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -887,7 +887,7 @@ def ftune(
         ),
     ] = None,
 ) -> None:
-    batched_dataset_path = select_paths((batch_name_or_idx,), kind=DiskData.BATCH)[0]
+    batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.pkl"
     with open(ds_config_path, mode="rb") as f:
         ds_config = pickle.load(f)
@@ -915,9 +915,9 @@ def ftune(
         pretrained_state_dict_path = None
         pretrained_name = name_or_idx
     else:
-        pretrained_path = select_paths(
+        pretrained_path = select_subdirs(
             (name_or_idx,),
-            kind=DiskData.TRAIN,
+            kind=DataKind.TRAIN,
         )[0]
         pretrained_name = pretrained_path.name
         pretrained_config_path = pretrained_path / "config.pkl"
