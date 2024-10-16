@@ -437,8 +437,14 @@ def train(
     ] = "train",
     monitor: tpx.Annotated[
         str,
-        Option("--monitor", help="Label to monitor during training"),
-    ] = "energies",
+        Option(
+            "--monitor",
+            help="Label to monitor during training."
+            " Format is 'rmse_energies', or 'rmse_forces', etc."
+            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise it must be explicitly specified",
+        ),
+    ] = "valid_rmse_default",
     profiler: tpx.Annotated[
         tp.Optional[str],
         Option(
@@ -735,8 +741,14 @@ def ftune(
     ] = "ftune",
     monitor: tpx.Annotated[
         str,
-        Option("--monitor", help="Label to monitor during training"),
-    ] = "energies",
+        Option(
+            "--monitor",
+            help="Label to monitor during training."
+            " Format is 'valid_rmse_energies', or 'train_rmse_forces', etc."
+            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise it must be explicitly specified",
+        ),
+    ] = "valid_rmse_default",
     num_head_layers: tpx.Annotated[
         int,
         Option(

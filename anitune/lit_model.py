@@ -7,7 +7,7 @@ import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
-from torchani.assembly import ANI, ANIq
+from torchani.assembly import ANI
 from torchani.units import hartree2kcalpermol
 
 from anitune.annotations import Scalar
@@ -24,7 +24,7 @@ class LitModel(lightning.LightningModule):
         model: ANI,
         optimizer_options: tp.Dict[str, Scalar],
         scheduler_options: tp.Dict[str, Scalar],
-        monitor_label: str = "energies",
+        monitor_label: str = "valid_rmse_default",
         optimizer_cls: str = "AdamW",
         scheduler_cls: str = "ReduceLROnPlateau",
         loss_terms: tp.Sequence[LossTerm] = (Energies(),),
@@ -41,6 +41,8 @@ class LitModel(lightning.LightningModule):
         self.valid_metrics = torch.nn.ModuleDict()
         for term in loss_terms:
             k = term.label
+            # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE,
+            # no extra calculations are needed
             self.train_metrics[k] = torchmetrics.MetricCollection(
                 {
                     "rmse": torchmetrics.MeanSquaredError(squared=False),
@@ -50,11 +52,13 @@ class LitModel(lightning.LightningModule):
             )
             self.valid_metrics[k] = self.train_metrics[k].clone(prefix="valid_")
 
-        if not any(term.label == monitor_label for term in loss_terms):
+        if len(loss_terms) == 1 and monitor_label == "valid_rmse_default":
+            monitor_label = f"valid_rmse_{loss_terms[0].label}"
+        elif not any(monitor_label.endswith(term.label) for term in loss_terms):
             raise ValueError(
                 "The monitored label must be one of the enabled loss terms"
             )
-        self.monitor_label = f"valid_rmse_{monitor_label}"
+        self.monitor_label = monitor_label
 
         self.loss = MultiTaskLoss(loss_terms, uncertainty_weighted)
         self.model = model
@@ -120,34 +124,20 @@ class LitModel(lightning.LightningModule):
         self,
         batch: tp.Dict[str, Tensor],
     ) -> tp.Dict[str, Tensor]:
-        pred: tp.Dict[str, Tensor] = {}
-        # Require necessary grads of inputs
-        for term in self.loss.terms:
-            if term.grad_of is not None:
-                batch[term.grad_wrt_to].requires_grad_(True)
+        for term in self.loss.grad_terms:
+            batch[term.grad_wrt_to_targ_label].requires_grad_(True)
 
-        if isinstance(self.model, ANIq):
-            output = self.model.energies_and_atomic_charges(
-                (batch["species"], batch["coordinates"])
-            )
-        else:
-            output = self.model((batch["species"], batch["coordinates"]))
+        pred = self.model.sp((batch["species"], batch["coordinates"]))
 
-        # Calculate necessary grads of inputs
-        for term in self.loss.terms:
-            if term.grad_of is None:
-                pred[term.label] = getattr(output, term.label)
-            else:
-                pred[term.label] = -torch.autograd.grad(
-                    getattr(output, term.grad_of).sum(),
-                    batch[term.grad_wrt_to],
-                    retain_graph=True,
-                )[0]
+        for term in self.loss.grad_terms:
+            pred[term.label] = -torch.autograd.grad(
+                pred[term.grad_of_label].sum(),
+                batch[term.grad_wrt_to_targ_label],
+                retain_graph=True,
+            )[0]
 
-        # Reset requires_grad flags
-        for term in self.loss.terms:
-            if term.grad_of is not None:
-                batch[term.grad_wrt_to].requires_grad_(False)
+        for term in self.loss.grad_terms:
+            batch[term.grad_wrt_to_targ_label].requires_grad_(False)
         return pred
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

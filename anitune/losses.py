@@ -19,20 +19,24 @@ class Penalty(Enum):
 @dataclass
 class LossTerm:
     label: str
-    is_extensive: bool
-    targ_label: str = ""
+    targ_label_only: str = ""  # label in the dataset, if unspecified assumed the same as 'label'
+    is_extensive: bool = False
     scale_by_sqrt_atoms: bool = False
     is_vec3: bool = False
     factor: float = 1.0
-    grad_of: tp.Optional[str] = None
-    grad_wrt_to: str = "coordinates"
+    grad_of_label: str = ""
+    grad_wrt_to_targ_label: str = "coordinates"
     penalty: Penalty = Penalty.SQUARE
+
+    @property
+    def targ_label(self) -> str:
+        return self.targ_label_only or self.label
 
 
 def Forces(factor: float = 1.0) -> LossTerm:
     return LossTerm(
         label="forces",
-        grad_of="energies",
+        grad_of_label="energies",
         is_vec3=True,
         is_extensive=True,
         factor=factor,
@@ -101,7 +105,7 @@ def AtomicCharges(factor: float = 1.0) -> LossTerm:
 def AtomicChargesMBIS(factor: float = 1.0) -> LossTerm:
     return LossTerm(
         label="atomic_charges",
-        targ_label="atomic_charges_mbis",
+        targ_label_only="atomic_charges_mbis",
         is_extensive=True,
         factor=factor,
     )
@@ -125,6 +129,12 @@ class MultiTaskLoss(torch.nn.Module):
                 return t
         raise ValueError("Label not found")
 
+    @property
+    def grad_terms(self) -> tp.Iterator[LossTerm]:
+        for term in self.terms:
+            if term.grad_of_label:
+                yield term
+
     def __init__(
         self,
         terms: tp.Sequence[LossTerm],
@@ -132,6 +142,9 @@ class MultiTaskLoss(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.terms = tuple(terms)
+        if len(self.terms) != len(set(self.terms)):
+            raise ValueError("Loss terms must have unique labels")
+
         if uncertainty_weighted:
             raise NotImplementedError("Uncertainty Weighted loss not implemented yet")
 
@@ -157,27 +170,23 @@ class MultiTaskLoss(torch.nn.Module):
             0.0, dtype=torch.float, device=targ["species"].device
         )
         for term in self.terms:
-            k = term.label
-
-            diff = pred[k] - targ[term.targ_label or k]
-
             if term.penalty is Penalty.SQUARE:
-                error = diff.pow(2)
+                error = (pred[term.label] - targ[term.targ_label]).pow(2)
             elif term.penalty is Penalty.ABS:
-                error = torch.abs(diff)
+                error = torch.abs(pred[term.label] - targ[term.targ_label])
+
+            if term.scale_by_sqrt_atoms or term.is_extensive:
+                num_atoms = (targ["species"] >= 0).sum(dim=1, dtype=torch.float)
+                num_atoms = num_atoms.view((-1,) + (1,) * (error.ndim - 1))
+                if term.scale_by_sqrt_atoms:
+                    error *= num_atoms.sqrt()
+                if term.is_extensive:
+                    error /= num_atoms
 
             if term.is_vec3:
                 error = error / 3
 
-            if term.scale_by_sqrt_atoms or term.is_extensive:
-                num_atoms = (targ["species"] >= 0).sum(dim=1, dtype=torch.float)
-                num_atoms = num_atoms.view((-1,) + (1,) * (diff.ndim - 1))
-                if term.scale_by_sqrt_atoms:
-                    error = error * num_atoms.sqrt()
-                if term.is_extensive:
-                    error = error / num_atoms
-
             mean_error = error.mean()
-            losses[k] = mean_error
+            losses[term.label] = mean_error
             losses["loss"] += mean_error * term.factor
         return losses
