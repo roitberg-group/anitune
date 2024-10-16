@@ -435,7 +435,10 @@ def train(
             help="Name of the run",
         ),
     ] = "train",
-    monitor: tpx.Annotated[str, Option("--monitor", help="Label to monitor during training"),] = "energies",
+    monitor: tpx.Annotated[
+        str,
+        Option("--monitor", help="Label to monitor during training"),
+    ] = "energies",
     profiler: tpx.Annotated[
         tp.Optional[str],
         Option(
@@ -730,7 +733,10 @@ def ftune(
             help="Name of the run",
         ),
     ] = "ftune",
-    monitor: tpx.Annotated[str, Option("--monitor", help="Label to monitor during training"),] = "energies",
+    monitor: tpx.Annotated[
+        str,
+        Option("--monitor", help="Label to monitor during training"),
+    ] = "energies",
     num_head_layers: tpx.Annotated[
         int,
         Option(
