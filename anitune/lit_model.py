@@ -7,7 +7,7 @@ import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
-from torchani.models import BuiltinModel
+from torchani.assembly import ANI
 from torchani.units import hartree2kcalpermol
 
 from anitune.annotations import Scalar
@@ -16,15 +16,15 @@ from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 class LitModel(lightning.LightningModule):
     r"""
-    ANI Model wrapped with Lightning
+    ANI-style model, wrapped to enable training with PyTorch Lightning
     """
 
     def __init__(
         self,
-        model: BuiltinModel,
+        model: ANI,
         optimizer_options: tp.Dict[str, Scalar],
         scheduler_options: tp.Dict[str, Scalar],
-        monitor_label: str = "energies",
+        monitor_label: str = "valid_rmse_default",
         optimizer_cls: str = "AdamW",
         scheduler_cls: str = "ReduceLROnPlateau",
         loss_terms: tp.Sequence[LossTerm] = (Energies(),),
@@ -41,6 +41,8 @@ class LitModel(lightning.LightningModule):
         self.valid_metrics = torch.nn.ModuleDict()
         for term in loss_terms:
             k = term.label
+            # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE,
+            # no extra calculations are needed
             self.train_metrics[k] = torchmetrics.MetricCollection(
                 {
                     "rmse": torchmetrics.MeanSquaredError(squared=False),
@@ -50,11 +52,13 @@ class LitModel(lightning.LightningModule):
             )
             self.valid_metrics[k] = self.train_metrics[k].clone(prefix="valid_")
 
-        if not any(term.label == monitor_label for term in loss_terms):
+        if len(loss_terms) == 1 and monitor_label == "valid_rmse_default":
+            monitor_label = f"valid_rmse_{loss_terms[0].label}"
+        elif not any(monitor_label.endswith(term.label) for term in loss_terms):
             raise ValueError(
                 "The monitored label must be one of the enabled loss terms"
             )
-        self.monitor_label = f"valid_rmse_{monitor_label}"
+        self.monitor_label = monitor_label
 
         self.loss = MultiTaskLoss(loss_terms, uncertainty_weighted)
         self.model = model
@@ -80,7 +84,7 @@ class LitModel(lightning.LightningModule):
         pred = self.batch_eval(batch)
         with torch.no_grad():
             for k, v in self.train_metrics.items():
-                v.update(pred[k], batch[k])
+                v.update(pred[k], batch[self.loss.term(k).targ_label])
         losses = self.loss(pred, batch)
         return losses["loss"]
 
@@ -93,7 +97,7 @@ class LitModel(lightning.LightningModule):
             pred = self.batch_eval(batch)
 
         for k, v in self.valid_metrics.items():
-            v.update(pred[k], batch[k])
+            v.update(pred[k], batch[self.loss.term(k).targ_label])
 
     def on_train_epoch_end(self) -> None:
         self._log_metrics(self.train_metrics)
@@ -116,31 +120,24 @@ class LitModel(lightning.LightningModule):
                     metrics[f"{name}_{k}_kcal|mol|ang"] = hartree2kcalpermol(v)
         self.log_dict(metrics)
 
-    @property
-    def eval_requires_coords_grad(self) -> bool:
-        return any(term.grad_label is not None for term in self.loss.terms)
-
     def batch_eval(
         self,
         batch: tp.Dict[str, Tensor],
     ) -> tp.Dict[str, Tensor]:
-        pred: tp.Dict[str, Tensor] = {}
-        if self.eval_requires_coords_grad:
-            batch["coordinates"].requires_grad_(True)
+        for term in self.loss.grad_terms:
+            batch[term.grad_wrt_to_targ_label].requires_grad_(True)
 
-        output = self.model((batch["species"], batch["coordinates"]))
-        for term in self.loss.terms:
-            k = term.label
-            if term.grad_label is None:
-                pred[k] = getattr(output, k)
-            else:
-                pred[k] = -torch.autograd.grad(
-                    getattr(output, term.grad_label).sum(),
-                    batch["coordinates"],
-                    retain_graph=True,
-                )[0]
+        pred = self.model.sp((batch["species"], batch["coordinates"]))
 
-        batch["coordinates"].requires_grad_(False)
+        for term in self.loss.grad_terms:
+            pred[term.label] = -torch.autograd.grad(
+                pred[term.grad_of_label].sum(),
+                batch[term.grad_wrt_to_targ_label],
+                retain_graph=True,
+            )[0]
+
+        for term in self.loss.grad_terms:
+            batch[term.grad_wrt_to_targ_label].requires_grad_(False)
         return pred
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

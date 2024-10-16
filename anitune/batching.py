@@ -24,18 +24,18 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
     for name in config.data_names:
         ds = getattr(datasets, name)(
             skip_check=True,
-            functional=config.functional,
-            basis_set=config.basis_set,
+            lot=config.lot,
         )
         src_paths.extend(ds.store_locations)
     src_paths = sorted(set(src_paths))
 
     datasets.create_batched_dataset(
-        locations=datasets.ANIDataset(locations=src_paths),
+        src=datasets.ANIDataset(locations=src_paths),
         max_batches_per_packet=max_batches_per_packet,
         dest_path=config.path,
         batch_size=config.batch_size,
-        shuffle_seed=config.shuffle_seed,
+        divs_seed=config.divs_seed,
+        batch_seed=config.batch_seed,
         properties=config.properties,
         **split_kwargs,
     )

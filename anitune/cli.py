@@ -12,7 +12,7 @@ from typer import Option, Typer
 
 from anitune.console import console
 from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
-from anitune.lit_training import train_nnp
+from anitune.lit_training import train_lit_model
 from anitune.config import (
     load_state_dict,
     FinetuneConfig,
@@ -26,11 +26,9 @@ from anitune.config import (
 )
 from anitune.display import ls
 from anitune.defaults import (
-    resolve_options_raw,
     resolve_options,
     parse_scheduler_str,
     parse_optimizer_str,
-    make_scalar_tuples,
 )
 
 app = Typer(
@@ -42,6 +40,24 @@ app = Typer(
     models, given a set of reference structures
     """,
 )
+
+
+def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
+    name, idx = name_or_idx.split(":")
+    config = TrainConfig()
+    config.ds.fold_idx = idx
+    symbols: tp.Tuple[str, ...]
+    if ("1x" in name) or ("1ccx" in name):
+        symbols = ("H", "C", "N", "O")
+    else:
+        symbols = ("H", "C", "N", "O", "S", "F", "Cl")
+    config.model = ModelConfig(
+        builtin=True,
+        arch_fn=name,
+        options={"model_index": int(idx)},
+        symbols=symbols,
+    )
+    return config
 
 
 @app.command(help="Generate an ensemble from a set of models")
@@ -124,20 +140,20 @@ def batch(
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
-    _src_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
-        Option(
-            "-s",
-            "--data-path",
-            help="Paths to data to fine-tune the model with",
-        ),
-    ] = None,
     _data_names: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
             "-d",
-            "--data-name",
+            "--dataset-name",
             help="Builtin dataset name",
+        ),
+    ] = None,
+    _src_paths: tpx.Annotated[
+        tp.Optional[tp.List[Path]],
+        Option(
+            "-s",
+            "--src-paths",
+            help="Paths to custom datasets",
         ),
     ] = None,
     _properties: tpx.Annotated[
@@ -178,10 +194,15 @@ def batch(
             help="Validation set fraction",
         ),
     ] = 0.2,
-    data_seed: tpx.Annotated[
+    batch_seed: tpx.Annotated[
         int,
         Option(
-            "--batch-seed",
+            help="Seed for dataset batching",
+        ),
+    ] = 1234,
+    divs_seed: tpx.Annotated[
+        int,
+        Option(
             help="Seed for dataset batching",
         ),
     ] = 1234,
@@ -202,7 +223,8 @@ def batch(
         folds=folds,
         validation_frac=validation_frac,
         train_frac=train_frac,
-        shuffle_seed=data_seed,
+        batch_seed=batch_seed,
+        divs_seed=divs_seed,
     )
     batch_data(ds, max_batches_per_packet=100)
 
@@ -258,7 +280,7 @@ def restart(
         config = pickle.load(f)
     if max_epochs is not None:
         config.accel.max_epochs = max_epochs
-    train_nnp(config, restart=True, verbose=verbose)
+    train_lit_model(config, restart=True, verbose=verbose)
 
 
 ls = app.command(help="Display training and finetuning runs")(ls)
@@ -413,6 +435,16 @@ def train(
             help="Name of the run",
         ),
     ] = "train",
+    monitor: tpx.Annotated[
+        str,
+        Option(
+            "--monitor",
+            help="Label to monitor during training."
+            " Format is 'rmse_energies', or 'rmse_forces', etc."
+            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise it must be explicitly specified",
+        ),
+    ] = "valid_rmse_default",
     profiler: tpx.Annotated[
         tp.Optional[str],
         Option(
@@ -420,13 +452,6 @@ def train(
             help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
         ),
     ] = None,
-    lot: tpx.Annotated[
-        str,
-        Option(
-            "--lot",
-            help="Level of theory",
-        ),
-    ] = "wb97x-631gd",
     arch_fn: tpx.Annotated[
         str,
         Option(
@@ -434,7 +459,7 @@ def train(
             "--arch",
             help="Network architecture",
         ),
-    ] = "FlexANI2",
+    ] = "simple_ani",
     arch_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
@@ -462,7 +487,7 @@ def train(
     scheduler: tpx.Annotated[
         str,
         Option(
-            "-l",
+            "-s",
             "--scheduler",
             help="Type of lr-scheduler",
         ),
@@ -470,7 +495,7 @@ def train(
     scheduler_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "--lo",
+            "--so",
             "--scheduler-option",
             help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),
@@ -533,6 +558,14 @@ def train(
             "-m",
             "--dipoles",
             help="Train with dipoles",
+        ),
+    ] = 0.0,
+    atomic_charges_mbis: tpx.Annotated[
+        float,
+        Option(
+            "--mbis",
+            "--atomic-charges-mbis",
+            help="Train with atomic charges",
         ),
     ] = 0.0,
     atomic_charges: tpx.Annotated[
@@ -631,20 +664,21 @@ def train(
         terms_and_factors.append(("Dipoles", dipoles))
     if atomic_charges > 0.0:
         terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if atomic_charges_mbis > 0.0:
+        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
-    arch_fn = arch_fn.capitalize().replace("ani", "ANI").replace("Ani", "ANI")
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
     _optimizer_options.update({"lr": lr, "weight_decay": weight_decay})
-    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
 
     config = TrainConfig(
         name=name,
         debug=debug,
         ds=ds_config,
+        monitor_label=monitor,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,
@@ -656,21 +690,21 @@ def train(
         ),
         model=ModelConfig(
             arch_fn=arch_fn,
-            arch_options=resolve_options(arch_options, arch_fn),
+            options=resolve_options(arch_options or (), arch_fn),
         ),
         loss=LossConfig(
             terms_and_factors=tuple(terms_and_factors),
         ),
         optim=OptimizerConfig(
             cls=optimizer,
-            options=make_scalar_tuples(_optimizer_options),
+            options=_optimizer_options,
         ),
         scheduler=SchedulerConfig(
             cls=scheduler,
-            options=make_scalar_tuples(_scheduler_options),
+            options=resolve_options(scheduler_options or (), scheduler),
         ),
     )
-    train_nnp(config, verbose=verbose)
+    train_lit_model(config, verbose=verbose)
 
 
 @app.command(help="Fine tune a pretrained ANI model")
@@ -697,13 +731,6 @@ def ftune(
             help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
         ),
     ] = None,
-    lot: tpx.Annotated[
-        str,
-        Option(
-            "--lot",
-            help="Level of theory",
-        ),
-    ] = "wb97x-631gd",
     name: tpx.Annotated[
         str,
         Option(
@@ -712,6 +739,16 @@ def ftune(
             help="Name of the run",
         ),
     ] = "ftune",
+    monitor: tpx.Annotated[
+        str,
+        Option(
+            "--monitor",
+            help="Label to monitor during training."
+            " Format is 'valid_rmse_energies', or 'train_rmse_forces', etc."
+            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise it must be explicitly specified",
+        ),
+    ] = "valid_rmse_default",
     num_head_layers: tpx.Annotated[
         int,
         Option(
@@ -784,6 +821,14 @@ def ftune(
         Option(
             "-q",
             "--atomic-charges",
+            help="Train with atomic charges",
+        ),
+    ] = 0.0,
+    atomic_charges_mbis: tpx.Annotated[
+        float,
+        Option(
+            "--mbis",
+            "--atomic-charges-mbis",
             help="Train with atomic charges",
         ),
     ] = 0.0,
@@ -873,7 +918,7 @@ def ftune(
     scheduler: tpx.Annotated[
         str,
         Option(
-            "-l",
+            "-s",
             "--scheduler",
             help="Type of lr-scheduler",
         ),
@@ -881,7 +926,7 @@ def ftune(
     scheduler_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "--lo",
+            "--so",
             "--scheduler-option",
             help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),
@@ -909,9 +954,7 @@ def ftune(
         raise ValueError("There must be at least one head layer")
 
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        from anitune.arch import fetch_pretrained_config
-
-        pretrained_config = fetch_pretrained_config(name_or_idx)
+        pretrained_config = fetch_builtin_config(name_or_idx)
         pretrained_state_dict_path = None
         pretrained_name = name_or_idx
     else:
@@ -944,18 +987,20 @@ def ftune(
         terms_and_factors.append(("Dipoles", dipoles))
     if atomic_charges > 0.0:
         terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if atomic_charges_mbis > 0.0:
+        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
     _optimizer_options.update({"lr": head_lr, "weight_decay": weight_decay})
-    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
 
     config = TrainConfig(
         name=name,
         ds=ds_config,
+        monitor_label=monitor,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,
@@ -971,11 +1016,11 @@ def ftune(
         ),
         optim=OptimizerConfig(
             cls=optimizer,
-            options=make_scalar_tuples(_optimizer_options),
+            options=_optimizer_options,
         ),
         scheduler=SchedulerConfig(
             cls=scheduler,
-            options=make_scalar_tuples(_scheduler_options),
+            options=resolve_options(scheduler_options or (), scheduler),
         ),
         ftune=FinetuneConfig(
             pretrained_name=pretrained_name,
@@ -984,4 +1029,4 @@ def ftune(
             backbone_lr=backbone_lr,
         ),
     )
-    train_nnp(config, verbose=verbose)
+    train_lit_model(config, verbose=verbose)

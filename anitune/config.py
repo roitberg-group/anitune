@@ -2,11 +2,11 @@ import itertools
 import hashlib
 
 import typing as tp
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 from anitune.paths import BATCH_PATH, FTUNE_PATH, TRAIN_PATH
-from anitune.annotations import Scalar, ScalarTuple
+from anitune.annotations import Scalar
 
 
 def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
@@ -70,16 +70,9 @@ class DatasetConfig:
     src_paths: tp.Tuple[Path, ...] = ()
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
-    shuffle_seed: int = 1234
+    divs_seed: int = 1234
+    batch_seed: int = 1234
     label: str = ""
-
-    @property
-    def functional(self) -> str:
-        return self.lot.split("-")[0]
-
-    @property
-    def basis_set(self) -> str:
-        return self.lot.split("-")[1]
 
     @property
     def split_dict(self) -> tp.Dict[str, float]:
@@ -112,18 +105,46 @@ class DatasetConfig:
 
 
 @dataclass
-class ModelConfig:
+class FnConfig:
+    options: tp.Dict[str, Scalar] = field(default_factory=dict)
+
+
+@dataclass
+class ModelConfig(FnConfig):
     r"""
     model-specific configurations
     """
 
     arch_fn: str = ""
-    arch_options: tp.Tuple[ScalarTuple, ...] = ()
-    symbols: tp.Optional[tp.Tuple[str, ...]] = None
+    builtin: bool = False
+    symbols: tp.Tuple[str, ...] = ()
+    options: tp.Dict[str, Scalar] = field(default_factory=dict)
+
+
+@dataclass
+class OptimizerConfig(FnConfig):
+    r"""
+    Optimizer configuration
+    """
+
+    cls: str = "AdamW"
 
     @property
-    def arch_dict(self) -> tp.Dict[str, Scalar]:
-        return {k: v for k, v in self.arch_options}
+    def lr(self) -> float:
+        return tp.cast(float, self.options["lr"])
+
+    @property
+    def weight_decay(self) -> float:
+        return tp.cast(float, self.options["weight_decay"])
+
+
+@dataclass
+class SchedulerConfig(FnConfig):
+    r"""
+    lr-Scheduler configuration
+    """
+
+    cls: str = "ReduceLROnPlateau"
 
 
 @dataclass
@@ -134,42 +155,6 @@ class LossConfig:
 
     terms_and_factors: tp.Tuple[tp.Tuple[str, float], ...] = (("Energies", 1.0),)
     uncertainty_weighted: bool = False
-
-
-@dataclass
-class OptimizerConfig:
-    r"""
-    Optimizer configuration
-    """
-
-    cls: str = "AdamW"
-    options: tp.Tuple[ScalarTuple, ...] = ()
-
-    @property
-    def lr(self) -> float:
-        return tp.cast(float, self.options_dict["lr"])
-
-    @property
-    def weight_decay(self) -> float:
-        return tp.cast(float, self.options_dict["weight_decay"])
-
-    @property
-    def options_dict(self) -> tp.Dict[str, Scalar]:
-        return {k: v for k, v in self.options}
-
-
-@dataclass
-class SchedulerConfig:
-    r"""
-    lr-Scheduler configuration
-    """
-
-    cls: str = "ReduceLROnPlateau"
-    options: tp.Tuple[ScalarTuple, ...] = ()
-
-    @property
-    def options_dict(self) -> tp.Dict[str, Scalar]:
-        return {k: v for k, v in self.options}
 
 
 @dataclass
