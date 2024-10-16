@@ -144,7 +144,7 @@ class MultiTaskLoss(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.terms = tuple(terms)
-        if len(self.terms) != len(set(self.terms)):
+        if len(self.terms) != len(set(term.label for term in self.terms)):
             raise ValueError("Loss terms must have unique labels")
 
         if uncertainty_weighted:

@@ -113,7 +113,8 @@ def resolve_options(
         try:
             v = eval(_v.replace("true", "True").replace("false", "False"))
         except Exception:
-            raise RuntimeError(f"Incorrect value in option {kv}") from None
+            # Assume string
+            v = _v
         options.update({k: v})
     default_options.update(options)
     return default_options
