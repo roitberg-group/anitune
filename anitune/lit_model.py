@@ -7,7 +7,7 @@ import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
-from torchani.models import BuiltinModel
+from torchani.assembly import ANI
 from torchani.units import hartree2kcalpermol
 
 from anitune.annotations import Scalar
@@ -16,12 +16,12 @@ from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 class LitModel(lightning.LightningModule):
     r"""
-    ANI Model wrapped with Lightning
+    ANI-style model, wrapped to enable training with PyTorch Lightning
     """
 
     def __init__(
         self,
-        model: BuiltinModel,
+        model: ANI,
         optimizer_options: tp.Dict[str, Scalar],
         scheduler_options: tp.Dict[str, Scalar],
         monitor_label: str = "energies",
@@ -118,7 +118,7 @@ class LitModel(lightning.LightningModule):
 
     @property
     def eval_requires_coords_grad(self) -> bool:
-        return any(term.grad_label is not None for term in self.loss.terms)
+        return any(term.grad_of is not None for term in self.loss.terms)
 
     def batch_eval(
         self,
@@ -131,11 +131,11 @@ class LitModel(lightning.LightningModule):
         output = self.model((batch["species"], batch["coordinates"]))
         for term in self.loss.terms:
             k = term.label
-            if term.grad_label is None:
+            if term.grad_of is None:
                 pred[k] = getattr(output, k)
             else:
                 pred[k] = -torch.autograd.grad(
-                    getattr(output, term.grad_label).sum(),
+                    getattr(output, term.grad_of).sum(),
                     batch["coordinates"],
                     retain_graph=True,
                 )[0]

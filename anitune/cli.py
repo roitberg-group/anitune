@@ -12,7 +12,7 @@ from typer import Option, Typer
 
 from anitune.console import console
 from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
-from anitune.lit_training import train_nnp
+from anitune.lit_training import train_lit_model
 from anitune.config import (
     load_state_dict,
     FinetuneConfig,
@@ -26,11 +26,9 @@ from anitune.config import (
 )
 from anitune.display import ls
 from anitune.defaults import (
-    resolve_options_raw,
     resolve_options,
     parse_scheduler_str,
     parse_optimizer_str,
-    make_scalar_tuples,
 )
 
 app = Typer(
@@ -42,6 +40,24 @@ app = Typer(
     models, given a set of reference structures
     """,
 )
+
+
+def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
+    name, idx = name_or_idx.split(":")
+    config = TrainConfig()
+    config.ds.fold_idx = idx
+    symbols: tp.Tuple[str, ...]
+    if ("1x" in name) or ("1ccx" in name):
+        symbols = ("H", "C", "N", "O")
+    else:
+        symbols = ("H", "C", "N", "O", "S", "F", "Cl")
+    config.model = ModelConfig(
+        builtin=True,
+        arch_fn=name.replace("ani", "ANI"),
+        options={"model_index": int(idx)},
+        symbols=symbols,
+    )
+    return config
 
 
 @app.command(help="Generate an ensemble from a set of models")
@@ -258,7 +274,7 @@ def restart(
         config = pickle.load(f)
     if max_epochs is not None:
         config.accel.max_epochs = max_epochs
-    train_nnp(config, restart=True, verbose=verbose)
+    train_lit_model(config, restart=True, verbose=verbose)
 
 
 ls = app.command(help="Display training and finetuning runs")(ls)
@@ -434,7 +450,7 @@ def train(
             "--arch",
             help="Network architecture",
         ),
-    ] = "FlexANI2",
+    ] = "build_basic_ani",
     arch_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
@@ -637,9 +653,8 @@ def train(
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
     _optimizer_options.update({"lr": lr, "weight_decay": weight_decay})
-    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
 
     config = TrainConfig(
         name=name,
@@ -656,21 +671,21 @@ def train(
         ),
         model=ModelConfig(
             arch_fn=arch_fn,
-            arch_options=resolve_options(arch_options, arch_fn),
+            options=resolve_options(arch_options or (), arch_fn),
         ),
         loss=LossConfig(
             terms_and_factors=tuple(terms_and_factors),
         ),
         optim=OptimizerConfig(
             cls=optimizer,
-            options=make_scalar_tuples(_optimizer_options),
+            options=_optimizer_options,
         ),
         scheduler=SchedulerConfig(
             cls=scheduler,
-            options=make_scalar_tuples(_scheduler_options),
+            options=resolve_options(scheduler_options or (), scheduler),
         ),
     )
-    train_nnp(config, verbose=verbose)
+    train_lit_model(config, verbose=verbose)
 
 
 @app.command(help="Fine tune a pretrained ANI model")
@@ -909,9 +924,7 @@ def ftune(
         raise ValueError("There must be at least one head layer")
 
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        from anitune.arch import fetch_pretrained_config
-
-        pretrained_config = fetch_pretrained_config(name_or_idx)
+        pretrained_config = fetch_builtin_config(name_or_idx)
         pretrained_state_dict_path = None
         pretrained_name = name_or_idx
     else:
@@ -949,9 +962,8 @@ def ftune(
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options_raw(optimizer_options, optimizer)
+    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
     _optimizer_options.update({"lr": head_lr, "weight_decay": weight_decay})
-    _scheduler_options = resolve_options_raw(scheduler_options, scheduler)
 
     config = TrainConfig(
         name=name,
@@ -971,11 +983,11 @@ def ftune(
         ),
         optim=OptimizerConfig(
             cls=optimizer,
-            options=make_scalar_tuples(_optimizer_options),
+            options=_optimizer_options,
         ),
         scheduler=SchedulerConfig(
             cls=scheduler,
-            options=make_scalar_tuples(_scheduler_options),
+            options=resolve_options(scheduler_options or (), scheduler),
         ),
         ftune=FinetuneConfig(
             pretrained_name=pretrained_name,
@@ -984,4 +996,4 @@ def ftune(
             backbone_lr=backbone_lr,
         ),
     )
-    train_nnp(config, verbose=verbose)
+    train_lit_model(config, verbose=verbose)

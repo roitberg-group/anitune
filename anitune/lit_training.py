@@ -12,13 +12,13 @@ from anitune.console import console
 from anitune.config import TrainConfig
 
 
-def train_nnp(
+def train_lit_model(
     config: TrainConfig,
     restart: bool = False,
     verbose: bool = False,
 ) -> None:
     r"""
-    Train an ANI-style neural network potential
+    Train an ANI-style neural network potential using PyTorch Lightning
     """
     import torch
     import lightning
@@ -34,11 +34,10 @@ def train_nnp(
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    from torchani import datasets
-    from anitune.lit_models import LitModel
-    from anitune import arch
+    from torchani import assembly, models, datasets
     from anitune import losses
-    from anitune.callbacks import (
+    from anitune.lit_model import LitModel
+    from anitune.lit_callbacks import (
         MergeTensorBoardLogs,
         SaveConfig,
         ModelCheckpointWithMetrics,
@@ -48,13 +47,15 @@ def train_nnp(
         raise RuntimeError("Dataset does not exist")
 
     with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
-        symbols = json.load(f)["symbols"]
-
-    model = getattr(arch, config.model.arch_fn)()(
-        lot=config.ds.lot,
-        symbols=config.model.symbols or symbols,
-        **config.model.arch_dict,
-    )
+        ds_symbols = json.load(f)["symbols"]
+    if not config.model.builtin:
+        model = getattr(assembly, config.model.arch_fn)(
+            lot=config.ds.lot,
+            symbols=config.model.symbols or ds_symbols,
+            **config.model.options,
+        )
+    else:
+        model = getattr(models, config.model.arch_fn)(**config.model.options)
     if config.ftune is not None:
         if config.ftune.pretrained_state_dict:
             model.load_state_dict(config.ftune.pretrained_state_dict)
@@ -93,10 +94,10 @@ def train_nnp(
             uncertainty_weighted=config.loss.uncertainty_weighted,
             # Optim
             optimizer_cls=config.optim.cls,
-            optimizer_options=config.optim.options_dict,
+            optimizer_options=config.optim.options,
             # Scheduler
             scheduler_cls=config.scheduler.cls,
-            scheduler_options=config.scheduler.options_dict,
+            scheduler_options=config.scheduler.options,
             # Ftune
             num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
         )

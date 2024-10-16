@@ -19,7 +19,7 @@ repository = "https://github.com/IgnacioJPickering/ani-ftune.git"
 documentation = "https://github.com/IgnacioJPickering/ani-ftune.git"
 
 [project.scripts]
-ani="anitune.cli:app"
+anitune="anitune.cli:app"
 
 [tool.setuptools_scm]
 version_file = "anitune/_version.py"
