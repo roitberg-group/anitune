@@ -19,7 +19,9 @@ class Penalty(Enum):
 @dataclass
 class LossTerm:
     label: str
-    targ_label_only: str = ""  # label in the dataset, if unspecified assumed the same as 'label'
+    targ_label_only: str = (
+        ""  # label in the dataset, if unspecified assumed the same as 'label'
+    )
     is_extensive: bool = False
     scale_by_sqrt_atoms: bool = False
     is_vec3: bool = False
