@@ -140,20 +140,20 @@ def batch(
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
-    _src_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
-        Option(
-            "-s",
-            "--data-path",
-            help="Paths to data to fine-tune the model with",
-        ),
-    ] = None,
     _data_names: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
             "-d",
-            "--data-name",
+            "--dataset-name",
             help="Builtin dataset name",
+        ),
+    ] = None,
+    _src_paths: tpx.Annotated[
+        tp.Optional[tp.List[Path]],
+        Option(
+            "-s",
+            "--src-paths",
+            help="Paths to custom datasets",
         ),
     ] = None,
     _properties: tpx.Annotated[
@@ -194,10 +194,15 @@ def batch(
             help="Validation set fraction",
         ),
     ] = 0.2,
-    data_seed: tpx.Annotated[
+    batch_seed: tpx.Annotated[
         int,
         Option(
-            "--batch-seed",
+            help="Seed for dataset batching",
+        ),
+    ] = 1234,
+    divs_seed: tpx.Annotated[
+        int,
+        Option(
             help="Seed for dataset batching",
         ),
     ] = 1234,
@@ -218,7 +223,8 @@ def batch(
         folds=folds,
         validation_frac=validation_frac,
         train_frac=train_frac,
-        shuffle_seed=data_seed,
+        batch_seed=batch_seed,
+        divs_seed=divs_seed,
     )
     batch_data(ds, max_batches_per_packet=100)
 
@@ -436,13 +442,6 @@ def train(
             help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
         ),
     ] = None,
-    lot: tpx.Annotated[
-        str,
-        Option(
-            "--lot",
-            help="Level of theory",
-        ),
-    ] = "wb97x-631gd",
     arch_fn: tpx.Annotated[
         str,
         Option(
@@ -478,7 +477,7 @@ def train(
     scheduler: tpx.Annotated[
         str,
         Option(
-            "-l",
+            "-s",
             "--scheduler",
             help="Type of lr-scheduler",
         ),
@@ -486,7 +485,7 @@ def train(
     scheduler_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "--lo",
+            "--so",
             "--scheduler-option",
             help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),
@@ -712,13 +711,6 @@ def ftune(
             help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
         ),
     ] = None,
-    lot: tpx.Annotated[
-        str,
-        Option(
-            "--lot",
-            help="Level of theory",
-        ),
-    ] = "wb97x-631gd",
     name: tpx.Annotated[
         str,
         Option(
@@ -888,7 +880,7 @@ def ftune(
     scheduler: tpx.Annotated[
         str,
         Option(
-            "-l",
+            "-s",
             "--scheduler",
             help="Type of lr-scheduler",
         ),
@@ -896,7 +888,7 @@ def ftune(
     scheduler_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "--lo",
+            "--so",
             "--scheduler-option",
             help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
         ),

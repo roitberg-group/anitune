@@ -106,6 +106,7 @@ def ls(
         table.add_column("properties")
         table.add_column("batch-size")
         table.add_column("batch-seed")
+        table.add_column("divs-seed")
         if sizes:
             table.add_column("size (GB)")
         for j, p in enumerate(batch):
@@ -130,7 +131,8 @@ def ls(
                     " ".join(ds_log["symbols"]),
                     " ".join(ds_log["properties"]),
                     str(ds_config.batch_size),
-                    str(ds_config.shuffle_seed),
+                    str(ds_config.batch_seed),
+                    str(ds_config.divs_seed),
                 ]
                 if sizes:
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())

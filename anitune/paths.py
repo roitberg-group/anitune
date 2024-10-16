@@ -5,8 +5,10 @@ Default location for various ANITune resources
 import typing as tp
 from pathlib import Path
 from enum import Enum
-from torchani.paths import DATA_DIR
+from torchani.paths import data_dir
 
+# TODO fix this hack
+DATA_DIR = data_dir()
 ENSEMBLE_PATH = DATA_DIR / "Ensemble"
 BATCH_PATH = DATA_DIR / "Batched"
 TRAIN_PATH = DATA_DIR / "Train"

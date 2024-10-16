@@ -70,16 +70,9 @@ class DatasetConfig:
     src_paths: tp.Tuple[Path, ...] = ()
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
-    shuffle_seed: int = 1234
+    divs_seed: int = 1234
+    batch_seed: int = 1234
     label: str = ""
-
-    @property
-    def functional(self) -> str:
-        return self.lot.split("-")[0]
-
-    @property
-    def basis_set(self) -> str:
-        return self.lot.split("-")[1]
 
     @property
     def split_dict(self) -> tp.Dict[str, float]:
