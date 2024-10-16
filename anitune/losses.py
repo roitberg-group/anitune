@@ -2,6 +2,7 @@ r"""
 Holds base class for loss terms and some simple loss terms used to train
 ANI-style models
 """
+
 from dataclasses import dataclass
 import typing as tp
 from enum import Enum

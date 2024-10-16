@@ -143,6 +143,7 @@ class SchedulerConfig(FnConfig):
     r"""
     lr-Scheduler configuration
     """
+
     cls: str = "ReduceLROnPlateau"
 
 
