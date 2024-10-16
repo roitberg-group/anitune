@@ -7,7 +7,7 @@ import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
-from torchani.assembly import ANI
+from torchani.assembly import ANI, ANIq
 from torchani.units import hartree2kcalpermol
 
 from anitune.annotations import Scalar
@@ -80,7 +80,7 @@ class LitModel(lightning.LightningModule):
         pred = self.batch_eval(batch)
         with torch.no_grad():
             for k, v in self.train_metrics.items():
-                v.update(pred[k], batch[k])
+                v.update(pred[k], batch[self.loss.term(k).targ_label])
         losses = self.loss(pred, batch)
         return losses["loss"]
 
@@ -93,7 +93,7 @@ class LitModel(lightning.LightningModule):
             pred = self.batch_eval(batch)
 
         for k, v in self.valid_metrics.items():
-            v.update(pred[k], batch[k])
+            v.update(pred[k], batch[self.loss.term(k).targ_label])
 
     def on_train_epoch_end(self) -> None:
         self._log_metrics(self.train_metrics)
@@ -116,31 +116,38 @@ class LitModel(lightning.LightningModule):
                     metrics[f"{name}_{k}_kcal|mol|ang"] = hartree2kcalpermol(v)
         self.log_dict(metrics)
 
-    @property
-    def eval_requires_coords_grad(self) -> bool:
-        return any(term.grad_of is not None for term in self.loss.terms)
-
     def batch_eval(
         self,
         batch: tp.Dict[str, Tensor],
     ) -> tp.Dict[str, Tensor]:
         pred: tp.Dict[str, Tensor] = {}
-        if self.eval_requires_coords_grad:
-            batch["coordinates"].requires_grad_(True)
-
-        output = self.model((batch["species"], batch["coordinates"]))
+        # Require necessary grads of inputs
         for term in self.loss.terms:
-            k = term.label
+            if term.grad_of is not None:
+                batch[term.grad_wrt_to].requires_grad_(True)
+
+        if isinstance(self.model, ANIq):
+            output = self.model.energies_and_atomic_charges(
+                (batch["species"], batch["coordinates"])
+            )
+        else:
+            output = self.model((batch["species"], batch["coordinates"]))
+
+        # Calculate necessary grads of inputs
+        for term in self.loss.terms:
             if term.grad_of is None:
-                pred[k] = getattr(output, k)
+                pred[term.label] = getattr(output, term.label)
             else:
-                pred[k] = -torch.autograd.grad(
+                pred[term.label] = -torch.autograd.grad(
                     getattr(output, term.grad_of).sum(),
-                    batch["coordinates"],
+                    batch[term.grad_wrt_to],
                     retain_graph=True,
                 )[0]
 
-        batch["coordinates"].requires_grad_(False)
+        # Reset requires_grad flags
+        for term in self.loss.terms:
+            if term.grad_of is not None:
+                batch[term.grad_wrt_to].requires_grad_(False)
         return pred
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

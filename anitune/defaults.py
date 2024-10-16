@@ -20,6 +20,11 @@ class build_basic_ani(Options):
 
 
 @dataclass
+class build_basic_aniq(Options):
+    pass
+
+
+@dataclass
 class ReduceLROnPlateau(Options):
     factor: float = 0.5
     patience: int = 100

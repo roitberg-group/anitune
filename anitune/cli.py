@@ -53,7 +53,7 @@ def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
         symbols = ("H", "C", "N", "O", "S", "F", "Cl")
     config.model = ModelConfig(
         builtin=True,
-        arch_fn=name.replace("ani", "ANI"),
+        arch_fn=name,
         options={"model_index": int(idx)},
         symbols=symbols,
     )
@@ -435,6 +435,7 @@ def train(
             help="Name of the run",
         ),
     ] = "train",
+    monitor: tpx.Annotated[str, Option("--monitor", help="Label to monitor during training"),] = "energies",
     profiler: tpx.Annotated[
         tp.Optional[str],
         Option(
@@ -550,6 +551,14 @@ def train(
             help="Train with dipoles",
         ),
     ] = 0.0,
+    atomic_charges_mbis: tpx.Annotated[
+        float,
+        Option(
+            "--mbis",
+            "--atomic-charges-mbis",
+            help="Train with atomic charges",
+        ),
+    ] = 0.0,
     atomic_charges: tpx.Annotated[
         float,
         Option(
@@ -646,9 +655,10 @@ def train(
         terms_and_factors.append(("Dipoles", dipoles))
     if atomic_charges > 0.0:
         terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if atomic_charges_mbis > 0.0:
+        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
-    arch_fn = arch_fn.capitalize().replace("ani", "ANI").replace("Ani", "ANI")
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
@@ -659,6 +669,7 @@ def train(
         name=name,
         debug=debug,
         ds=ds_config,
+        monitor_label=monitor,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,
@@ -719,6 +730,7 @@ def ftune(
             help="Name of the run",
         ),
     ] = "ftune",
+    monitor: tpx.Annotated[str, Option("--monitor", help="Label to monitor during training"),] = "energies",
     num_head_layers: tpx.Annotated[
         int,
         Option(
@@ -791,6 +803,14 @@ def ftune(
         Option(
             "-q",
             "--atomic-charges",
+            help="Train with atomic charges",
+        ),
+    ] = 0.0,
+    atomic_charges_mbis: tpx.Annotated[
+        float,
+        Option(
+            "--mbis",
+            "--atomic-charges-mbis",
             help="Train with atomic charges",
         ),
     ] = 0.0,
@@ -949,6 +969,8 @@ def ftune(
         terms_and_factors.append(("Dipoles", dipoles))
     if atomic_charges > 0.0:
         terms_and_factors.append(("AtomicCharges", atomic_charges))
+    if atomic_charges_mbis > 0.0:
+        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
     if total_charge > 0.0:
         terms_and_factors.append(("TotalCharge", total_charge))
 
@@ -960,6 +982,7 @@ def ftune(
     config = TrainConfig(
         name=name,
         ds=ds_config,
+        monitor_label=monitor,
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,

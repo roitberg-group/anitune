@@ -20,10 +20,12 @@ class Penalty(Enum):
 class LossTerm:
     label: str
     is_extensive: bool
+    targ_label: str = ""
     scale_by_sqrt_atoms: bool = False
     is_vec3: bool = False
     factor: float = 1.0
     grad_of: tp.Optional[str] = None
+    grad_wrt_to: str = "coordinates"
     penalty: Penalty = Penalty.SQUARE
 
 
@@ -96,6 +98,15 @@ def AtomicCharges(factor: float = 1.0) -> LossTerm:
     )
 
 
+def AtomicChargesMBIS(factor: float = 1.0) -> LossTerm:
+    return LossTerm(
+        label="atomic_charges",
+        targ_label="atomic_charges_mbis",
+        is_extensive=True,
+        factor=factor,
+    )
+
+
 class MultiTaskLoss(torch.nn.Module):
     r"""
     Represents a loss with multiple objectives (potentially scalar or vector
@@ -107,6 +118,12 @@ class MultiTaskLoss(torch.nn.Module):
         True if a specific label is being used in the loss
         """
         return any(term.label == label for term in self.terms)
+
+    def term(self, label: str) -> LossTerm:
+        for t in self.terms:
+            if t.label == label:
+                return t
+        raise ValueError("Label not found")
 
     def __init__(
         self,
@@ -142,7 +159,7 @@ class MultiTaskLoss(torch.nn.Module):
         for term in self.terms:
             k = term.label
 
-            diff = pred[k] - targ[k]
+            diff = pred[k] - targ[term.targ_label or k]
 
             if term.penalty is Penalty.SQUARE:
                 error = diff.pow(2)
