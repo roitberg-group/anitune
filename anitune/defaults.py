@@ -15,12 +15,12 @@ class Options:
 
 
 @dataclass
-class build_basic_ani(Options):
+class simple_ani(Options):
     pass
 
 
 @dataclass
-class build_basic_aniq(Options):
+class simple_aniq(Options):
     pass
 
 

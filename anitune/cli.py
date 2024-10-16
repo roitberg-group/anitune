@@ -459,7 +459,7 @@ def train(
             "--arch",
             help="Network architecture",
         ),
-    ] = "build_basic_ani",
+    ] = "simple_ani",
     arch_options: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
