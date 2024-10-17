@@ -221,9 +221,7 @@ def ls(
                     row_args.insert(3, config.optim.cls)
                 if scheduler_detail:
                     options = " ".join(
-                        sorted(
-                            f"{k}={v}" for k, v in config.scheduler.options.items()
-                        )
+                        sorted(f"{k}={v}" for k, v in config.scheduler.options.items())
                     )
                     row_args.insert(3, options or "--")
                     row_args.insert(3, config.scheduler.cls)
@@ -360,9 +358,7 @@ def ls(
                     row_args.insert(4, config.optim.cls)
                 if scheduler_detail:
                     options = " ".join(
-                        sorted(
-                            f"{k}={v}" for k, v in config.scheduler.options.items()
-                        )
+                        sorted(f"{k}={v}" for k, v in config.scheduler.options.items())
                     )
                     row_args.insert(4, options or "--")
                     row_args.insert(4, config.scheduler.cls)
