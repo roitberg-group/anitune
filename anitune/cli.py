@@ -1,6 +1,7 @@
 r"""Command line interface entrypoints"""
 
 import tempfile
+import uuid
 import subprocess
 from copy import deepcopy
 import hashlib
@@ -646,12 +647,20 @@ def train(
         name = f"{str(fold_idx).zfill(2)}-{name}"
 
     if debug:
+        console.print("Debugging enabled:")
+        if name == "train":
+            _uuid = uuid.uuid4().hex[:8]
+            console.print(f"    - Name set to 'debug-{_uuid}'")
+            name = f"debug-{_uuid}"
+        if max_epochs == 2000:
+            max_epochs = 3
+            console.print(f"    - Max epochs set to {max_epochs}")
         if limit is None:
-            console.print("Setting train limit to 10 batches for debugging")
-            limit = 10
-        console.print("Setting deterministic training for debugging")
+            limit = 3
+            console.print(f"    - Batch limit set to {limit}")
+        console.print("    - Deterministic mode set")
         deterministic = True
-        console.print("Setting anomaly detection for debugging")
+        console.print("    - Anomaly detection mode set")
         detect_anomaly = True
 
     terms_and_factors: tp.List[tp.Tuple[str, float]] = []

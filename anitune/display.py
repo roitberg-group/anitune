@@ -35,6 +35,10 @@ def ls(
             help="Format to use for displaying metrics using python formatting lang",
         ),
     ] = ".2f",
+    hparams: tpx.Annotated[
+        bool,
+        Option("-x/-X", "--hparams/--no-hparams", help="Equivalent to -a -s -o"),
+    ] = False,
     sizes: tpx.Annotated[
         bool,
         Option(
@@ -77,25 +81,32 @@ def ls(
     arch_detail: tpx.Annotated[
         bool,
         Option(
-            "-a/-A" "--arch/--no-arch",
+            "-a/-A",
+            "--arch/--no-arch",
             help="Show architecture options",
         ),
     ] = False,
     optim_detail: tpx.Annotated[
         bool,
         Option(
-            "-o/-O" "--optim/--no-optim",
+            "-o/-O",
+            "--optim/--no-optim",
             help="Show optimizer options",
         ),
     ] = False,
     scheduler_detail: tpx.Annotated[
         bool,
         Option(
-            "-l/-L" "--scheduler/--no-scheduler",
+            "-s/-S",
+            "--scheduler/--no-scheduler",
             help="Show scheduler options",
         ),
     ] = False,
 ) -> None:
+    if hparams:
+        arch_detail = True
+        optim_detail = True
+        scheduler_detail = True
     batch = sorted(BATCH_PATH.iterdir())
     train = sorted(TRAIN_PATH.iterdir())
     ftune = sorted(FTUNE_PATH.iterdir())
@@ -195,14 +206,14 @@ def ls(
                 ]
                 if arch_detail:
                     options = " ".join(
-                        sorted(f"{k}={v}" for k, v in config.model.arch_dict.items())
+                        sorted(f"{k}={v}" for k, v in config.model.options.items())
                     )
                     row_args.insert(4, options)
                 if optim_detail:
                     options = " ".join(
                         sorted(
                             f"{k}={v}"
-                            for k, v in config.optim.options_dict.items()
+                            for k, v in config.optim.options.items()
                             if k not in ["lr", "weight_decay"]
                         )
                     )
@@ -211,7 +222,7 @@ def ls(
                 if scheduler_detail:
                     options = " ".join(
                         sorted(
-                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                            f"{k}={v}" for k, v in config.scheduler.options.items()
                         )
                     )
                     row_args.insert(3, options or "--")
@@ -341,7 +352,7 @@ def ls(
                     options = " ".join(
                         sorted(
                             f"{k}={v}"
-                            for k, v in config.optim.options_dict.items()
+                            for k, v in config.optim.options.items()
                             if k not in ["lr", "weight_decay"]
                         )
                     )
@@ -350,7 +361,7 @@ def ls(
                 if scheduler_detail:
                     options = " ".join(
                         sorted(
-                            f"{k}={v}" for k, v in config.scheduler.options_dict.items()
+                            f"{k}={v}" for k, v in config.scheduler.options.items()
                         )
                     )
                     row_args.insert(4, options or "--")
