@@ -28,6 +28,13 @@ def simplify_metric(arg: str) -> str:
 
 
 def ls(
+    metric_fmt: tpx.Annotated[
+        str,
+        Option(
+            "--fmt",
+            help="Format to use for displaying metrics using python formatting lang",
+        ),
+    ] = ".2f",
     sizes: tpx.Annotated[
         bool,
         Option(
@@ -233,12 +240,12 @@ def ls(
                     row_args.extend(
                         [
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in metrics.items()
                                 if "valid" in k
                             ),
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in metrics.items()
                                 if "train" in k
                             ),
@@ -270,12 +277,12 @@ def ls(
                     row_args.extend(
                         [
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in latest_metrics.items()
                                 if "valid" in k
                             ),
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in latest_metrics.items()
                                 if "train" in k
                             ),
@@ -372,12 +379,12 @@ def ls(
                     row_args.extend(
                         [
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in metrics.items()
                                 if "valid" in k
                             ),
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in metrics.items()
                                 if "train" in k
                             ),
@@ -409,12 +416,12 @@ def ls(
                     row_args.extend(
                         [
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in latest_metrics.items()
                                 if "valid" in k
                             ),
                             " ".join(
-                                f"{simplify_metric(k)}={v:.2f}"
+                                f"{simplify_metric(k)}={format(v, metric_fmt)}"
                                 for k, v in latest_metrics.items()
                                 if "train" in k
                             ),
