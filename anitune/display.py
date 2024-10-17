@@ -31,7 +31,7 @@ def ls(
     metric_fmt: tpx.Annotated[
         str,
         Option(
-            "--metric-fmt",
+            "--fmt",
             help="Format to use for displaying metrics using python formatting lang",
         ),
     ] = ".2f",
