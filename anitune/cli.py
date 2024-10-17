@@ -1,5 +1,7 @@
 r"""Command line interface entrypoints"""
 
+import tempfile
+import subprocess
 from copy import deepcopy
 import hashlib
 import pickle
@@ -1030,3 +1032,49 @@ def ftune(
         ),
     )
     train_lit_model(config, verbose=verbose)
+
+
+@app.command(help="Visualize train|ftune process with tensorboard")
+def tb(
+    ftune_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-f",
+            "--ftune-run",
+            help="Name or idx of the finetune run",
+        ),
+    ] = None,
+    ptrain_name_or_idx: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option(
+            "-t",
+            "--train-run",
+            help="Name or idx of the pretrain run",
+        ),
+    ] = None,
+) -> None:
+    paths = []
+    for selectors, dkind in zip(
+        (
+            ftune_name_or_idx,
+            ptrain_name_or_idx,
+        ),
+        (
+            DataKind.FTUNE,
+            DataKind.TRAIN,
+        ),
+    ):
+        if selectors is not None:
+            paths.extend(select_subdirs(selectors, kind=dkind))
+    with tempfile.TemporaryDirectory() as d:
+        for path in paths:
+            run_subdir = Path(d, path.name)
+            run_subdir.mkdir()
+            tb_path = path / "tb-versioned-logs"
+            for version_dir in sorted(tb_path.glob("version_*")):
+                for events_file in sorted(version_dir.iterdir()):
+                    if not events_file.name.startswith("events.out.tfevents"):
+                        continue
+                    tmp_events_symlink = run_subdir / events_file.name
+                    tmp_events_symlink.symlink_to(events_file)
+        subprocess.run(["tensorboard", "--logdir", d])
