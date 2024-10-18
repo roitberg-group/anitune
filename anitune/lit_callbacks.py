@@ -2,7 +2,7 @@ r"""
 Custom Lightning compatible callbacks
 """
 
-import pickle
+import json
 import typing as tp
 from pathlib import Path
 
@@ -43,13 +43,14 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
             dirpath = Path(self.dirpath).resolve()
         else:
             dirpath = Path(trainer.default_root_dir).resolve()
+        dirpath.mkdir(exist_ok=True)
 
         metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": trainer.current_epoch}
         for k, v in candidates.items():
             if "_rmse" in k or "_mae" in k:
                 metrics[k] = v.item()
-        with open(dirpath / "metrics.pkl", mode="wb") as fb:
-            pickle.dump(metrics, fb)
+        with open(dirpath / "metrics.json", mode="wt", encoding="utf-8") as ft:
+            json.dump(metrics, ft, indent=4)
 
 
 class SaveConfig(Callback):
@@ -60,21 +61,10 @@ class SaveConfig(Callback):
     def __init__(
         self,
         config: TrainConfig,
-        dests: tp.Iterable[str] = ("latest-model", "best-model"),
     ) -> None:
         super().__init__()
-        self._dests = (dests,) if isinstance(dests, str) else dests
         self._config = config
 
     def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         root = Path(trainer.default_root_dir).resolve()
-
-        with open(root / "config.pkl", mode="wb") as f:
-            pickle.dump(self._config, f)
-
-        for dest in self._dests:
-            if dest:
-                dir_ = root / dest
-                dir_.mkdir(exist_ok=True, parents=True)
-                with open(dir_ / "model_config.pkl", mode="wb") as f:
-                    pickle.dump(self._config.model, f)
+        self._config.to_json_file(root / "config.json")

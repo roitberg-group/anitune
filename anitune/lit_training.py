@@ -2,7 +2,6 @@ import logging
 import json
 import warnings
 from copy import deepcopy
-import pickle
 import sys
 import typing as tp
 
@@ -66,12 +65,8 @@ def train_lit_model(
             sys.exit(0)
         else:
             # Reload config from the path
-            path = config.path / "config.pkl"
-            if not path.is_file():
-                raise ValueError(f"{path} is not a config file")
             accel = deepcopy(config.accel)
-            with open(path, mode="rb") as f:
-                config = pickle.load(f)
+            config = TrainConfig.from_json_file(config.path / "config.json")
             config.accel = accel
             restart = True
 

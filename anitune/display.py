@@ -1,10 +1,10 @@
 import json
-import pickle
 import typing_extensions as tpx
 
 from typer import Option
 from rich.table import Table
 
+from anitune.config import DatasetConfig, TrainConfig, SrcConfig
 from anitune.console import console
 from anitune.paths import (
     TRAIN_PATH,
@@ -129,8 +129,7 @@ def ls(
             table.add_column("size (GB)")
         for j, p in enumerate(batch):
             try:
-                with open(p / "ds_config.pkl", mode="rb") as fb:
-                    ds_config = pickle.load(fb)
+                ds_config = DatasetConfig.from_json_file(p / "ds_config.json")
                 with open(p / "creation_log.json", mode="rt") as ft:
                     ds_log = json.load(ft)
 
@@ -156,6 +155,7 @@ def ls(
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
                     row_args.append(format(size / 1024**3, ".1f"))
             except Exception:
+                raise
                 row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
@@ -187,13 +187,16 @@ def ls(
             table.add_column("curr-train")
         for j, p in enumerate(train):
             try:
-                with open(p / "config.pkl", mode="rb") as fb:
-                    config = pickle.load(fb)
-                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                    metrics = pickle.load(fb)
+                config = TrainConfig.from_json_file(p / "config.json")
+                with open(
+                    (p / "best-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
+                    metrics = json.load(ft)
                     best_epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                    latest_metrics = pickle.load(fb)
+                with open(
+                    (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
+                    latest_metrics = json.load(ft)
                     epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
@@ -298,6 +301,7 @@ def ls(
                         ]
                     )
             except Exception:
+                raise
                 row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
@@ -328,22 +332,33 @@ def ls(
             table.add_column("curr-train")
         for j, p in enumerate(ftune):
             try:
-                with open(p / "config.pkl", mode="rb") as fb:
-                    config = pickle.load(fb)
-                with open((p / "best-model") / "metrics.pkl", mode="rb") as fb:
-                    metrics = pickle.load(fb)
+                config = TrainConfig.from_json_file(p / "config.json")
+                with open(
+                    (p / "best-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
+                    metrics = json.load(ft)
                     best_epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.pkl", mode="rb") as fb:
-                    latest_metrics = pickle.load(fb)
+                with open(
+                    (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
+                    latest_metrics = json.load(ft)
                     epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
                     f"{config.ds.path.name}|{config.ds.fold_idx}",
-                    config.ftune.pretrained_name,
-                    str(config.ftune.num_head_layers),
+                    (
+                        config.ftune.pretrained_name
+                        if config.ftune is not None
+                        else "error"
+                    ),
+                    (
+                        str(config.ftune.num_head_layers)
+                        if config.ftune is not None
+                        else "error"
+                    ),
                     f"{config.optim.weight_decay:.0e}",
-                    f"{config.optim.lr:.0e}|{config.ftune.backbone_lr:.0e}",
+                    f"{config.optim.lr:.0e}|{(config.ftune.backbone_lr if config.ftune is not None else 0.0):.0e}",
                     f"{epoch}({best_epoch})",
                 ]
                 if optim_detail:
@@ -449,14 +464,13 @@ def ls(
         table.add_column("train-src", style="green")
         table.add_column("num-networks")
         for j, p in enumerate(ensemble):
-            with open(p / "src_config.pkl", mode="rb") as fb:
-                config = pickle.load(fb)
+            src_config = SrcConfig.from_json_file(p / "src_config.json")
             row_args = [
                 f"[bold]{j}[/bold]",
                 p.name,
-                " ".join(config["ftune-src"]) or "--",
-                " ".join(config["train-src"]) or "--",
-                str(config["num"]),
+                " ".join(src_config.ftune_src).strip() or "--",
+                " ".join(src_config.train_src).strip() or "--",
+                str(src_config.num),
             ]
             table.add_row(*row_args)
         console.print(table)

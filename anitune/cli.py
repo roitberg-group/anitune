@@ -5,7 +5,6 @@ import uuid
 import subprocess
 from copy import deepcopy
 import hashlib
-import pickle
 import shutil
 import typing as tp
 import typing_extensions as tpx
@@ -26,6 +25,7 @@ from anitune.config import (
     LossConfig,
     OptimizerConfig,
     SchedulerConfig,
+    SrcConfig,
 )
 from anitune.display import ls
 from anitune.defaults import (
@@ -45,15 +45,14 @@ app = Typer(
 )
 
 
+# TODO the ds part of this is broken
 def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
     name, idx = name_or_idx.split(":")
     config = TrainConfig()
     config.ds.fold_idx = idx
-    symbols: tp.Tuple[str, ...]
-    if ("1x" in name) or ("1ccx" in name):
-        symbols = ("H", "C", "N", "O")
-    else:
-        symbols = ("H", "C", "N", "O", "S", "F", "Cl")
+    symbols = ["H", "C", "N", "O"]
+    if not (("1x" in name) or ("1ccx" in name)):
+        symbols.extend(["S", "F", "Cl"])
     config.model = ModelConfig(
         builtin=True,
         arch_fn=name,
@@ -116,13 +115,11 @@ def ensemble(
     _hash = hasher.hexdigest(4)
     path = ENSEMBLE_PATH / f"{name}-{_hash}"
     path.mkdir(exist_ok=True, parents=True)
-    src_config = {
-        "train-src": tuple(p.name for p in ptrain_paths),
-        "ftune-src": tuple(p.name for p in ftune_paths),
-        "num": len(paths),
-    }
-    with open(path / "src_config.pkl", mode="wb") as bf:
-        pickle.dump(src_config, bf)
+    src_config = SrcConfig(
+        train_src=list(p.name for p in ptrain_paths),
+        ftune_src=list(p.name for p in ftune_paths),
+    )
+    src_config.to_json_file(path / "src_config.json")
     torch.save(state_dict, path / "model.pt")
 
 
@@ -139,11 +136,12 @@ def batch(
     lot: tpx.Annotated[
         str,
         Option(
+            "-l",
             "--lot",
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
-    _data_names: tpx.Annotated[
+    data_names: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
             "-d",
@@ -151,7 +149,7 @@ def batch(
             help="Builtin dataset name",
         ),
     ] = None,
-    _src_paths: tpx.Annotated[
+    src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
             "-s",
@@ -159,7 +157,7 @@ def batch(
             help="Paths to custom datasets",
         ),
     ] = None,
-    _properties: tpx.Annotated[
+    properties: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
             "-p",
@@ -212,15 +210,12 @@ def batch(
 ) -> None:
     from anitune.batching import batch_data
 
-    properties = () if _properties is None else tuple(sorted(_properties))
-    src_paths = () if _src_paths is None else tuple(sorted(_src_paths))
-    data_names = () if _data_names is None else tuple(sorted(_data_names))
     ds = DatasetConfig(
         label=name,
         lot=lot,
-        properties=properties,
-        data_names=data_names,
-        src_paths=src_paths,
+        properties=[] if properties is None else sorted(properties),
+        data_names=[] if data_names is None else sorted(data_names),
+        raw_src_paths=[] if src_paths is None else sorted(map(str, src_paths)),
         batch_size=batch_size,
         fold_idx=-1,
         folds=folds,
@@ -275,12 +270,11 @@ def restart(
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
 
-    path = select_subdirs((name_or_idx,), kind=kind)[0] / "config.pkl"
+    path = select_subdirs((name_or_idx,), kind=kind)[0] / "config.json"
     if not path.is_file():
         raise ValueError(f"{path} is not a file dir")
 
-    with open(path, mode="rb") as f:
-        config = pickle.load(f)
+    config = TrainConfig.from_json_file(path)
     if max_epochs is not None:
         config.accel.max_epochs = max_epochs
     train_lit_model(config, restart=True, verbose=verbose)
@@ -636,9 +630,8 @@ def train(
     ] = False,
 ) -> None:
     batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
-    ds_config_path = batched_dataset_path / "ds_config.pkl"
-    with open(ds_config_path, mode="rb") as f:
-        ds_config = pickle.load(f)
+    ds_config_path = batched_dataset_path / "ds_config.json"
+    ds_config = DatasetConfig.from_json_file(ds_config_path)
     ds_config.fold_idx = "train" if fold_idx is None else fold_idx
     if fold_idx is not None:
         name = f"{str(fold_idx).zfill(2)}-{name}"
@@ -859,7 +852,6 @@ def ftune(
     limit: tpx.Annotated[
         tp.Optional[int],
         Option(
-            "-l",
             "--limit",
             help="Limit number of batches or percent",
         ),
@@ -936,9 +928,8 @@ def ftune(
     ] = None,
 ) -> None:
     batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
-    ds_config_path = batched_dataset_path / "ds_config.pkl"
-    with open(ds_config_path, mode="rb") as f:
-        ds_config = pickle.load(f)
+    ds_config_path = batched_dataset_path / "ds_config.json"
+    ds_config = DatasetConfig.from_json_file(ds_config_path)
     ds_config.fold_idx = "train" if fold_idx is None else fold_idx
     if fold_idx is not None:
         name = f"{str(fold_idx).zfill(2)}-{name}"
@@ -958,7 +949,7 @@ def ftune(
 
     if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
         pretrained_config = fetch_builtin_config(name_or_idx)
-        pretrained_state_dict_path = None
+        raw_pretrained_state_dict_path = ""
         pretrained_name = name_or_idx
     else:
         pretrained_path = select_subdirs(
@@ -966,17 +957,16 @@ def ftune(
             kind=DataKind.TRAIN,
         )[0]
         pretrained_name = pretrained_path.name
-        pretrained_config_path = pretrained_path / "config.pkl"
-        if not pretrained_config_path.is_file():
-            raise ValueError(f"{pretrained_config_path} is not a valid config file")
+        pretrained_config = TrainConfig.from_json_file(pretrained_path / "config.json")
 
-        with open(pretrained_config_path, mode="rb") as f:
-            pretrained_config = pickle.load(f)
+        raw_pretrained_state_dict_path = str(
+            Path(pretrained_path, "best-model", "best.ckpt")
+        )
 
-        pretrained_state_dict_path = (pretrained_path / "best-model") / "best.ckpt"
-
-        if not pretrained_state_dict_path.is_file():
-            raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
+        if not Path(raw_pretrained_state_dict_path).is_file():
+            raise ValueError(
+                f"{raw_pretrained_state_dict_path} is not a valid checkpoint"
+            )
 
     terms_and_factors: tp.Dict[str, float] = {}
     if energies > 0.0:
@@ -1025,7 +1015,7 @@ def ftune(
         ),
         ftune=FinetuneConfig(
             pretrained_name=pretrained_name,
-            state_dict_path=pretrained_state_dict_path,
+            raw_state_dict_path=raw_pretrained_state_dict_path,
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
         ),
