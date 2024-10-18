@@ -1079,7 +1079,7 @@ def tb(
         for path in paths:
             run_subdir = Path(d, path.name)
             run_subdir.mkdir()
-            tb_path = path / "tb-versioned-logs"
+            tb_path = path / "tb-logs"
             for version_dir in sorted(tb_path.glob("version_*")):
                 for events_file in sorted(version_dir.iterdir()):
                     if not events_file.name.startswith("events.out.tfevents"):
