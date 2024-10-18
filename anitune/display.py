@@ -155,6 +155,7 @@ def ls(
                     size = sum(f.stat().st_size for f in p.glob("**/*") if f.is_file())
                     row_args.append(format(size / 1024**3, ".1f"))
             except Exception:
+                raise
                 row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
@@ -196,7 +197,7 @@ def ls(
                     (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
                 ) as ft:
                     latest_metrics = json.load(ft)
-                    epoch = metrics.pop("epoch")
+                    epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
@@ -300,6 +301,7 @@ def ls(
                         ]
                     )
             except Exception:
+                raise
                 row_args = [f"[bold]{j}[/bold]", p.name, "???"]
             table.add_row(*row_args)
         console.print(table)
@@ -340,7 +342,7 @@ def ls(
                     (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
                 ) as ft:
                     latest_metrics = json.load(ft)
-                    epoch = metrics.pop("epoch")
+                    epoch = latest_metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,

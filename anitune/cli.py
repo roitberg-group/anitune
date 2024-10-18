@@ -136,7 +136,7 @@ def batch(
     lot: tpx.Annotated[
         str,
         Option(
-            "--lot",
+            "-l", "--lot",
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
@@ -851,7 +851,6 @@ def ftune(
     limit: tpx.Annotated[
         tp.Optional[int],
         Option(
-            "-l",
             "--limit",
             help="Limit number of batches or percent",
         ),

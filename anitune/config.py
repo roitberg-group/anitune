@@ -54,7 +54,8 @@ class Config:
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
                 setattr(obj, k, getattr(obj, k).from_json_str(json.dumps(v)))
-            setattr(obj, k, v)
+            else:
+                setattr(obj, k, v)
         return obj
 
     @classmethod
@@ -64,7 +65,8 @@ class Config:
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
                 setattr(obj, k, getattr(obj, k).from_json(json.dumps(v)))
-            setattr(obj, k, v)
+            else:
+                setattr(obj, k, v)
         return obj
 
 

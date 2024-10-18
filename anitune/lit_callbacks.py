@@ -43,13 +43,14 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
             dirpath = Path(self.dirpath).resolve()
         else:
             dirpath = Path(trainer.default_root_dir).resolve()
+        dirpath.mkdir(exist_ok=True)
 
         metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": trainer.current_epoch}
         for k, v in candidates.items():
             if "_rmse" in k or "_mae" in k:
                 metrics[k] = v.item()
         with open(dirpath / "metrics.json", mode="wt", encoding="utf-8") as ft:
-            json.dump(metrics, ft)
+            json.dump(metrics, ft, indent=4)
 
 
 class SaveConfig(Callback):
