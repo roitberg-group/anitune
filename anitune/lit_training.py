@@ -86,7 +86,7 @@ def train_lit_model(
             model,
             loss_terms=tuple(
                 getattr(losses, name)(factor=factor)
-                for name, factor in config.loss.terms_and_factors
+                for name, factor in config.loss.terms_and_factors.items()
             ),
             monitor_label=config.monitor_label,
             # Loss

@@ -152,8 +152,7 @@ class LossConfig:
     r"""
     loss-specific configurations
     """
-
-    terms_and_factors: tp.Tuple[tp.Tuple[str, float], ...] = (("Energies", 1.0),)
+    terms_and_factors: tp.Dict[str, float] = field(default_factory=lambda: {"Energies": 1.0})
     uncertainty_weighted: bool = False
 
 
