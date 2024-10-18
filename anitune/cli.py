@@ -136,7 +136,8 @@ def batch(
     lot: tpx.Annotated[
         str,
         Option(
-            "-l", "--lot",
+            "-l",
+            "--lot",
             help="Level of theory",
         ),
     ] = "wb97x-631gd",
