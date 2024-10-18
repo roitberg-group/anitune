@@ -1,5 +1,4 @@
 import typing as tp
-import pickle
 
 from anitune.config import DatasetConfig, ConfigError
 
@@ -20,17 +19,17 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
     else:
         split_kwargs = {"splits": config.split_dict}
 
-    src_paths = list(config.src_paths)
+    raw_src_paths = list(config.raw_src_paths)
     for name in config.data_names:
         ds = getattr(datasets, name)(
             skip_check=True,
             lot=config.lot,
         )
-        src_paths.extend(ds.store_locations)
-    src_paths = sorted(set(src_paths))
+        raw_src_paths.extend(ds.store_locations)
+    raw_src_paths = sorted(set(raw_src_paths))
 
     datasets.create_batched_dataset(
-        src=datasets.ANIDataset(locations=src_paths),
+        src=datasets.ANIDataset(locations=raw_src_paths),
         max_batches_per_packet=max_batches_per_packet,
         dest_path=config.path,
         batch_size=config.batch_size,
@@ -40,5 +39,4 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
         **split_kwargs,
     )
     config.fold_idx = -1
-    with open(config.path / "ds_config.pkl", mode="wb") as f:
-        pickle.dump(config, f)
+    config.to_json_file(config.path / "ds_config.json")

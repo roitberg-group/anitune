@@ -1,3 +1,5 @@
+import typing_extensions as tpx
+import json
 import itertools
 import hashlib
 
@@ -33,15 +35,55 @@ class ConfigError(RuntimeError):
 
 
 @dataclass
-class FinetuneConfig:
+class Config:
+
+    def to_json_file(self, path: Path) -> None:
+        with open(path, mode="wt", encoding="utf-8") as f:
+            json.dump(asdict(self), f, indent=4)
+
+    def to_json_str(self) -> str:
+        return json.dumps(asdict(self), indent=4)
+
+    @classmethod
+    def from_json_file(cls, path: Path) -> tpx.Self:
+        if not path.is_file():
+            raise ValueError(f"{path} is not a config file")
+        with open(path, mode="rt", encoding="utf-8") as f:
+            dict_ = json.load(f)
+        obj = cls()
+        for k, v in dict_.copy().items():
+            if isinstance(getattr(obj, k), Config):
+                setattr(obj, k, getattr(obj, k).from_json_str(json.dumps(v)))
+            setattr(obj, k, v)
+        return obj
+
+    @classmethod
+    def from_json_str(cls, json_str: str) -> tpx.Self:
+        dict_ = json.loads(json_str)
+        obj = cls()
+        for k, v in dict_.copy().items():
+            if isinstance(getattr(obj, k), Config):
+                setattr(obj, k, getattr(obj, k).from_json(json.dumps(v)))
+            setattr(obj, k, v)
+        return obj
+
+
+@dataclass
+class FinetuneConfig(Config):
     r"""
     ftune-specific configurations
     """
 
     pretrained_name: str
-    state_dict_path: tp.Optional[Path]
+    raw_state_dict_path: str
     num_head_layers: int = 1
     backbone_lr: float = 0.0
+
+    @property
+    def state_dict_path(self) -> tp.Optional[Path]:
+        if not self.raw_state_dict_path:
+            return None
+        return Path(self.raw_state_dict_path).resolve()
 
     @property
     def frozen_backbone(self) -> bool:
@@ -56,7 +98,7 @@ class FinetuneConfig:
 
 # Dataset parameters
 @dataclass
-class DatasetConfig:
+class DatasetConfig(Config):
     r"""
     dataset-specific configurations
     """
@@ -65,14 +107,18 @@ class DatasetConfig:
     folds: tp.Optional[int] = None
     train_frac: float = 0.8
     validation_frac: float = 0.2
-    properties: tp.Tuple[str, ...] = ()
-    data_names: tp.Tuple[str, ...] = ()
-    src_paths: tp.Tuple[Path, ...] = ()
+    properties: tp.List[str] = field(default_factory=list)
+    data_names: tp.List[str] = field(default_factory=list)
+    raw_src_paths: tp.List[str] = field(default_factory=list)
     lot: str = "wb97x-631gd"
     batch_size: int = 2560
     divs_seed: int = 1234
     batch_seed: int = 1234
     label: str = ""
+
+    @property
+    def src_paths(self) -> tp.Tuple[Path, ...]:
+        return tuple(map(Path, self.raw_src_paths))
 
     @property
     def split_dict(self) -> tp.Dict[str, float]:
@@ -87,7 +133,7 @@ class DatasetConfig:
             return self.label
         return "_".join(
             itertools.chain(
-                (p.stem.replace("-", "_") for p in sorted(self.src_paths)),
+                (p.stem.replace("-", "_") for p in sorted(map(Path, self.raw_src_paths))),
                 sorted(self.data_names),
             )
         )
@@ -105,8 +151,18 @@ class DatasetConfig:
 
 
 @dataclass
-class FnConfig:
+class FnConfig(Config):
     options: tp.Dict[str, Scalar] = field(default_factory=dict)
+
+
+@dataclass
+class SrcConfig(Config):
+    train_src: tp.List[str] = field(default_factory=list)
+    ftune_src: tp.List[str] = field(default_factory=list)
+
+    @property
+    def num(self) -> int:
+        return len(self.train_src) + len(self.ftune_src)
 
 
 @dataclass
@@ -117,7 +173,7 @@ class ModelConfig(FnConfig):
 
     arch_fn: str = ""
     builtin: bool = False
-    symbols: tp.Tuple[str, ...] = ()
+    symbols: tp.List[str] = field(default_factory=list)
     options: tp.Dict[str, Scalar] = field(default_factory=dict)
 
 
@@ -148,7 +204,7 @@ class SchedulerConfig(FnConfig):
 
 
 @dataclass
-class LossConfig:
+class LossConfig(Config):
     r"""
     loss-specific configurations
     """
@@ -160,7 +216,7 @@ class LossConfig:
 
 
 @dataclass
-class AccelConfig:
+class AccelConfig(Config):
     r"""
     Acceleration specific configuration. Does not affect reproducibility.
     """
@@ -190,7 +246,7 @@ class AccelConfig:
 
 
 @dataclass
-class TrainConfig:
+class TrainConfig(Config):
     r"""
     Configuration for all the training.
     """
