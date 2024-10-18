@@ -133,7 +133,10 @@ class DatasetConfig(Config):
             return self.label
         return "_".join(
             itertools.chain(
-                (p.stem.replace("-", "_") for p in sorted(map(Path, self.raw_src_paths))),
+                (
+                    p.stem.replace("-", "_")
+                    for p in sorted(map(Path, self.raw_src_paths))
+                ),
                 sorted(self.data_names),
             )
         )

@@ -187,10 +187,14 @@ def ls(
         for j, p in enumerate(train):
             try:
                 config = TrainConfig.from_json_file(p / "config.json")
-                with open((p / "best-model") / "metrics.json", mode="rt", encoding="utf-8") as ft:
+                with open(
+                    (p / "best-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
                     metrics = json.load(ft)
                     best_epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8") as ft:
+                with open(
+                    (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
                     latest_metrics = json.load(ft)
                     epoch = metrics.pop("epoch")
                 row_args = [
@@ -327,18 +331,30 @@ def ls(
         for j, p in enumerate(ftune):
             try:
                 config = TrainConfig.from_json_file(p / "config.json")
-                with open((p / "best-model") / "metrics.json", mode="rt", encoding="utf-8") as ft:
+                with open(
+                    (p / "best-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
                     metrics = json.load(ft)
                     best_epoch = metrics.pop("epoch")
-                with open((p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8") as ft:
+                with open(
+                    (p / "latest-model") / "metrics.json", mode="rt", encoding="utf-8"
+                ) as ft:
                     latest_metrics = json.load(ft)
                     epoch = metrics.pop("epoch")
                 row_args = [
                     f"[bold]{j}[/bold]",
                     p.name,
                     f"{config.ds.path.name}|{config.ds.fold_idx}",
-                    config.ftune.pretrained_name if config.ftune is not None else "error",
-                    str(config.ftune.num_head_layers) if config.ftune is not None else "error",
+                    (
+                        config.ftune.pretrained_name
+                        if config.ftune is not None
+                        else "error"
+                    ),
+                    (
+                        str(config.ftune.num_head_layers)
+                        if config.ftune is not None
+                        else "error"
+                    ),
                     f"{config.optim.weight_decay:.0e}",
                     f"{config.optim.lr:.0e}|{(config.ftune.backbone_lr if config.ftune is not None else 0.0):.0e}",
                     f"{epoch}({best_epoch})",
