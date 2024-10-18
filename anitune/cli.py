@@ -660,22 +660,20 @@ def train(
         console.print("    - Anomaly detection mode set")
         detect_anomaly = True
 
-    terms_and_factors: tp.List[tp.Tuple[str, float]] = []
+    terms_and_factors: tp.Dict[str, float] = {}
     if energies > 0.0:
         label = "EnergiesXC" if xc else "Energies"
-        terms_and_factors.append(
-            (label if not sqrt_atoms else f"{label}SqrtAtoms", energies)
-        )
+        terms_and_factors[label if not sqrt_atoms else f"{label}SqrtAtoms"] = energies
     if forces > 0.0:
-        terms_and_factors.append(("Forces", forces))
+        terms_and_factors["Forces"] = forces
     if dipoles > 0.0:
-        terms_and_factors.append(("Dipoles", dipoles))
+        terms_and_factors["Dipoles"] = dipoles
     if atomic_charges > 0.0:
-        terms_and_factors.append(("AtomicCharges", atomic_charges))
+        terms_and_factors["AtomicCharges"] = atomic_charges
     if atomic_charges_mbis > 0.0:
-        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
+        terms_and_factors["AtomicChargesMBIS"] = atomic_charges_mbis
     if total_charge > 0.0:
-        terms_and_factors.append(("TotalCharge", total_charge))
+        terms_and_factors["TotalCharge"] = total_charge
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
@@ -701,7 +699,7 @@ def train(
             options=resolve_options(arch_options or (), arch_fn),
         ),
         loss=LossConfig(
-            terms_and_factors=tuple(terms_and_factors),
+            terms_and_factors=terms_and_factors,
         ),
         optim=OptimizerConfig(
             cls=optimizer,
@@ -980,22 +978,20 @@ def ftune(
         if not pretrained_state_dict_path.is_file():
             raise ValueError(f"{pretrained_state_dict_path} is not a valid checkpoint")
 
-    terms_and_factors: tp.List[tp.Tuple[str, float]] = []
+    terms_and_factors: tp.Dict[str, float] = {}
     if energies > 0.0:
         label = "EnergiesXC" if xc else "Energies"
-        terms_and_factors.append(
-            (label if not sqrt_atoms else f"{label}SqrtAtoms", energies)
-        )
+        terms_and_factors[label if not sqrt_atoms else f"{label}SqrtAtoms"] = energies
     if forces > 0.0:
-        terms_and_factors.append(("Forces", forces))
+        terms_and_factors["Forces"] = forces
     if dipoles > 0.0:
-        terms_and_factors.append(("Dipoles", dipoles))
+        terms_and_factors["Dipoles"] = dipoles
     if atomic_charges > 0.0:
-        terms_and_factors.append(("AtomicCharges", atomic_charges))
+        terms_and_factors["AtomicCharges"] = atomic_charges
     if atomic_charges_mbis > 0.0:
-        terms_and_factors.append(("AtomicChargesMBIS", atomic_charges_mbis))
+        terms_and_factors["AtomicChargesMBIS"] = atomic_charges_mbis
     if total_charge > 0.0:
-        terms_and_factors.append(("TotalCharge", total_charge))
+        terms_and_factors["TotalCharge"] = total_charge
 
     scheduler = parse_scheduler_str(scheduler)
     optimizer = parse_optimizer_str(optimizer)
@@ -1017,7 +1013,7 @@ def ftune(
         ),
         model=pretrained_config.model,
         loss=LossConfig(
-            terms_and_factors=tuple(terms_and_factors),
+            terms_and_factors=terms_and_factors,
         ),
         optim=OptimizerConfig(
             cls=optimizer,
