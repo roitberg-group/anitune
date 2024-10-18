@@ -425,9 +425,7 @@ def bench(
 def train(
     batch_name_or_idx: tpx.Annotated[
         str,
-        Argument(
-            help="Name or idx of the batched dataset"
-        ),
+        Argument(help="Name or idx of the batched dataset"),
     ],
     name: tpx.Annotated[
         str,
@@ -721,9 +719,7 @@ def train(
 def ftune(
     batch_name_or_idx: tpx.Annotated[
         str,
-        Argument(
-            help="Name or idx of the batched dataset"
-        ),
+        Argument(help="Name or idx of the batched dataset"),
     ],
     name_or_idx: tpx.Annotated[
         str,
