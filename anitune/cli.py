@@ -11,7 +11,7 @@ import typing as tp
 import typing_extensions as tpx
 from pathlib import Path
 
-from typer import Option, Typer
+from typer import Argument, Option, Typer
 
 from anitune.console import console
 from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
@@ -425,9 +425,8 @@ def bench(
 def train(
     batch_name_or_idx: tpx.Annotated[
         str,
-        Option(
-            "-b",
-            help="Name or idx of the batched dataset",
+        Argument(
+            help="Name or idx of the batched dataset"
         ),
     ],
     name: tpx.Annotated[
@@ -722,9 +721,8 @@ def train(
 def ftune(
     batch_name_or_idx: tpx.Annotated[
         str,
-        Option(
-            "-b",
-            help="Name or idx of the batched dataset",
+        Argument(
+            help="Name or idx of the batched dataset"
         ),
     ],
     name_or_idx: tpx.Annotated[
