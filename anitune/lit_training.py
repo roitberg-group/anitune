@@ -38,7 +38,6 @@ def train_lit_model(
     from anitune import losses
     from anitune.lit_model import LitModel
     from anitune.lit_callbacks import (
-        MergeTensorBoardLogs,
         SaveConfig,
         ModelCheckpointWithMetrics,
     )
@@ -158,26 +157,23 @@ def train_lit_model(
         enable_version_counter=False,
     )
     save_model_config = SaveConfig(config)
-    merge_tb_logs = MergeTensorBoardLogs(src="tb-versioned-logs")
     callbacks = [
         lr_monitor,
         early_stopping,
         best_model_ckpt,
         latest_model_ckpt,
-        merge_tb_logs,
         save_model_config,
     ]
-    (config.path / "tb-versioned-logs").mkdir(exist_ok=True, parents=True)
+    (config.path / "tb-logs").mkdir(exist_ok=True, parents=True)
     tb_logger = TensorBoardLogger(
         save_dir=config.path,
-        version=None,
-        name="tb-versioned-logs",
+        name="tb-logs",
+        default_hp_metric=False,
     )
-    (config.path / "csv-versioned-logs").mkdir(exist_ok=True, parents=True)
+    (config.path / "csv-logs").mkdir(exist_ok=True, parents=True)
     csv_logger = CSVLogger(
         save_dir=config.path,
-        version=None,
-        name="csv-versioned-logs",
+        name="csv-logs",
     )
     loggers = [tb_logger, csv_logger]
 
