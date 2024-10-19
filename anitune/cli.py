@@ -612,14 +612,14 @@ def train(
             "--max-epochs",
             help="Maximum number of epochs to train",
         ),
-    ] = 2000,
+    ] = 200,
     early_stop_patience: tpx.Annotated[
         int,
         Option(
             "--early-stop-patience",
             help="Maximum number of epochs with no improvement in validation metric before early stopping",
         ),
-    ] = 300,
+    ] = 50,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -642,7 +642,7 @@ def train(
             _uuid = uuid.uuid4().hex[:8]
             console.print(f"    - Name set to 'debug-{_uuid}'")
             name = f"debug-{_uuid}"
-        if max_epochs == 2000:
+        if max_epochs == 200:
             max_epochs = 3
             console.print(f"    - Max epochs set to {max_epochs}")
         if limit is None:
@@ -870,14 +870,14 @@ def ftune(
             "--max-epochs",
             help="Maximum number of epochs to train",
         ),
-    ] = 2000,
+    ] = 200,
     early_stop_patience: tpx.Annotated[
         int,
         Option(
             "--early-stop-patience",
             help="Maximum number of epochs with no improvement in validation metric before early stopping",
         ),
-    ] = 300,
+    ] = 50,
     verbose: tpx.Annotated[
         bool,
         Option(
