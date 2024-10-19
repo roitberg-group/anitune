@@ -230,12 +230,12 @@ class AccelConfig(Config):
     max_batches_per_packet: int = 300
     num_workers: int = 2
     prefetch_factor: int = 2
-    max_epochs: int = 2000
+    max_epochs: int = 200
     limit: tp.Optional[int] = None
     deterministic: bool = False
     detect_anomaly: bool = False
     profiler: tp.Optional[str] = None
-    early_stop_patience: int = 300
+    early_stop_patience: int = 50
 
     @property
     def log_interval(self) -> tp.Optional[int]:
