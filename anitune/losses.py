@@ -3,12 +3,14 @@ Holds base class for loss terms and some simple loss terms used to train
 ANI-style models
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import typing as tp
 from enum import Enum
 
 import torch
 from torch import Tensor
+
+from anitune.annotations import Scalar
 
 
 class Penalty(Enum):
@@ -18,7 +20,7 @@ class Penalty(Enum):
 
 @dataclass
 class LossTerm:
-    label: str
+    label: str = "pred"
     targ_label_only: str = (
         ""  # label in the dataset, if unspecified assumed the same as 'label'
     )
@@ -33,6 +35,11 @@ class LossTerm:
     @property
     def targ_label(self) -> str:
         return self.targ_label_only or self.label
+
+    def as_dict(self) -> tp.Dict[str, Scalar]:
+        d = asdict(self)
+        d["penalty"] = d["penalty"].value
+        return d
 
 
 def Forces(factor: float = 1.0) -> LossTerm:
