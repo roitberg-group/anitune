@@ -37,7 +37,7 @@ def train_lit_model(
     from anitune.lit_callbacks import (
         SaveConfig,
         ModelCheckpointWithMetrics,
-        NoLogLRMonitor
+        NoLogLRMonitor,
     )
 
     if not config.ds.path.exists():
