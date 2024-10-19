@@ -16,14 +16,17 @@ from anitune.paths import (
 
 def simplify_metric(arg: str) -> str:
     return (
-        arg.replace("valid_", "")
-        .replace("train_", "")
+        arg.replace("valid/", "")
+        .replace("train/", "")
         .replace("mae_energies", "Emae")
         .replace("rmse_energies", "E")
         .replace("mae_forces", "Fmae")
         .replace("rmse_forces", "F")
         .replace("|ang", "/ang")
         .replace("|mol", "/mol")
+        # bw compat
+        .replace("train_", "")
+        .replace("valid_", "")
     )
 
 

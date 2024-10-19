@@ -7,10 +7,39 @@ import typing as tp
 from pathlib import Path
 
 from torch import Tensor
-from lightning.pytorch.callbacks import Callback, ModelCheckpoint
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint, LearningRateMonitor
 from lightning import Trainer, LightningModule
 
 from anitune.config import TrainConfig
+
+
+class NoLogLRMonitor(LearningRateMonitor):
+    r"""
+    A learning rate monitor that doesn't automatically log
+    """
+
+    def __init__(
+        self, log_momentum: bool = False, log_weight_decay: bool = False
+    ) -> None:
+        super().__init__(
+            logging_interval="epoch",
+            log_momentum=log_momentum,
+            log_weight_decay=log_weight_decay,
+        )
+
+    def on_train_epoch_start(
+        self, trainer: Trainer, *args: tp.Any, **kwargs: tp.Any
+    ) -> None:
+        pass
+
+    def on_train_batch_start(
+        self, trainer: Trainer, *args: tp.Any, **kwargs: tp.Any
+    ) -> None:
+        pass
+
+    # TODO: This fn uses a pvt method of lightning, which is not ideal
+    def extract_stats(self, trainer: Trainer) -> tp.Dict[str, float]:
+        return self._extract_stats(trainer, "epoch")
 
 
 class ModelCheckpointWithMetrics(ModelCheckpoint):
@@ -47,7 +76,7 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
 
         metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": trainer.current_epoch}
         for k, v in candidates.items():
-            if "_rmse" in k or "_mae" in k:
+            if k.startswith("valid/") or k.startswith("train/"):
                 metrics[k] = v.item()
         with open(dirpath / "metrics.json", mode="wt", encoding="utf-8") as ft:
             json.dump(metrics, ft, indent=4)
