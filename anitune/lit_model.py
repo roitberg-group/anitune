@@ -10,8 +10,8 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torchani.assembly import ANI
 from torchani.units import hartree2kcalpermol
 
+from anitune import losses
 from anitune.annotations import Scalar
-from anitune.losses import MultiTaskLoss, LossTerm, Energies
 
 
 class LitModel(lightning.LightningModule):
@@ -22,12 +22,12 @@ class LitModel(lightning.LightningModule):
     def __init__(
         self,
         model: ANI,
+        loss_terms_and_factors: tp.Dict[str, float],
         optimizer_options: tp.Dict[str, Scalar],
         scheduler_options: tp.Dict[str, Scalar],
         monitor_label: str = "valid_rmse_default",
         optimizer_cls: str = "AdamW",
         scheduler_cls: str = "ReduceLROnPlateau",
-        loss_terms: tp.Sequence[LossTerm] = (Energies(),),
         uncertainty_weighted: bool = False,
         num_head_layers: int = 0,
     ) -> None:
@@ -39,6 +39,12 @@ class LitModel(lightning.LightningModule):
         self.train_metrics = torch.nn.ModuleDict()
         self.train_losses = torch.nn.ModuleDict()
         self.valid_metrics = torch.nn.ModuleDict()
+
+        loss_terms = tuple(
+            getattr(losses, name)(factor=factor)
+            for name, factor in loss_terms_and_factors.items()
+        )
+
         for term in loss_terms:
             k = term.label
             # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE,
@@ -60,7 +66,7 @@ class LitModel(lightning.LightningModule):
             )
         self.monitor_label = monitor_label
 
-        self.loss = MultiTaskLoss(loss_terms, uncertainty_weighted)
+        self.loss = losses.MultiTaskLoss(loss_terms, uncertainty_weighted)
         self.model = model
 
         # Hyperparameters
@@ -85,8 +91,8 @@ class LitModel(lightning.LightningModule):
         with torch.no_grad():
             for k, v in self.train_metrics.items():
                 v.update(pred[k], batch[self.loss.term(k).targ_label])
-        losses = self.loss(pred, batch)
-        return losses["loss"]
+        loss_dict = self.loss(pred, batch)
+        return loss_dict["loss"]
 
     def validation_step(
         self,

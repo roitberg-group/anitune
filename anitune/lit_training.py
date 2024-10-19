@@ -34,7 +34,6 @@ def train_lit_model(
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
     from torchani import assembly, models, datasets
-    from anitune import losses
     from anitune.lit_model import LitModel
     from anitune.lit_callbacks import (
         SaveConfig,
@@ -79,10 +78,7 @@ def train_lit_model(
     else:
         lit_model = LitModel(
             model,
-            loss_terms=tuple(
-                getattr(losses, name)(factor=factor)
-                for name, factor in config.loss.terms_and_factors.items()
-            ),
+            loss_terms_and_factors=config.loss.terms_and_factors,
             monitor_label=config.monitor_label,
             # Loss
             uncertainty_weighted=config.loss.uncertainty_weighted,
