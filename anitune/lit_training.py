@@ -27,7 +27,6 @@ def train_lit_model(
 
         log.setLevel(logging.ERROR)
     from lightning.pytorch.callbacks import (
-        LearningRateMonitor,
         EarlyStopping,
         BackboneFinetuning,
     )
@@ -38,6 +37,7 @@ def train_lit_model(
     from anitune.lit_callbacks import (
         SaveConfig,
         ModelCheckpointWithMetrics,
+        NoLogLRMonitor
     )
 
     if not config.ds.path.exists():
@@ -124,7 +124,7 @@ def train_lit_model(
         **kwargs,
     )
 
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
+    lr_monitor = NoLogLRMonitor()
     early_stopping = EarlyStopping(
         monitor=lit_model.monitor_label,
         strict=True,
@@ -196,6 +196,7 @@ def train_lit_model(
         deterministic=config.accel.deterministic,
         detect_anomaly=config.accel.detect_anomaly,
         profiler=config.accel.profiler,
+        check_val_every_n_epoch=1,  # Assumed by TorchANI for logging
     )
     with warnings.catch_warnings():
         warnings.filterwarnings(

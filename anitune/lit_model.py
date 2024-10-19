@@ -1,3 +1,4 @@
+import math
 import itertools
 import typing as tp
 
@@ -6,11 +7,13 @@ from torch import Tensor
 import lightning
 import torchmetrics
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
+from lightning.pytorch.loggers import TensorBoardLogger
 
 from torchani.assembly import ANI
 from torchani.units import hartree2kcalpermol
 
 from anitune import losses
+from anitune.lit_callbacks import NoLogLRMonitor
 from anitune.annotations import Scalar
 
 
@@ -75,6 +78,17 @@ class LitModel(lightning.LightningModule):
                 module_list.extend(list(rev_layers)[:num_head_layers])
         self.backbone = module_list
 
+    def on_train_start(self) -> None:
+        # Log hyperparameters to tensorboard events file (only a single time)
+        for logger in self.loggers:
+            if isinstance(logger, TensorBoardLogger):
+                # hparams seems to be of the correct type, but lightning marks it
+                # differently
+                logger.log_hyperparams(
+                    self.hparams, {self.monitor_label: math.inf}  # type: ignore
+                )
+                print("Logging hparams, maybe?")
+
     def training_step(
         self,
         batch: tp.Dict[str, Tensor],
@@ -105,6 +119,7 @@ class LitModel(lightning.LightningModule):
             v.update(pred[label], batch[self.loss.term(label).targ_label])
 
     # Metrics are logged at the end of each validation epoch only
+    # This is only correct if check_val_every_n_epochs=1
     def on_validation_epoch_end(self) -> None:
         results = {}
         for k, c in self.metrics.items():
@@ -116,6 +131,13 @@ class LitModel(lightning.LightningModule):
                 results[f"{k}_kcal|mol"] = hartree2kcalpermol(results[k])
             elif "forces" in k:
                 results[f"{k}_kcal|mol|ang"] = hartree2kcalpermol(results[k])
+
+        # I believe callbacks is technically pvt API
+        for c in self.trainer.callbacks:  # type: ignore
+            if isinstance(c, NoLogLRMonitor):
+                results.update(c.extract_stats(self.trainer))
+                break
+
         self.log_dict(results)
 
     def batch_eval(
