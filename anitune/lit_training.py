@@ -124,7 +124,7 @@ def train_lit_model(
         **kwargs,
     )
 
-    lr_monitor = LearningRateMonitor()
+    lr_monitor = LearningRateMonitor(logging_interval="epoch")
     early_stopping = EarlyStopping(
         monitor=lit_model.monitor_label,
         strict=True,

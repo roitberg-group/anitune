@@ -25,7 +25,7 @@ class LitModel(lightning.LightningModule):
         loss_terms_and_factors: tp.Dict[str, float],
         optimizer_options: tp.Dict[str, Scalar],
         scheduler_options: tp.Dict[str, Scalar],
-        monitor_label: str = "valid_rmse_default",
+        monitor_label: str = "valid/rmse_default",
         optimizer_cls: str = "AdamW",
         scheduler_cls: str = "ReduceLROnPlateau",
         uncertainty_weighted: bool = False,
@@ -36,30 +36,23 @@ class LitModel(lightning.LightningModule):
         self.scheduler_options = scheduler_options
         self.optimizer_cls = optimizer_cls
         self.scheduler_cls = scheduler_cls
-        self.train_metrics = torch.nn.ModuleDict()
-        self.train_losses = torch.nn.ModuleDict()
-        self.valid_metrics = torch.nn.ModuleDict()
 
         loss_terms = tuple(
             getattr(losses, name)(factor=factor)
             for name, factor in loss_terms_and_factors.items()
         )
-
+        metrics: tp.Dict[str, torchmetrics.Metric] = {}
         for term in loss_terms:
-            k = term.label
-            # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE,
-            # no extra calculations are needed
-            self.train_metrics[k] = torchmetrics.MetricCollection(
-                {
-                    "rmse": torchmetrics.MeanSquaredError(squared=False),
-                    "mae": torchmetrics.MeanAbsoluteError(),
-                },
-                prefix="train_",
-            )
-            self.valid_metrics[k] = self.train_metrics[k].clone(prefix="valid_")
+            for div in ("valid", "train"):
+                # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE
+                metrics[f"{div}/rmse_{term.label}"] = torchmetrics.MeanSquaredError(
+                    squared=False
+                )
+                metrics[f"{div}/mae_{term.label}"] = torchmetrics.MeanAbsoluteError()
+        self.metrics = torchmetrics.MetricCollection(metrics)
 
-        if len(loss_terms) == 1 and monitor_label == "valid_rmse_default":
-            monitor_label = f"valid_rmse_{loss_terms[0].label}"
+        if len(loss_terms) == 1 and monitor_label == "valid/rmse_default":
+            monitor_label = f"valid/rmse_{loss_terms[0].label}"
         elif not any(monitor_label.endswith(term.label) for term in loss_terms):
             raise ValueError(
                 "The monitored label must be one of the enabled loss terms"
@@ -89,8 +82,7 @@ class LitModel(lightning.LightningModule):
     ) -> Tensor:
         pred = self.batch_eval(batch)
         with torch.no_grad():
-            for k, v in self.train_metrics.items():
-                v.update(pred[k], batch[self.loss.term(k).targ_label])
+            self._update_metrics("train", pred, batch)
         loss_dict = self.loss(pred, batch)
         return loss_dict["loss"]
 
@@ -101,30 +93,30 @@ class LitModel(lightning.LightningModule):
     ) -> None:
         with torch.enable_grad():
             pred = self.batch_eval(batch)
+        self._update_metrics("valid", pred, batch)
 
-        for k, v in self.valid_metrics.items():
-            v.update(pred[k], batch[self.loss.term(k).targ_label])
+    def _update_metrics(
+        self, div: str, pred: tp.Dict[str, Tensor], batch: tp.Dict[str, Tensor]
+    ) -> None:
+        for k, v in self.metrics.items():
+            if not k.startswith(f"{div}/"):
+                continue
+            label = k.split("_")[-1]
+            v.update(pred[label], batch[self.loss.term(label).targ_label])
 
-    def on_train_epoch_end(self) -> None:
-        self._log_metrics(self.train_metrics)
-
+    # Metrics are logged at the end of each validation epoch only
     def on_validation_epoch_end(self) -> None:
-        self._log_metrics(self.valid_metrics)
-
-    def _log_metrics(self, computers: torch.nn.ModuleDict) -> None:
-        metrics = {}
-        for k, c in computers.items():
-            m = c.compute()
+        results = {}
+        for k, c in self.metrics.items():
+            if not c.update_called:
+                continue
+            results[k] = c.compute()
             c.reset()
-            for name, v in m.items():
-                metrics[f"{name}_{k}"] = v
-                #  names of metrics
-                #  (energies|...)_(train|valid)_(rmse|mae)[kcal|mol[|ang]]
-                if "energies" in k:
-                    metrics[f"{name}_{k}_kcal|mol"] = hartree2kcalpermol(v)
-                elif "forces" in k:
-                    metrics[f"{name}_{k}_kcal|mol|ang"] = hartree2kcalpermol(v)
-        self.log_dict(metrics)
+            if "energies" in k:
+                results[f"{k}_kcal|mol"] = hartree2kcalpermol(results[k])
+            elif "forces" in k:
+                results[f"{k}_kcal|mol|ang"] = hartree2kcalpermol(results[k])
+        self.log_dict(results)
 
     def batch_eval(
         self,

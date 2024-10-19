@@ -47,7 +47,7 @@ class ModelCheckpointWithMetrics(ModelCheckpoint):
 
         metrics: tp.Dict[str, tp.Union[int, float]] = {"epoch": trainer.current_epoch}
         for k, v in candidates.items():
-            if "_rmse" in k or "_mae" in k:
+            if k.startswith("valid/") or k.startswith("train/"):
                 metrics[k] = v.item()
         with open(dirpath / "metrics.json", mode="wt", encoding="utf-8") as ft:
             json.dump(metrics, ft, indent=4)
