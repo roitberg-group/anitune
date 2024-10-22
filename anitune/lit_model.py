@@ -147,6 +147,10 @@ class LitModel(lightning.LightningModule):
         for term in self.loss.grad_terms:
             batch[term.grad_wrt_to_targ_label].requires_grad_(True)
 
+        # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
+        if self.model.aev_computer.use_cuaev_interface:
+            batch["coordinates"].requires_grad_(True)
+
         pred = self.model.sp((batch["species"], batch["coordinates"]))
 
         for term in self.loss.grad_terms:
@@ -154,10 +158,15 @@ class LitModel(lightning.LightningModule):
                 pred[term.grad_of_label].sum(),
                 batch[term.grad_wrt_to_targ_label],
                 retain_graph=True,
+                create_graph=True,
             )[0]
 
         for term in self.loss.grad_terms:
             batch[term.grad_wrt_to_targ_label].requires_grad_(False)
+
+        # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
+        if self.model.aev_computer.use_cuaev_interface:
+            batch["coordinates"].requires_grad_(False)
         return pred
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
