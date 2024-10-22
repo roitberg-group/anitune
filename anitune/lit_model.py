@@ -87,7 +87,6 @@ class LitModel(lightning.LightningModule):
                 logger.log_hyperparams(
                     self.hparams, {self.monitor_label: math.inf}  # type: ignore
                 )
-                print("Logging hparams, maybe?")
 
     def training_step(
         self,
