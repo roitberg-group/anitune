@@ -150,7 +150,7 @@ class LitModel(lightning.LightningModule):
         if self.model.aev_computer.use_cuaev_interface:
             batch["coordinates"].requires_grad_(True)
 
-        pred = self.model.sp((batch["species"], batch["coordinates"]))
+        pred = self.model.sp(batch["species"], batch["coordinates"])
 
         for term in self.loss.grad_terms:
             pred[term.label] = -torch.autograd.grad(
