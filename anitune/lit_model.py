@@ -14,7 +14,7 @@ from torchani.units import hartree2kcalpermol
 
 from anitune import losses
 from anitune.lit_callbacks import NoLogLRMonitor
-from anitune.annotations import Scalar
+from anitune.annotations import PyScalar
 
 
 class LitModel(lightning.LightningModule):
@@ -26,8 +26,8 @@ class LitModel(lightning.LightningModule):
         self,
         model: ANI,
         loss_terms_and_factors: tp.Dict[str, float],
-        optimizer_options: tp.Dict[str, Scalar],
-        scheduler_options: tp.Dict[str, Scalar],
+        optimizer_options: tp.Dict[str, PyScalar],
+        scheduler_options: tp.Dict[str, PyScalar],
         monitor_label: str = "valid/rmse_default",
         optimizer_cls: str = "AdamW",
         scheduler_cls: str = "ReduceLROnPlateau",

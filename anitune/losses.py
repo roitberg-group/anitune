@@ -10,7 +10,7 @@ from enum import Enum
 import torch
 from torch import Tensor
 
-from anitune.annotations import Scalar
+from anitune.annotations import PyScalar
 
 
 class Penalty(Enum):
@@ -36,7 +36,7 @@ class LossTerm:
     def targ_label(self) -> str:
         return self.targ_label_only or self.label
 
-    def as_dict(self) -> tp.Dict[str, Scalar]:
+    def as_dict(self) -> tp.Dict[str, PyScalar]:
         d = asdict(self)
         d["penalty"] = d["penalty"].value
         return d

@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 
 from anitune.paths import BATCH_PATH, FTUNE_PATH, TRAIN_PATH
-from anitune.annotations import Scalar
+from anitune.annotations import PyScalar
 
 
 def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
@@ -157,7 +157,7 @@ class DatasetConfig(Config):
 
 @dataclass
 class FnConfig(Config):
-    options: tp.Dict[str, Scalar] = field(default_factory=dict)
+    options: tp.Dict[str, PyScalar] = field(default_factory=dict)
 
 
 @dataclass
@@ -179,7 +179,7 @@ class ModelConfig(FnConfig):
     arch_fn: str = ""
     builtin: bool = False
     symbols: tp.List[str] = field(default_factory=list)
-    options: tp.Dict[str, Scalar] = field(default_factory=dict)
+    options: tp.Dict[str, PyScalar] = field(default_factory=dict)
 
 
 @dataclass
