@@ -620,6 +620,13 @@ def train(
             help="Maximum number of epochs with no improvement in validation metric before early stopping",
         ),
     ] = 50,
+    allow_restart: tpx.Annotated[
+        bool,
+        Option(
+            "--allow-restart/--prompt-restart",
+            help="If --allow-restart is toggled, the confirmation prompt that spawns if a run is a restart will be automatically accepted",
+        ),
+    ] = False,
     verbose: tpx.Annotated[
         bool,
         Option(
@@ -703,7 +710,7 @@ def train(
             options=resolve_options(scheduler_options or (), scheduler),
         ),
     )
-    train_lit_model(config, verbose=verbose)
+    train_lit_model(config, allow_restart=allow_restart, verbose=verbose)
 
 
 @app.command(help="Fine tune a pretrained ANI model")

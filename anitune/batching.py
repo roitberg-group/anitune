@@ -27,9 +27,14 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
         )
         raw_src_paths.extend(ds.store_locations)
     raw_src_paths = sorted(set(raw_src_paths))
+    ds = datasets.ANIDataset(locations=raw_src_paths)
+    if "species" in ds.tensor_properties:
+        config.properties.append("species")
+    if "coordinates" in ds.tensor_properties:
+        config.properties.append("coordinates")
 
     datasets.create_batched_dataset(
-        src=datasets.ANIDataset(locations=raw_src_paths),
+        src=ds,
         max_batches_per_packet=max_batches_per_packet,
         dest_path=config.path,
         batch_size=config.batch_size,
