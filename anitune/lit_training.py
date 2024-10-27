@@ -3,7 +3,6 @@ import json
 import warnings
 from copy import deepcopy
 import sys
-import typing as tp
 
 from rich.prompt import Confirm
 
@@ -14,6 +13,7 @@ from anitune.config import TrainConfig
 def train_lit_model(
     config: TrainConfig,
     restart: bool = False,
+    allow_restart: bool = False,
     verbose: bool = False,
 ) -> None:
     r"""
@@ -32,7 +32,8 @@ def train_lit_model(
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    from torchani import assembly, models, datasets
+    from torchani import assembly, models
+    from torchani.datasets import ANIBatchedDataset
     from anitune.lit_model import LitModel
     from anitune.lit_callbacks import (
         SaveConfig,
@@ -59,15 +60,16 @@ def train_lit_model(
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
     if not restart and config.path.is_dir():
-        if not Confirm.ask("Run already exists, do you want to restart it?"):
-            console.print("Exiting without training")
-            sys.exit(0)
-        else:
+        if allow_restart or Confirm.ask("Run exists, do you want to restart it?"):
             # Reload config from the path
             accel = deepcopy(config.accel)
             config = TrainConfig.from_json_file(config.path / "config.json")
+            console.print("Overriding accel config")
             config.accel = accel
             restart = True
+        else:
+            console.print("Exiting without training")
+            sys.exit(0)
 
     if ckpt_path.is_file():
         # Not sure what the problem with mypy is here
@@ -101,28 +103,25 @@ def train_lit_model(
             {"state_dict": lit_model.state_dict()}, init_model_path / "init.ckpt"
         )
 
-    kwargs: tp.Dict[str, tp.Any] = {
+    kwargs = {
         "num_workers": config.accel.num_workers,
         "prefetch_factor": config.accel.prefetch_factor,
         "pin_memory": True,
-        "batch_size": None,
     }
-    training_label = (
+    train_label = (
         f"training{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
     )
-    validation_label = (
+    valid_label = (
         f"validation{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
     )
-    training = torch.utils.data.DataLoader(
-        datasets.ANIBatchedDataset(config.ds.path, split=training_label),
-        shuffle=True,
-        **kwargs,
-    )
-    validation = torch.utils.data.DataLoader(
-        datasets.ANIBatchedDataset(config.ds.path, split=validation_label),
-        shuffle=False,
-        **kwargs,
-    )
+    training = ANIBatchedDataset(
+        config.ds.path, split=train_label, limit=config.accel.train_limit or 1.0
+    ).as_dataloader(shuffle=True, **kwargs)
+    validation = ANIBatchedDataset(
+        config.ds.path,
+        split=valid_label,
+        limit=config.accel.validation_limit or 1.0,
+    ).as_dataloader(shuffle=False, **kwargs)
 
     lr_monitor = NoLogLRMonitor()
     early_stopping = EarlyStopping(
@@ -190,8 +189,6 @@ def train_lit_model(
         max_epochs=config.accel.max_epochs,
         logger=loggers,
         callbacks=callbacks,
-        limit_train_batches=config.accel.train_limit,
-        limit_val_batches=config.accel.validation_limit,
         log_every_n_steps=config.accel.log_interval,
         deterministic=config.accel.deterministic,
         detect_anomaly=config.accel.detect_anomaly,

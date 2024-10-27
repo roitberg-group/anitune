@@ -147,7 +147,7 @@ class LitModel(lightning.LightningModule):
             batch[term.grad_wrt_to_targ_label].requires_grad_(True)
 
         # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
-        if self.model.aev_computer.use_cuaev_interface:
+        if self.model.aev_computer._strategy == "cuaev":
             batch["coordinates"].requires_grad_(True)
 
         pred = self.model.sp(batch["species"], batch["coordinates"])
@@ -164,7 +164,7 @@ class LitModel(lightning.LightningModule):
             batch[term.grad_wrt_to_targ_label].requires_grad_(False)
 
         # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
-        if self.model.aev_computer.use_cuaev_interface:
+        if self.model.aev_computer._strategy == "cuaev":
             batch["coordinates"].requires_grad_(False)
         return pred
 
