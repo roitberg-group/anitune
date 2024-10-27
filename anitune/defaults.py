@@ -5,12 +5,12 @@ Default values for different architectures, optimizers and lr schedulers
 import sys
 import typing as tp
 from dataclasses import dataclass, asdict
-from anitune.annotations import Scalar
+from anitune.annotations import PyScalar
 
 
 @dataclass
 class Options:
-    def as_dict(self) -> tp.Dict[str, Scalar]:
+    def as_dict(self) -> tp.Dict[str, PyScalar]:
         return asdict(self)
 
 
@@ -89,7 +89,7 @@ class SGD(OptimizerArgs):
 def resolve_options(
     _options: tp.Sequence[str] = (),
     cls: str = "",
-) -> tp.Dict[str, Scalar]:
+) -> tp.Dict[str, PyScalar]:
     r"""
     Take a sequence of 'key=val' strings and convert it into a dict of python
     objects.
@@ -97,13 +97,13 @@ def resolve_options(
     This function relies on ``eval`` which makes it unsafe
     """
     try:
-        default_options: tp.Dict[str, Scalar] = getattr(
+        default_options: tp.Dict[str, PyScalar] = getattr(
             sys.modules[__name__], cls
         )().as_dict()
     except AttributeError:
         raise RuntimeError(f"Unknown class {cls}") from None
 
-    options: tp.Dict[str, Scalar] = dict()
+    options: tp.Dict[str, PyScalar] = dict()
 
     for kv in _options:
         if "=" not in kv:
