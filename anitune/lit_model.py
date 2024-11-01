@@ -5,7 +5,7 @@ import typing as tp
 import torch
 from torch import Tensor
 import lightning
-import torchmetrics
+from torchmetrics import Metric, MeanSquaredError, MeanAbsoluteError, MetricCollection
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from lightning.pytorch.loggers import TensorBoardLogger
 
@@ -44,22 +44,18 @@ class LitModel(lightning.LightningModule):
             getattr(losses, name)(factor=factor)
             for name, factor in loss_terms_and_factors.items()
         )
-        metrics: tp.Dict[str, torchmetrics.Metric] = {}
+        metrics: tp.Dict[str, Metric] = {}
         for term in loss_terms:
             for div in ("valid", "train"):
-                # torchmetrics.MeanSquaredError(squared=False) is directly the RMSE
-                metrics[f"{div}/rmse_{term.label}"] = torchmetrics.MeanSquaredError(
-                    squared=False
-                )
-                metrics[f"{div}/mae_{term.label}"] = torchmetrics.MeanAbsoluteError()
-        self.metrics = torchmetrics.MetricCollection(metrics)
+                # MeanSquaredError(squared=False) is directly the RMSE
+                metrics[f"{div}/rmse_{term.label}"] = MeanSquaredError(squared=False)
+                metrics[f"{div}/mae_{term.label}"] = MeanAbsoluteError()
+        self.metrics = MetricCollection(metrics)
 
         if len(loss_terms) == 1 and monitor_label == "valid/rmse_default":
             monitor_label = f"valid/rmse_{loss_terms[0].label}"
         elif not any(monitor_label.endswith(term.label) for term in loss_terms):
-            raise ValueError(
-                "The monitored label must be one of the enabled loss terms"
-            )
+            raise ValueError("Monitor label must be one of the enabled loss terms")
         self.monitor_label = monitor_label
 
         self.loss = losses.MultiTaskLoss(loss_terms, uncertainty_weighted)
@@ -71,7 +67,7 @@ class LitModel(lightning.LightningModule):
         # Backbone for finetuning
         module_list = torch.nn.ModuleList()
         if num_head_layers > 0:
-            for k in model.get_chemical_symbols():
+            for k in model.symbols:
                 layers = model.neural_networks.atomics[k].layers
                 last_layer = model.neural_networks.atomics[k].last_layer
                 rev_layers = itertools.chain([last_layer], reversed(layers))
@@ -139,46 +135,30 @@ class LitModel(lightning.LightningModule):
 
         self.log_dict(results)
 
-    def batch_eval(
-        self,
-        batch: tp.Dict[str, Tensor],
-    ) -> tp.Dict[str, Tensor]:
+    def batch_eval(self, batch: tp.Dict[str, Tensor]) -> tp.Dict[str, Tensor]:
         for term in self.loss.grad_terms:
-            batch[term.grad_wrt_to_targ_label].requires_grad_(True)
-
-        # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
-        if self.model.aev_computer._strategy == "cuaev":
-            batch["coordinates"].requires_grad_(True)
-
-        pred = self.model.sp(batch["species"], batch["coordinates"])
+            batch[term.grad_wrt_targ_label].requires_grad_(True)
+        pred = self.model.sp(batch["species"], batch["coordinates"], keep_vars=True)
 
         for term in self.loss.grad_terms:
-            pred[term.label] = -torch.autograd.grad(
+            pred[term.label] = (-1 if term.negative_grad else 1) * torch.autograd.grad(
                 pred[term.grad_of_label].sum(),
-                batch[term.grad_wrt_to_targ_label],
+                batch[term.grad_wrt_targ_label],
                 retain_graph=True,
                 create_graph=True,
             )[0]
 
         for term in self.loss.grad_terms:
-            batch[term.grad_wrt_to_targ_label].requires_grad_(False)
-
-        # TODO: Hack to fix bug in the cuAEV computer when calling bw with no forces
-        if self.model.aev_computer._strategy == "cuaev":
-            batch["coordinates"].requires_grad_(False)
+            batch[term.grad_wrt_targ_label].requires_grad_(False)
         return pred
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         # Optimizer setup
         opt_type = getattr(torch.optim, self.optimizer_cls)
         optimizer = opt_type(self.model.parameters(), **self.optimizer_options)
-
         scheduler_type = getattr(torch.optim.lr_scheduler, self.scheduler_cls)
         # Schedulers setup
-        scheduler = scheduler_type(
-            optimizer=optimizer,
-            **self.scheduler_options,
-        )
+        scheduler = scheduler_type(optimizer=optimizer, **self.scheduler_options)
         scheduler_config = {
             "scheduler": scheduler,
             "interval": "epoch",

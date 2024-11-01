@@ -29,7 +29,8 @@ class LossTerm:
     is_vec3: bool = False
     factor: float = 1.0
     grad_of_label: str = ""
-    grad_wrt_to_targ_label: str = "coordinates"
+    grad_wrt_targ_label: str = "coordinates"
+    negative_grad: bool = False
     penalty: Penalty = Penalty.SQUARE
 
     @property
@@ -49,6 +50,7 @@ def Forces(factor: float = 1.0) -> LossTerm:
         is_vec3=True,
         is_extensive=True,
         factor=factor,
+        negative_grad=True,
     )
 
 

@@ -16,9 +16,7 @@ def train_lit_model(
     allow_restart: bool = False,
     verbose: bool = False,
 ) -> None:
-    r"""
-    Train an ANI-style neural network potential using PyTorch Lightning
-    """
+    r"""Train an ANI-style neural network potential using PyTorch Lightning"""
     import torch
     import lightning
 
@@ -54,6 +52,7 @@ def train_lit_model(
         )
     else:
         model = getattr(models, config.model.arch_fn)(**config.model.options)
+        model.requires_grad_(True)
     if config.ftune is not None:
         if config.ftune.pretrained_state_dict:
             model.load_state_dict(config.ftune.pretrained_state_dict)
@@ -108,12 +107,9 @@ def train_lit_model(
         "prefetch_factor": config.accel.prefetch_factor,
         "pin_memory": True,
     }
-    train_label = (
-        f"training{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
-    )
-    valid_label = (
-        f"validation{config.ds.fold_idx if config.ds.fold_idx != 'train' else ''}"
-    )
+    _fold_idx = config.ds.fold_idx if config.ds.fold_idx != "train" else ""
+    train_label = f"training{_fold_idx}"
+    valid_label = f"validation{_fold_idx}"
     training = ANIBatchedDataset(
         config.ds.path, split=train_label, limit=config.accel.train_limit or 1.0
     ).as_dataloader(shuffle=True, **kwargs)
@@ -156,15 +152,10 @@ def train_lit_model(
     ]
     (config.path / "tb-logs").mkdir(exist_ok=True, parents=True)
     tb_logger = TensorBoardLogger(
-        save_dir=config.path,
-        name="tb-logs",
-        default_hp_metric=False,
+        save_dir=config.path, name="tb-logs", default_hp_metric=False
     )
     (config.path / "csv-logs").mkdir(exist_ok=True, parents=True)
-    csv_logger = CSVLogger(
-        save_dir=config.path,
-        name="csv-logs",
-    )
+    csv_logger = CSVLogger(save_dir=config.path, name="csv-logs")
     loggers = [tb_logger, csv_logger]
 
     # Finetuning configuration
@@ -197,9 +188,7 @@ def train_lit_model(
     )
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            action="ignore",
-            message="Checkpoint directory.*",
-            category=UserWarning,
+            action="ignore", message="Checkpoint directory.*", category=UserWarning
         )
         trainer.fit(
             lit_model,
