@@ -15,16 +15,6 @@ class Options:
 
 
 @dataclass
-class simple_ani(Options):
-    pass
-
-
-@dataclass
-class simple_aniq(Options):
-    pass
-
-
-@dataclass
 class ReduceLROnPlateau(Options):
     factor: float = 0.5
     patience: int = 100
@@ -101,7 +91,7 @@ def resolve_options(
             sys.modules[__name__], cls
         )().as_dict()
     except AttributeError:
-        raise RuntimeError(f"Unknown class {cls}") from None
+        default_options = {}
 
     options: tp.Dict[str, PyScalar] = dict()
 

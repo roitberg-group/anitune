@@ -67,7 +67,8 @@ def ensemble(
     name: tpx.Annotated[
         str,
         Option(
-            "--name",
+            "-n",
+            "--ens-name",
             help="Name for ensemble",
         ),
     ] = "ensemble",
@@ -123,38 +124,38 @@ def ensemble(
     torch.save(state_dict, path / "model.pt")
 
 
-@app.command(help="Prebatch a dataset")
+@app.command(help="Generate a pre-batched dataset from one or more ANI datasets")
 def batch(
     name: tpx.Annotated[
         str,
         Option(
             "-n",
-            "--name",
-            help="Name for the batched dataset",
+            "--output-batched-ds-name",
+            help="Name for the output batched dataset",
         ),
     ] = "",
     lot: tpx.Annotated[
         str,
         Option(
             "-l",
-            "--lot",
-            help="Level of theory",
+            "--builtin-source-ds-lot",
+            help="Level of theory of the built-in datasets to source from",
         ),
     ] = "wb97x-631gd",
     data_names: tpx.Annotated[
         tp.Optional[tp.List[str]],
         Option(
-            "-d",
-            "--dataset-name",
-            help="Builtin dataset name",
+            "-b",
+            "--builtin-source-ds-name",
+            help="Built-in ANI datasets to source molecules from",
         ),
     ] = None,
     src_paths: tpx.Annotated[
         tp.Optional[tp.List[Path]],
         Option(
             "-s",
-            "--src-paths",
-            help="Paths to custom datasets",
+            "--source-ds-path",
+            help="Full paths to non-builtin datasets to molecules source from",
         ),
     ] = None,
     properties: tpx.Annotated[
@@ -162,7 +163,7 @@ def batch(
         Option(
             "-p",
             "--property",
-            help="Properties to batch, all by default",
+            help="Properties of the ds to include in the batched ds. All by default",
         ),
     ] = None,
     batch_size: tpx.Annotated[
@@ -176,7 +177,7 @@ def batch(
         tp.Optional[int],
         Option(
             "--folds",
-            help="Number of folds to train an ensemble to",
+            help="Number of folds. Fold-splitting is useful for training ensembles",
         ),
     ] = None,
     train_frac: tpx.Annotated[
@@ -187,24 +188,18 @@ def batch(
             help="Training set fraction",
         ),
     ] = 0.8,
-    validation_frac: tpx.Annotated[
-        float,
-        Option(
-            "--vf",
-            "--validation-frac",
-            help="Validation set fraction",
-        ),
-    ] = 0.2,
-    batch_seed: tpx.Annotated[
-        int,
-        Option(
-            help="Seed for dataset batching",
-        ),
-    ] = 1234,
     divs_seed: tpx.Annotated[
         int,
         Option(
-            help="Seed for dataset batching",
+            "--divs-seed",
+            help="Seed for splitting batched ds into divs (training, validation, etc)",
+        ),
+    ] = 1234,
+    batch_seed: tpx.Annotated[
+        int,
+        Option(
+            "--shuffle-seed",
+            help="Seed for shuffling the dataset divisions before batching",
         ),
     ] = 1234,
 ) -> None:
@@ -219,7 +214,7 @@ def batch(
         batch_size=batch_size,
         fold_idx=-1,
         folds=folds,
-        validation_frac=validation_frac,
+        validation_frac=1.0 - train_frac,
         train_frac=train_frac,
         batch_seed=batch_seed,
         divs_seed=divs_seed,
@@ -425,7 +420,7 @@ def train(
         str,
         Option(
             "-n",
-            "--name",
+            "--run-name",
             help="Name of the run",
         ),
     ] = "train",
@@ -435,7 +430,8 @@ def train(
             "--monitor",
             help="Label to monitor during training."
             " Format is 'valid/rmse_energies', or 'train/rmse_forces', etc."
-            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " By default, if only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise, valid/rmse_forces is picked if any loss term has the 'forces' label"
             " Otherwise it must be explicitly specified",
         ),
     ] = "valid/rmse_default",
@@ -451,7 +447,7 @@ def train(
         Option(
             "-a",
             "--arch",
-            help="Network architecture",
+            help="Callable to use for the network architecture",
         ),
     ] = "simple_ani",
     arch_options: tpx.Annotated[
@@ -527,15 +523,15 @@ def train(
         bool,
         Option(
             "--sqrt-atoms/--no-sqrt-atoms",
-            help="Use sqrt atoms in energies",
+            help="Default to dividing by 1/sqrt(atoms) instead of 1/atoms for energy loss terms",
         ),
-    ] = False,
+    ] = True,
     energies: tpx.Annotated[
         float,
         Option(
             "-e",
             "--energies",
-            help="Train with energies",
+            help="Factor for energy loss",
         ),
     ] = 1.0,
     forces: tpx.Annotated[
@@ -543,7 +539,7 @@ def train(
         Option(
             "-f",
             "--forces",
-            help="Train with forces",
+            help="Factor for force loss",
         ),
     ] = 0.0,
     dipoles: tpx.Annotated[
@@ -551,7 +547,7 @@ def train(
         Option(
             "-m",
             "--dipoles",
-            help="Train with dipoles",
+            help="Factor for dipole loss",
         ),
     ] = 0.0,
     atomic_charges_mbis: tpx.Annotated[
@@ -559,7 +555,7 @@ def train(
         Option(
             "--mbis",
             "--atomic-charges-mbis",
-            help="Train with atomic charges",
+            help="Factor for MBIS atomic charges loss",
         ),
     ] = 0.0,
     atomic_charges: tpx.Annotated[
@@ -567,14 +563,14 @@ def train(
         Option(
             "-q",
             "--atomic-charges",
-            help="Train with atomic charges",
+            help="Factor for atomic charges loss",
         ),
     ] = 0.0,
     total_charge: tpx.Annotated[
         float,
         Option(
             "--total-charge",
-            help="Train with total charge",
+            help="Factor for total charge loss",
         ),
     ] = 0.0,
     debug: tpx.Annotated[
@@ -596,14 +592,14 @@ def train(
         bool,
         Option(
             "--deterministic/--no-deterministic",
-            help="Run deterministic training (has a performance penalty)",
+            help="Run deterministic training (for debugging, big performance penalty)",
         ),
     ] = False,
     detect_anomaly: tpx.Annotated[
         bool,
         Option(
             "--detect-anomaly/--no-detect-anomaly",
-            help="Detect anomalies during training (has a performance penalty)",
+            help="Detect anomalies during training (for debugging, big performance penalty)",
         ),
     ] = False,
     max_epochs: tpx.Annotated[
@@ -612,7 +608,7 @@ def train(
             "--max-epochs",
             help="Maximum number of epochs to train",
         ),
-    ] = 200,
+    ] = 1000,
     early_stop_patience: tpx.Annotated[
         int,
         Option(
@@ -624,7 +620,7 @@ def train(
         bool,
         Option(
             "--allow-restart/--prompt-restart",
-            help="If --allow-restart is toggled, the confirmation prompt that spawns if a run is a restart will be automatically accepted",
+            help="If --allow-restart is toggled, runs will be automatically restarted if their config matches that of a previous run",
         ),
     ] = False,
     verbose: tpx.Annotated[
@@ -649,7 +645,7 @@ def train(
             _uuid = uuid.uuid4().hex[:8]
             console.print(f"    - Name set to 'debug-{_uuid}'")
             name = f"debug-{_uuid}"
-        if max_epochs == 200:
+        if max_epochs == 1000:
             max_epochs = 3
             console.print(f"    - Max epochs set to {max_epochs}")
         if limit is None:
@@ -738,7 +734,7 @@ def ftune(
         str,
         Option(
             "-n",
-            "--name",
+            "--run-name",
             help="Name of the run",
         ),
     ] = "ftune",
@@ -748,7 +744,8 @@ def ftune(
             "--monitor",
             help="Label to monitor during training."
             " Format is 'valid/rmse_energies', or 'train/rmse_forces', etc."
-            " If only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " By default, if only one loss term is present, it is the validation RMSE of the corresponding loss label."
+            " Otherwise, valid/rmse_forces is picked if any loss term has the 'forces' label"
             " Otherwise it must be explicitly specified",
         ),
     ] = "valid/rmse_default",
@@ -877,7 +874,7 @@ def ftune(
             "--max-epochs",
             help="Maximum number of epochs to train",
         ),
-    ] = 200,
+    ] = 1000,
     early_stop_patience: tpx.Annotated[
         int,
         Option(

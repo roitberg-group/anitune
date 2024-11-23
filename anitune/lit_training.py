@@ -1,3 +1,4 @@
+import typing as tp
 import logging
 import json
 import warnings
@@ -8,6 +9,14 @@ from rich.prompt import Confirm
 
 from anitune.console import console
 from anitune.config import TrainConfig
+
+
+def _get_dotted_name(module: tp.Any, name: str) -> tp.Any:
+    parts = name.split(".")
+    obj = module
+    for part in parts:
+        obj = getattr(obj, part)
+    return obj
 
 
 def train_lit_model(
@@ -30,7 +39,7 @@ def train_lit_model(
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    from torchani import assembly, models
+    import torchani
     from torchani.datasets import ANIBatchedDataset
     from anitune.lit_model import LitModel
     from anitune.lit_callbacks import (
@@ -45,13 +54,15 @@ def train_lit_model(
     with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
         ds_symbols = json.load(f)["symbols"]
     if not config.model.builtin:
-        model = getattr(assembly, config.model.arch_fn)(
+        model = _get_dotted_name(torchani, f"arch.{config.model.arch_fn}")(
             lot=config.ds.lot,
             symbols=config.model.symbols or ds_symbols,
             **config.model.options,
         )
     else:
-        model = getattr(models, config.model.arch_fn)(**config.model.options)
+        model = _get_dotted_name(torchani, f"models.{config.model.arch_fn}")(
+            **config.model.options
+        )
         model.requires_grad_(True)
     if config.ftune is not None:
         if config.ftune.pretrained_state_dict:
