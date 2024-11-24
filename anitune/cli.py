@@ -509,6 +509,8 @@ def train(
         if limit is None:
             limit = 3
             console.print(f"    - Batch limit set to {limit}")
+        console.print("    - Verbosity increased")
+        verbose = True
         console.print("    - Deterministic mode set")
         deterministic = True
         console.print("    - Anomaly detection mode set")

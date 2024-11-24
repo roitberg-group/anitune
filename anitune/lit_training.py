@@ -197,6 +197,8 @@ def train_lit_model(
         profiler=config.accel.profiler,
         check_val_every_n_epoch=1,  # Assumed by TorchANI for logging
     )
+    if verbose:
+        print(lit_model.model)
     with warnings.catch_warnings():
         warnings.filterwarnings(
             action="ignore", message="Checkpoint directory.*", category=UserWarning
