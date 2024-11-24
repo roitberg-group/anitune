@@ -1,5 +1,6 @@
 import typing as tp
 import logging
+import json
 import warnings
 from copy import deepcopy
 import sys
@@ -63,9 +64,30 @@ def train_lit_model(
         raise RuntimeError("Dataset does not exist")
 
     if not config.model.builtin:
+        kwargs = config.model.options
+
+        # TODO: Bw compat, this only happens if config is old file that has not lot, or
+        # no symbols Remove in the future since it is confusing, and fails for ftune
+        if not config.model.lot:
+            assert not config.ftune
+            assert restart
+            warnings.warn("Model LoT not found, assuming equal to ds lot")
+            lot = config.ds.lot
+        else:
+            lot = config.model.lot
+
+        if not config.model.symbols:
+            assert not config.ftune
+            assert restart
+            warnings.warn("Model symbols not found, assuming equal to ds symbols")
+            with open(config.ds.path / "creation_log.json", mode="rt") as f:
+                symbols = json.load(f)["symbols"]
+        else:
+            symbols = config.model.symbols
+
         model = _get_dotted_name(torchani, f"arch.{config.model.arch_fn}")(
-            lot=config.model.lot,
-            symbols=config.model.symbols,
+            lot=lot,
+            symbols=symbols,
             **config.model.options,
         )
     else:
