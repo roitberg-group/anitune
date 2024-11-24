@@ -7,7 +7,8 @@ from copy import deepcopy
 import hashlib
 import shutil
 import typing as tp
-import typing_extensions as tpx
+from typing import Optional
+from typing_extensions import Annotated
 from pathlib import Path
 
 from typer import Argument, Option, Typer
@@ -45,8 +46,8 @@ app = Typer(
 )
 
 
-# TODO the ds part of this is broken
-def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
+# TODO the ds part of this is broken?
+def _fetch_builtin_config(name_or_idx: str) -> TrainConfig:
     name, idx = name_or_idx.split(":")
     config = TrainConfig()
     config.ds.fold_idx = idx
@@ -64,29 +65,17 @@ def fetch_builtin_config(name_or_idx: str) -> TrainConfig:
 
 @app.command(help="Generate an ensemble from a set of models")
 def ensemble(
-    name: tpx.Annotated[
+    name: Annotated[
         str,
-        Option(
-            "-n",
-            "--ens-name",
-            help="Name for ensemble",
-        ),
+        Option("-n", "--ens-name", help="Name of ensemble"),
     ] = "ensemble",
-    ftune_names_or_idxs: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-f",
-            "--ftune-run",
-            help="Name or idx of the run",
-        ),
+    ftune_names_or_idxs: Annotated[
+        Optional[tp.List[str]],
+        Option("-f", "--ftune-run", help="Name|idx of train run"),
     ] = None,
-    ptrain_names_or_idxs: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-t",
-            "--train-run",
-            help="Name or idx of the run",
-        ),
+    ptrain_names_or_idxs: Annotated[
+        Optional[tp.List[str]],
+        Option("-t", "--train-run", help="Name|idx of ftune run"),
     ] = None,
 ) -> None:
     if ptrain_names_or_idxs is None:
@@ -126,81 +115,43 @@ def ensemble(
 
 @app.command(help="Generate a pre-batched dataset from one or more ANI datasets")
 def batch(
-    name: tpx.Annotated[
+    name: Annotated[
         str,
-        Option(
-            "-n",
-            "--output-batched-ds-name",
-            help="Name for the output batched dataset",
-        ),
+        Option("-n", "--output-batched-ds-name", help="Name of output batched dataset"),
     ] = "",
-    lot: tpx.Annotated[
+    lot: Annotated[
         str,
-        Option(
-            "-l",
-            "--builtin-source-ds-lot",
-            help="Level of theory of the built-in datasets to source from",
-        ),
+        Option("-l", "--builtin-src-ds-lot", help="LoT of built-in ds to src from"),
     ] = "wb97x-631gd",
-    data_names: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-b",
-            "--builtin-source-ds-name",
-            help="Built-in ANI datasets to source molecules from",
-        ),
+    data_names: Annotated[
+        Optional[tp.List[str]],
+        Option("-b", "--builtin-src-ds-name", help="Built-in ANI ds to src from"),
     ] = None,
-    src_paths: tpx.Annotated[
-        tp.Optional[tp.List[Path]],
-        Option(
-            "-s",
-            "--source-ds-path",
-            help="Full paths to non-builtin datasets to molecules source from",
-        ),
+    src_paths: Annotated[
+        Optional[tp.List[Path]],
+        Option("-s", "--src-ds-path", help="Paths to non-builtin ds to src from"),
     ] = None,
-    properties: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-p",
-            "--property",
-            help="Properties of the ds to include in the batched ds. All by default",
-        ),
+    properties: Annotated[
+        Optional[tp.List[str]],
+        Option("-p", "--property", help="Properties to batch. All by default"),
     ] = None,
-    batch_size: tpx.Annotated[
+    batch_size: Annotated[
         int,
-        Option(
-            "--batch-size",
-            help="Batch size",
-        ),
+        Option("--batch-size", help="Batch size"),
     ] = 2560,
-    folds: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "--folds",
-            help="Number of folds. Fold-splitting is useful for training ensembles",
-        ),
+    folds: Annotated[
+        Optional[int],
+        Option("--folds", help="Num. of folds. Useful for training ensembles"),
     ] = None,
-    train_frac: tpx.Annotated[
-        float,
-        Option(
-            "--tf",
-            "--train-frac",
-            help="Training set fraction",
-        ),
+    train_frac: Annotated[
+        float, Option("--tf", "--train-frac", help="Training set fraction")
     ] = 0.8,
-    divs_seed: tpx.Annotated[
-        int,
-        Option(
-            "--divs-seed",
-            help="Seed for splitting batched ds into divs (training, validation, etc)",
-        ),
+    divs_seed: Annotated[
+        int, Option("--divs-seed", help="Seed for divisions (train, validation, etc)")
     ] = 1234,
-    batch_seed: tpx.Annotated[
+    batch_seed: Annotated[
         int,
-        Option(
-            "--shuffle-seed",
-            help="Seed for shuffling the dataset divisions before batching",
-        ),
+        Option("--shuffle-seed", help="Seed for shuffling divisions before batching"),
     ] = 1234,
 ) -> None:
     from anitune.batching import batch_data
@@ -222,39 +173,19 @@ def batch(
     batch_data(ds, max_batches_per_packet=100)
 
 
-@app.command(help="Continue a previously started training")
+@app.command(help="Continue a previously checkpointed run")
 def restart(
-    ftune_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-f",
-            "--ftune-run",
-            help="Name or idx of the run",
-        ),
+    ftune_name_or_idx: Annotated[
+        str, Option("-f", "--ftune-run", help="Name or idx of ftune run")
     ] = "",
-    ptrain_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-t",
-            "--train-run",
-            help="Name or idx of the run",
-        ),
+    ptrain_name_or_idx: Annotated[
+        str, Option("-t", "--train-run", help="Name or idx of train run")
     ] = "",
-    max_epochs: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "--max-epochs",
-            help="Maximum number of epochs to train",
-        ),
+    max_epochs: Annotated[
+        Optional[int],
+        Option("--max-epochs", help="Max epochs to train"),
     ] = None,
-    verbose: tpx.Annotated[
-        bool,
-        Option(
-            "-v/ ",
-            "--verbose/--no-verbose",
-            help="Help string",
-        ),
-    ] = False,
+    verbose: Annotated[bool, Option("-v/ ", "--verbose/ ")] = False,
 ) -> None:
     if (
         ftune_name_or_idx
@@ -280,50 +211,24 @@ ls = app.command(help="Display training and finetuning runs")(ls)
 
 @app.command(help="Delete specific training or finetuning run")
 def rm(
-    ftune_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-f",
-            "--ftune-run",
-            help="Name or idx of the finetune run",
-        ),
+    ftune_id: Annotated[
+        Optional[tp.List[str]],
+        Option("-f", "--ftune-run", help="Name|idx of ftune run"),
     ] = None,
-    ptrain_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-t",
-            "--train-run",
-            help="Name or idx of the pretrain run",
-        ),
+    train_id: Annotated[
+        Optional[tp.List[str]],
+        Option("-t", "--train-run", help="Name|idx of train run"),
     ] = None,
-    batch_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-b",
-            help="Name or idx of the batched dataset",
-        ),
+    batch_id: Annotated[
+        Optional[tp.List[str]], Option("-b", help="Name|idx of batched dataset")
     ] = None,
-    ensemble_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-e",
-            help="Name or idx of the ensemble",
-        ),
+    ensemble_id: Annotated[
+        Optional[tp.List[str]], Option("-e", help="Name|idx of ensemble")
     ] = None,
 ) -> None:
     for selectors, dkind in zip(
-        (
-            ftune_name_or_idx,
-            ptrain_name_or_idx,
-            batch_name_or_idx,
-            ensemble_name_or_idx,
-        ),
-        (
-            DataKind.FTUNE,
-            DataKind.TRAIN,
-            DataKind.BATCH,
-            DataKind.ENSEMBLE,
-        ),
+        (ftune_id, train_id, batch_id, ensemble_id),
+        (DataKind.FTUNE, DataKind.TRAIN, DataKind.BATCH, DataKind.ENSEMBLE),
     ):
         if selectors is not None:
             paths = select_subdirs(selectors, kind=dkind)
@@ -333,30 +238,20 @@ def rm(
             console.print()
 
 
-@app.command(help="Compare the params of a trained model and the original model")
+@app.command(help="Compare params of two models")
 def compare(
-    ptrain_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-t",
-            help="Name or idx of the pretrained run",
-        ),
+    ftune_id: Annotated[
+        str, Option("-f", "--ftune-run", help="Name|idx of ftune run")
     ] = "",
-    ftune_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-f",
-            help="Name or idx of the finetuned run",
-        ),
+    train_id: Annotated[
+        str, Option("-t", "--train-run", help="Name|idx of train run")
     ] = "",
 ) -> None:
-    if (not (ftune_name_or_idx or ptrain_name_or_idx)) or (
-        ftune_name_or_idx and ptrain_name_or_idx
-    ):
+    if (not (ftune_id or train_id)) or (ftune_id and train_id):
         raise ValueError("One and only one of -t or -f has to be specified")
-    kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
+    kind = DataKind.FTUNE if ftune_id else DataKind.TRAIN
     root = select_subdirs(
-        (ptrain_name_or_idx or ftune_name_or_idx,),
+        (train_id or ftune_id,),
         kind=kind,
     )[0]
     trained_path = root / "best-model"
@@ -380,256 +275,217 @@ def compare(
             console.print()
 
 
-@app.command(
-    help="Benchmark a (usually ftuned) ANI model, compare results with the original"
-)
-def bench(
-    pretrained_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-t",
-            help="Name or idx of the pretrained run",
-        ),
-    ],
-    ftuned_name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-f",
-            help="Name or idx of the finetuned run",
-        ),
-    ],
-    test_paths: tpx.Annotated[
-        tp.List[Path],
-        Option(
-            "-t",
-            "--test-path",
-            help="Paths to test data",
-        ),
-    ],
-) -> None:
-    raise NotImplementedError("Not implemented yet")
-
-
-@app.command(help="Train an ANI-style model from scratch")
+@app.command(help="Train from scratch or finetune an ANI-style model")
 def train(
-    batch_name_or_idx: tpx.Annotated[
-        str,
-        Argument(help="Name or idx of the batched dataset"),
-    ],
-    name: tpx.Annotated[
-        str,
+    batch_name_or_idx: Annotated[str, Argument(help="Name|idx of the batched dataset")],
+    fold_idx: Annotated[
+        Optional[int],
         Option(
-            "-n",
-            "--run-name",
-            help="Name of the run",
-        ),
-    ] = "train",
-    monitor: tpx.Annotated[
-        str,
-        Option(
-            "--monitor",
-            help="Label to monitor during training."
-            " Format is 'valid/rmse_energies', or 'train/rmse_forces', etc."
-            " By default, if only one loss term is present, it is the validation RMSE of the corresponding loss label."
-            " Otherwise, valid/rmse_forces is picked if any loss term has the 'forces' label"
-            " Otherwise it must be explicitly specified",
-        ),
-    ] = "valid/rmse_default",
-    profiler: tpx.Annotated[
-        tp.Optional[str],
-        Option(
-            "--profiler",
-            help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
+            "-i",
+            "--fold-idx",
+            help="Idx to use if training from folds",
+            show_default=False,
         ),
     ] = None,
-    arch_fn: tpx.Annotated[
+    name: Annotated[str, Option("-n", "--run-name", help="Name of run")] = "",
+    auto_restart: Annotated[
+        bool,
+        Option("--auto-restart/ ", help="Auto restart runs that match a prev run"),
+    ] = False,
+    max_epochs: Annotated[
+        int, Option("--max-epochs", help="Max epochs to train")
+    ] = 1000,
+    early_stop_patience: Annotated[
+        int,
+        Option(
+            "--early-stop-patience",
+            help="Max epochs without improving monitor metric before early stopping",
+        ),
+    ] = 50,
+    # From-scratch specific config
+    arch_fn: Annotated[
         str,
         Option(
             "-a",
             "--arch",
-            help="Callable to use for the network architecture",
+            help="Callable that creates the model",
+            rich_help_panel="Arch",
         ),
     ] = "simple_ani",
-    arch_options: tpx.Annotated[
-        tp.Optional[tp.List[str]],
+    arch_options: Annotated[
+        Optional[tp.List[str]],
         Option(
             "--ao",
-            "--arch-option",
-            help="Options passed to the arch function in the form key=value. Different arch functions accept different options",
+            "--arch-opt",
+            help="Options for arch fn, key=val fmt",
+            rich_help_panel="Arch",
+            show_default=False,
         ),
     ] = None,
-    optimizer: tpx.Annotated[
+    # LrSched config
+    lrsched: Annotated[
         str,
         Option(
-            "-o",
-            "--optimizer",
-            help="Type of optimizer",
-        ),
-    ] = "AdamW",
-    optimizer_options: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "--oo",
-            "--optimizer-option",
-            help="Options passed to the optimizer in the form key=value. Different optimizers accept different options (lr and wd are passed separately)",
-        ),
-    ] = None,
-    scheduler: tpx.Annotated[
-        str,
-        Option(
-            "-s",
-            "--scheduler",
-            help="Type of lr-scheduler",
+            "-s", "--sched", help="Type of lr-scheduler", rich_help_panel="LR scheduler"
         ),
     ] = "Plateau",
-    scheduler_options: tpx.Annotated[
-        tp.Optional[tp.List[str]],
+    lrsched_opts: Annotated[
+        Optional[tp.List[str]],
         Option(
             "--so",
-            "--scheduler-option",
-            help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
+            "--sched-opt",
+            help="Options for lr-scheduler, key=val fmt",
+            rich_help_panel="LR scheduler",
+            show_default=False,
         ),
     ] = None,
-    fold_idx: tpx.Annotated[
-        tp.Optional[int],
+    # Optimizer config
+    optim: Annotated[
+        str,
+        Option("-o", "--optim", help="Type of optimizer", rich_help_panel="Optimizer"),
+    ] = "AdamW",
+    optim_opts: Annotated[
+        Optional[tp.List[str]],
         Option(
-            "-i",
-            "--fold-idx",
-            help="Fold idx",
+            "--oo",
+            "--optim-opt",
+            rich_help_panel="Optimizer",
+            help="Options for optim, key=val fmt (lr, wd are separate)",
+            show_default=False,
         ),
     ] = None,
-    lr: tpx.Annotated[
+    wd: Annotated[
+        float,
+        Option("--wd", help="Weight decay for optim", rich_help_panel="Optimizer"),
+    ] = 1e-7,
+    lr: Annotated[
         float,
         Option(
             "--lr",
-            help="Learning rate for optimizer",
+            help="Initial lr. If ftune, used for the 'head'",
+            rich_help_panel="Optimizer",
         ),
-    ] = 0.5e-3,
-    weight_decay: tpx.Annotated[
-        float,
-        Option(
-            "--wd",
-            help="Weight decay for optimizer",
-        ),
-    ] = 1e-7,
-    xc: tpx.Annotated[
+    ] = 1e-4,
+    # Loss config
+    xc: Annotated[
+        bool, Option("--xc/ ", help="Train to XC energies", rich_help_panel="Loss")
+    ] = False,
+    no_sqrt_atoms: Annotated[
         bool,
         Option(
-            "--xc/--no-xc",
-            help="Train to exchange-correlation energies",
+            "--no-sqrt-atoms/ ",
+            help="Divide energy loss by atoms instead of sqrt(atoms)",
+            rich_help_panel="Loss",
         ),
     ] = False,
-    sqrt_atoms: tpx.Annotated[
-        bool,
-        Option(
-            "--sqrt-atoms/--no-sqrt-atoms",
-            help="Default to dividing by 1/sqrt(atoms) instead of 1/atoms for energy loss terms",
-        ),
-    ] = True,
-    energies: tpx.Annotated[
-        float,
-        Option(
-            "-e",
-            "--energies",
-            help="Factor for energy loss",
-        ),
+    energies: Annotated[
+        float, Option("-e", "--energies", help="Energy factor", rich_help_panel="Loss")
     ] = 1.0,
-    forces: tpx.Annotated[
-        float,
-        Option(
-            "-f",
-            "--forces",
-            help="Factor for force loss",
-        ),
+    forces: Annotated[
+        float, Option("-f", "--forces", help="Force factor", rich_help_panel="Loss")
     ] = 0.0,
-    dipoles: tpx.Annotated[
-        float,
-        Option(
-            "-m",
-            "--dipoles",
-            help="Factor for dipole loss",
-        ),
+    dipoles: Annotated[
+        float, Option("-m", "--dipoles", help="Dipole factor", rich_help_panel="Loss")
     ] = 0.0,
-    atomic_charges_mbis: tpx.Annotated[
-        float,
-        Option(
-            "--mbis",
-            "--atomic-charges-mbis",
-            help="Factor for MBIS atomic charges loss",
-        ),
-    ] = 0.0,
-    atomic_charges: tpx.Annotated[
+    atomic_charges: Annotated[
         float,
         Option(
             "-q",
             "--atomic-charges",
-            help="Factor for atomic charges loss",
+            help="Atomic charges factor",
+            rich_help_panel="Loss",
         ),
     ] = 0.0,
-    total_charge: tpx.Annotated[
+    total_charge: Annotated[
         float,
         Option(
-            "--total-charge",
-            help="Factor for total charge loss",
+            "-Q", "--total-charge", help="Total charge factor", rich_help_panel="Loss"
         ),
     ] = 0.0,
-    debug: tpx.Annotated[
-        bool,
+    monitor: Annotated[
+        str,
         Option(
-            "-g/-G",
-            "--debug/--no-debug",
-            help="Run debug",
+            "--monitor",
+            help="Loss label to monitor during training."
+            " Format is 'valid/rmse_energies', 'train/rmse_forces', etc."
+            " If a single loss term is present, it is the valid/rmse_'loss-term'."
+            " Otherwise, if 'forces' is a loss term, it is valid/rmse_forces."
+            " Otherwise it must be explicitly specified.",
+            rich_help_panel="Loss",
+            show_default=False,
         ),
-    ] = False,
-    limit: tpx.Annotated[
-        tp.Optional[int],
+    ] = "valid/rmse_default",
+    # Finetuning specific config
+    ftune_from: Annotated[
+        str,
         Option(
-            "--limit",
-            help="Limit number of batches or percent",
+            "--ftune-from",
+            help="Name|idx of pretrain run. ani1x:idx, ... also supported",
+            rich_help_panel="Finetuning",
+            show_default=False,
+        ),
+    ] = "",
+    num_head_layers: Annotated[
+        Optional[int],
+        Option(
+            "--num-head",
+            help="If fine-tuning, num. of head layers. Defaults to 1",
+            rich_help_panel="Finetuning",
+            show_default=False,
         ),
     ] = None,
-    deterministic: tpx.Annotated[
+    backbone_lr: Annotated[
+        Optional[float],
+        Option(
+            "--backbone-lr",
+            help="If fine-tuning, lr for backbone. Defaults to 0",
+            rich_help_panel="Finetuning",
+            show_default=False,
+        ),
+    ] = None,
+    # Debug and profiling specific config
+    debug: Annotated[
         bool,
         Option(
-            "--deterministic/--no-deterministic",
-            help="Run deterministic training (for debugging, big performance penalty)",
+            "-g/ ", "--debug/ ", help="Run in debug config", rich_help_panel="Debug"
         ),
     ] = False,
-    detect_anomaly: tpx.Annotated[
+    profiler: Annotated[
+        Optional[str],
+        Option(
+            "--prof",
+            help="Profiler, 'simple', 'advanced', or 'pytorch'",
+            rich_help_panel="Debug",
+            show_default=False,
+        ),
+    ] = None,
+    limit: Annotated[
+        Optional[int],
+        Option(
+            "--lim",
+            help="Limit num batches or percent",
+            rich_help_panel="Debug",
+            show_default=False,
+        ),
+    ] = None,
+    deterministic: Annotated[
         bool,
         Option(
-            "--detect-anomaly/--no-detect-anomaly",
-            help="Detect anomalies during training (for debugging, big performance penalty)",
+            "--deterministic/ ",
+            help="Deterministic training",
+            rich_help_panel="Debug",
         ),
     ] = False,
-    max_epochs: tpx.Annotated[
-        int,
-        Option(
-            "--max-epochs",
-            help="Maximum number of epochs to train",
-        ),
-    ] = 1000,
-    early_stop_patience: tpx.Annotated[
-        int,
-        Option(
-            "--early-stop-patience",
-            help="Maximum number of epochs with no improvement in validation metric before early stopping",
-        ),
-    ] = 50,
-    allow_restart: tpx.Annotated[
+    detect_anomaly: Annotated[
         bool,
         Option(
-            "--allow-restart/--prompt-restart",
-            help="If --allow-restart is toggled, runs will be automatically restarted if their config matches that of a previous run",
+            "--detect-anomaly/ ",
+            help="Detect anomalies during training",
+            rich_help_panel="Debug",
         ),
     ] = False,
-    verbose: tpx.Annotated[
-        bool,
-        Option(
-            "-v/ ",
-            "--verbose/--no-verbose",
-            help="Help string",
-        ),
+    verbose: Annotated[
+        bool, Option("-v/ ", "--verbose/ ", rich_help_panel="Debug")
     ] = False,
 ) -> None:
     batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
@@ -637,6 +493,8 @@ def train(
     ds_config = DatasetConfig.from_json_file(ds_config_path)
     ds_config.fold_idx = "train" if fold_idx is None else fold_idx
     if fold_idx is not None:
+        if not name:
+            name = "train" if not ftune_from else "ftune"
         name = f"{str(fold_idx).zfill(2)}-{name}"
 
     if debug:
@@ -659,28 +517,77 @@ def train(
     terms_and_factors: tp.Dict[str, float] = {}
     if energies > 0.0:
         label = "EnergiesXC" if xc else "Energies"
-        terms_and_factors[label if not sqrt_atoms else f"{label}SqrtAtoms"] = energies
+        terms_and_factors[label if no_sqrt_atoms else f"{label}SqrtAtoms"] = energies
     if forces > 0.0:
         terms_and_factors["Forces"] = forces
     if dipoles > 0.0:
         terms_and_factors["Dipoles"] = dipoles
     if atomic_charges > 0.0:
         terms_and_factors["AtomicCharges"] = atomic_charges
-    if atomic_charges_mbis > 0.0:
-        terms_and_factors["AtomicChargesMBIS"] = atomic_charges_mbis
     if total_charge > 0.0:
         terms_and_factors["TotalCharge"] = total_charge
 
-    scheduler = parse_scheduler_str(scheduler)
-    optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
-    _optimizer_options.update({"lr": lr, "weight_decay": weight_decay})
+    lrsched = parse_scheduler_str(lrsched)
+    optim = parse_optimizer_str(optim)
+    lrsched_opts = lrsched_opts or []
+    optim_opts = (optim_opts or []) + [f"lr={lr}", f"weight_decay={wd}"]
+
+    if lr <= 0.0:
+        raise ValueError("lr must be strictly positive")
+
+    # Finetune config
+    if ftune_from:
+        if arch_fn != "simple_ani" or arch_options:
+            raise ValueError("Don't specify arch and arch options when finetuning")
+        backbone_lr = backbone_lr or 0.0
+        num_head_layers = num_head_layers or 1
+        # Validation
+        if backbone_lr < 0.0:
+            raise ValueError("backbone lr must be positive or zero")
+        if backbone_lr > lr:
+            raise ValueError("Backbone lr must be greater or equal to head lr")
+        if num_head_layers < 1:
+            raise ValueError("There must be at least one head layer")
+        if lr is not None:
+            raise ValueError(
+                "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning"
+            )
+        if ftune_from.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
+            ptrain_name = ftune_from
+            ptrain_config = _fetch_builtin_config(ftune_from)
+            raw_ptrain_state_dict_path = ""
+        else:
+            _path = select_subdirs((ftune_from,), kind=DataKind.TRAIN)[0]
+
+            ptrain_name = _path.name
+            ptrain_config = TrainConfig.from_json_file(_path / "config.json")
+            raw_ptrain_state_dict_path = str(Path(_path, "best-model", "best.ckpt"))
+
+            if not Path(raw_ptrain_state_dict_path).is_file():
+                raise ValueError(f"{raw_ptrain_state_dict_path} is not a valid ckpt")
+        ftune_config = FinetuneConfig(
+            pretrained_name=ptrain_name,
+            raw_state_dict_path=raw_ptrain_state_dict_path,
+            num_head_layers=num_head_layers,
+            backbone_lr=backbone_lr,
+        )
+        model_config = ptrain_config.model
+    else:
+        ftune_config = None
+        model_config = ModelConfig(
+            arch_fn=arch_fn, options=resolve_options(arch_options or (), arch_fn)
+        )
 
     config = TrainConfig(
         name=name,
         debug=debug,
         ds=ds_config,
         monitor_label=monitor,
+        ftune=ftune_config,
+        model=model_config,
+        loss=LossConfig(terms_and_factors=terms_and_factors),
+        optim=OptimizerConfig(resolve_options(optim_opts, optim), optim),
+        scheduler=SchedulerConfig(resolve_options(lrsched_opts, lrsched), lrsched),
         accel=AccelConfig(
             max_batches_per_packet=100,
             limit=limit,
@@ -690,360 +597,19 @@ def train(
             early_stop_patience=early_stop_patience,
             profiler=profiler,
         ),
-        model=ModelConfig(
-            arch_fn=arch_fn,
-            options=resolve_options(arch_options or (), arch_fn),
-        ),
-        loss=LossConfig(
-            terms_and_factors=terms_and_factors,
-        ),
-        optim=OptimizerConfig(
-            cls=optimizer,
-            options=_optimizer_options,
-        ),
-        scheduler=SchedulerConfig(
-            cls=scheduler,
-            options=resolve_options(scheduler_options or (), scheduler),
-        ),
     )
-    train_lit_model(config, allow_restart=allow_restart, verbose=verbose)
-
-
-@app.command(help="Fine tune a pretrained ANI model")
-def ftune(
-    batch_name_or_idx: tpx.Annotated[
-        str,
-        Argument(help="Name or idx of the batched dataset"),
-    ],
-    name_or_idx: tpx.Annotated[
-        str,
-        Option(
-            "-t",
-            "--train-run",
-            help="Name or idx of the pretrained run, alternatively, ani1x:idx, ani2x:idx, etc. is also supported",
-        ),
-    ],
-    profiler: tpx.Annotated[
-        tp.Optional[str],
-        Option(
-            "--profiler",
-            help="Profiler for finding bottlenecks in training (one of 'simple', 'advanced', 'pytorch')",
-        ),
-    ] = None,
-    name: tpx.Annotated[
-        str,
-        Option(
-            "-n",
-            "--run-name",
-            help="Name of the run",
-        ),
-    ] = "ftune",
-    monitor: tpx.Annotated[
-        str,
-        Option(
-            "--monitor",
-            help="Label to monitor during training."
-            " Format is 'valid/rmse_energies', or 'train/rmse_forces', etc."
-            " By default, if only one loss term is present, it is the validation RMSE of the corresponding loss label."
-            " Otherwise, valid/rmse_forces is picked if any loss term has the 'forces' label"
-            " Otherwise it must be explicitly specified",
-        ),
-    ] = "valid/rmse_default",
-    num_head_layers: tpx.Annotated[
-        int,
-        Option(
-            "--num-head-layers",
-            help="Number of layers to use as model head",
-        ),
-    ] = 1,
-    # Loss and optimizer specification
-    head_lr: tpx.Annotated[
-        float,
-        Option(
-            "--lr",
-            help="Learning rate for head of model",
-        ),
-    ] = 0.5e-4,
-    backbone_lr: tpx.Annotated[
-        float,
-        Option(
-            "--backbone-lr",
-            help="Learning rate for backbone of model (may be zero)",
-        ),
-    ] = 0.0,
-    weight_decay: tpx.Annotated[
-        float,
-        Option(
-            "--wd",
-            help="Weight decay",
-        ),
-    ] = 1e-7,
-    xc: tpx.Annotated[
-        bool,
-        Option(
-            "--xc/--no-xc",
-            help="Train to exchange-correlation energies",
-        ),
-    ] = False,
-    sqrt_atoms: tpx.Annotated[
-        bool,
-        Option(
-            "--sqrt-atoms/--no-sqrt-atoms",
-            help="Use sqrt atoms in energies",
-        ),
-    ] = False,
-    energies: tpx.Annotated[
-        float,
-        Option(
-            "-e",
-            "--energies",
-            help="Train with energies",
-        ),
-    ] = 1.0,
-    forces: tpx.Annotated[
-        float,
-        Option(
-            "-f",
-            "--forces",
-            help="Train with forces",
-        ),
-    ] = 0.0,
-    dipoles: tpx.Annotated[
-        float,
-        Option(
-            "-m",
-            "--dipoles",
-            help="Train with dipoles",
-        ),
-    ] = 0.0,
-    atomic_charges: tpx.Annotated[
-        float,
-        Option(
-            "-q",
-            "--atomic-charges",
-            help="Train with atomic charges",
-        ),
-    ] = 0.0,
-    atomic_charges_mbis: tpx.Annotated[
-        float,
-        Option(
-            "--mbis",
-            "--atomic-charges-mbis",
-            help="Train with atomic charges",
-        ),
-    ] = 0.0,
-    total_charge: tpx.Annotated[
-        float,
-        Option(
-            "--total-charge",
-            help="Train with total charge",
-        ),
-    ] = 0.0,
-    deterministic: tpx.Annotated[
-        bool,
-        Option(
-            "--deterministic/--no-deterministic",
-            help="Run deterministic training (has a performance penalty)",
-        ),
-    ] = False,
-    detect_anomaly: tpx.Annotated[
-        bool,
-        Option(
-            "--detect-anomaly/--no-detect-anomaly",
-            help="Detect anomalies during training (has a performance penalty)",
-        ),
-    ] = False,
-    limit: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "--limit",
-            help="Limit number of batches or percent",
-        ),
-    ] = None,
-    debug: tpx.Annotated[
-        bool,
-        Option(
-            "-g/-G",
-            "--debug/--no-debug",
-            help="Debug finetune run",
-        ),
-    ] = False,
-    max_epochs: tpx.Annotated[
-        int,
-        Option(
-            "--max-epochs",
-            help="Maximum number of epochs to train",
-        ),
-    ] = 1000,
-    early_stop_patience: tpx.Annotated[
-        int,
-        Option(
-            "--early-stop-patience",
-            help="Maximum number of epochs with no improvement in validation metric before early stopping",
-        ),
-    ] = 50,
-    verbose: tpx.Annotated[
-        bool,
-        Option(
-            "-v/ ",
-            "--verbose/--no-verbose",
-            help="Help string",
-        ),
-    ] = False,
-    fold_idx: tpx.Annotated[
-        tp.Optional[int],
-        Option(
-            "-i",
-            "--fold-idx",
-            help="Fold idx",
-        ),
-    ] = None,
-    optimizer: tpx.Annotated[
-        str,
-        Option(
-            "-o",
-            "--optimizer",
-            help="Type of optimizer",
-        ),
-    ] = "AdamW",
-    optimizer_options: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "--oo",
-            "--optimizer-option",
-            help="Options passed to the optimizer in the form key=value. Different optimizers accept different options (lr and wd are passed separately)",
-        ),
-    ] = None,
-    scheduler: tpx.Annotated[
-        str,
-        Option(
-            "-s",
-            "--scheduler",
-            help="Type of lr-scheduler",
-        ),
-    ] = "Plateau",
-    scheduler_options: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "--so",
-            "--scheduler-option",
-            help="Options passed to the lr-scheduler in the form key=value. Different schedulers accept different options",
-        ),
-    ] = None,
-) -> None:
-    batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
-    ds_config_path = batched_dataset_path / "ds_config.json"
-    ds_config = DatasetConfig.from_json_file(ds_config_path)
-    ds_config.fold_idx = "train" if fold_idx is None else fold_idx
-    if fold_idx is not None:
-        name = f"{str(fold_idx).zfill(2)}-{name}"
-
-    if head_lr <= 0.0:
-        raise ValueError(
-            "Learning rate for the head of the model must be strictly positive"
-        )
-    if backbone_lr < 0.0:
-        raise ValueError(
-            "Learning rate for the body of the model must be positive or zero"
-        )
-    if backbone_lr > head_lr:
-        raise ValueError("Backbone lr must be greater or equal to head lr")
-    if num_head_layers < 1:
-        raise ValueError("There must be at least one head layer")
-
-    if name_or_idx.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
-        pretrained_config = fetch_builtin_config(name_or_idx)
-        raw_pretrained_state_dict_path = ""
-        pretrained_name = name_or_idx
-    else:
-        pretrained_path = select_subdirs(
-            (name_or_idx,),
-            kind=DataKind.TRAIN,
-        )[0]
-        pretrained_name = pretrained_path.name
-        pretrained_config = TrainConfig.from_json_file(pretrained_path / "config.json")
-
-        raw_pretrained_state_dict_path = str(
-            Path(pretrained_path, "best-model", "best.ckpt")
-        )
-
-        if not Path(raw_pretrained_state_dict_path).is_file():
-            raise ValueError(
-                f"{raw_pretrained_state_dict_path} is not a valid checkpoint"
-            )
-
-    terms_and_factors: tp.Dict[str, float] = {}
-    if energies > 0.0:
-        label = "EnergiesXC" if xc else "Energies"
-        terms_and_factors[label if not sqrt_atoms else f"{label}SqrtAtoms"] = energies
-    if forces > 0.0:
-        terms_and_factors["Forces"] = forces
-    if dipoles > 0.0:
-        terms_and_factors["Dipoles"] = dipoles
-    if atomic_charges > 0.0:
-        terms_and_factors["AtomicCharges"] = atomic_charges
-    if atomic_charges_mbis > 0.0:
-        terms_and_factors["AtomicChargesMBIS"] = atomic_charges_mbis
-    if total_charge > 0.0:
-        terms_and_factors["TotalCharge"] = total_charge
-
-    scheduler = parse_scheduler_str(scheduler)
-    optimizer = parse_optimizer_str(optimizer)
-    _optimizer_options = resolve_options(optimizer_options or (), optimizer)
-    _optimizer_options.update({"lr": head_lr, "weight_decay": weight_decay})
-
-    config = TrainConfig(
-        name=name,
-        ds=ds_config,
-        monitor_label=monitor,
-        accel=AccelConfig(
-            max_batches_per_packet=100,
-            limit=limit,
-            deterministic=deterministic,
-            detect_anomaly=detect_anomaly,
-            max_epochs=max_epochs,
-            early_stop_patience=early_stop_patience,
-            profiler=profiler,
-        ),
-        model=pretrained_config.model,
-        loss=LossConfig(
-            terms_and_factors=terms_and_factors,
-        ),
-        optim=OptimizerConfig(
-            cls=optimizer,
-            options=_optimizer_options,
-        ),
-        scheduler=SchedulerConfig(
-            cls=scheduler,
-            options=resolve_options(scheduler_options or (), scheduler),
-        ),
-        ftune=FinetuneConfig(
-            pretrained_name=pretrained_name,
-            raw_state_dict_path=raw_pretrained_state_dict_path,
-            num_head_layers=num_head_layers,
-            backbone_lr=backbone_lr,
-        ),
-    )
-    train_lit_model(config, verbose=verbose)
+    train_lit_model(config, allow_restart=auto_restart, verbose=verbose)
 
 
 @app.command(help="Visualize train|ftune process with tensorboard")
 def tb(
-    ftune_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-f",
-            "--ftune-run",
-            help="Name or idx of the finetune run",
-        ),
+    ftune_name_or_idx: Annotated[
+        Optional[tp.List[str]],
+        Option("-f", "--ftune-run", help="Name|idx of ftune run"),
     ] = None,
-    ptrain_name_or_idx: tpx.Annotated[
-        tp.Optional[tp.List[str]],
-        Option(
-            "-t",
-            "--train-run",
-            help="Name or idx of the pretrain run",
-        ),
+    ptrain_name_or_idx: Annotated[
+        Optional[tp.List[str]],
+        Option("-t", "--train-run", help="Name|idx of train run"),
     ] = None,
 ) -> None:
     paths = []
