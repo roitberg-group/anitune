@@ -105,15 +105,9 @@ def Dipoles(factor: float = 1.0) -> LossTerm:
     )
 
 
-def AtomicCharges(factor: float = 1.0) -> LossTerm:
-    return LossTerm(
-        label="atomic_charges",
-        is_extensive=True,
-        factor=factor,
-    )
-
-
-def AtomicChargesMBIS(factor: float = 1.0) -> LossTerm:
+def AtomicCharges(
+    factor: float = 1.0, targ_label: str = "atomic_charges_mbis"
+) -> LossTerm:
     return LossTerm(
         label="atomic_charges",
         targ_label_only="atomic_charges_mbis",

@@ -9,7 +9,7 @@ from torchmetrics import Metric, MeanSquaredError, MeanAbsoluteError, MetricColl
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from torchani.assembly import ANI
+from torchani.arch import _ANI
 from torchani.units import hartree2kcalpermol
 
 from anitune import losses
@@ -24,7 +24,7 @@ class LitModel(lightning.LightningModule):
 
     def __init__(
         self,
-        model: ANI,
+        model: _ANI,
         loss_terms_and_factors: tp.Dict[str, float],
         optimizer_options: tp.Dict[str, PyScalar],
         scheduler_options: tp.Dict[str, PyScalar],
@@ -54,6 +54,8 @@ class LitModel(lightning.LightningModule):
 
         if len(loss_terms) == 1 and monitor_label == "valid/rmse_default":
             monitor_label = f"valid/rmse_{loss_terms[0].label}"
+        elif any(term.label == "forces" for term in loss_terms):
+            monitor_label = "valid/rmse_forces"
         elif not any(monitor_label.endswith(term.label) for term in loss_terms):
             raise ValueError("Monitor label must be one of the enabled loss terms")
         self.monitor_label = monitor_label
@@ -110,7 +112,7 @@ class LitModel(lightning.LightningModule):
         for k, v in self.metrics.items():
             if not k.startswith(f"{div}/"):
                 continue
-            label = k.split("_")[-1]
+            label = "_".join(k.split("_")[1:])
             v.update(pred[label], batch[self.loss.term(label).targ_label])
 
     # Metrics are logged at the end of each validation epoch only
@@ -138,7 +140,8 @@ class LitModel(lightning.LightningModule):
     def batch_eval(self, batch: tp.Dict[str, Tensor]) -> tp.Dict[str, Tensor]:
         for term in self.loss.grad_terms:
             batch[term.grad_wrt_targ_label].requires_grad_(True)
-        pred = self.model.sp(batch["species"], batch["coordinates"], keep_vars=True)
+        pred = self.model((batch["species"], batch["coordinates"]))._asdict()
+        pred.pop("species")
 
         for term in self.loss.grad_terms:
             pred[term.label] = (-1 if term.negative_grad else 1) * torch.autograd.grad(

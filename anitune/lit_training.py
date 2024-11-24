@@ -1,5 +1,5 @@
+import typing as tp
 import logging
-import json
 import warnings
 from copy import deepcopy
 import sys
@@ -8,6 +8,14 @@ from rich.prompt import Confirm
 
 from anitune.console import console
 from anitune.config import TrainConfig
+
+
+def _get_dotted_name(module: tp.Any, name: str) -> tp.Any:
+    parts = name.split(".")
+    obj = module
+    for part in parts:
+        obj = getattr(obj, part)
+    return obj
 
 
 def train_lit_model(
@@ -30,7 +38,7 @@ def train_lit_model(
     )
     from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
-    from torchani import assembly, models
+    import torchani
     from torchani.datasets import ANIBatchedDataset
     from anitune.lit_model import LitModel
     from anitune.lit_callbacks import (
@@ -39,25 +47,6 @@ def train_lit_model(
         NoLogLRMonitor,
     )
 
-    if not config.ds.path.exists():
-        raise RuntimeError("Dataset does not exist")
-
-    with open(config.ds.path / "creation_log.json", mode="rt", encoding="utf-8") as f:
-        ds_symbols = json.load(f)["symbols"]
-    if not config.model.builtin:
-        model = getattr(assembly, config.model.arch_fn)(
-            lot=config.ds.lot,
-            symbols=config.model.symbols or ds_symbols,
-            **config.model.options,
-        )
-    else:
-        model = getattr(models, config.model.arch_fn)(**config.model.options)
-        model.requires_grad_(True)
-    if config.ftune is not None:
-        if config.ftune.pretrained_state_dict:
-            model.load_state_dict(config.ftune.pretrained_state_dict)
-
-    ckpt_path = (config.path / "latest-model") / "latest.ckpt"
     if not restart and config.path.is_dir():
         if allow_restart or Confirm.ask("Run exists, do you want to restart it?"):
             # Reload config from the path
@@ -70,6 +59,26 @@ def train_lit_model(
             console.print("Exiting without training")
             sys.exit(0)
 
+    if not config.ds.path.exists():
+        raise RuntimeError("Dataset does not exist")
+
+    if not config.model.builtin:
+        model = _get_dotted_name(torchani, f"arch.{config.model.arch_fn}")(
+            lot=config.model.lot,
+            symbols=config.model.symbols,
+            **config.model.options,
+        )
+    else:
+        model = _get_dotted_name(torchani, f"models.{config.model.arch_fn}")(
+            **config.model.options
+        )
+        model.requires_grad_(True)
+
+    if config.ftune is not None:
+        if config.ftune.pretrained_state_dict:
+            model.load_state_dict(config.ftune.pretrained_state_dict)
+
+    ckpt_path = (config.path / "latest-model") / "latest.ckpt"
     if ckpt_path.is_file():
         # Not sure what the problem with mypy is here
         lit_model = LitModel.load_from_checkpoint(  # type: ignore
@@ -186,6 +195,8 @@ def train_lit_model(
         profiler=config.accel.profiler,
         check_val_every_n_epoch=1,  # Assumed by TorchANI for logging
     )
+    if verbose:
+        print(lit_model.model)
     with warnings.catch_warnings():
         warnings.filterwarnings(
             action="ignore", message="Checkpoint directory.*", category=UserWarning

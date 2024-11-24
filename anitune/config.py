@@ -50,6 +50,10 @@ class Config:
             raise ValueError(f"{path} is not a config file")
         with open(path, mode="rt", encoding="utf-8") as f:
             dict_ = json.load(f)
+            # Needed for bw compat
+            if "use_cuda_ops" in dict_:
+                dict_.pop("use_cuda_ops")
+                dict_["strategy"] = "cuaev"
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
@@ -61,6 +65,11 @@ class Config:
     @classmethod
     def from_json_str(cls, json_str: str) -> tpx.Self:
         dict_ = json.loads(json_str)
+        # Needed for bw compat
+        # Needed for bw compat
+        if "use_cuda_ops" in dict_:
+            dict_.pop("use_cuda_ops")
+            dict_["strategy"] = "cuaev"
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
@@ -176,6 +185,7 @@ class ModelConfig(FnConfig):
     model-specific configurations
     """
 
+    lot: str = ""
     arch_fn: str = ""
     builtin: bool = False
     symbols: tp.List[str] = field(default_factory=list)

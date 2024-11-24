@@ -20,18 +20,21 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
         split_kwargs = {"splits": config.split_dict}
 
     raw_src_paths = list(config.raw_src_paths)
-    for name in config.data_names:
+    for builtin in config.data_names:
+        name, lot = builtin.split(":")
         ds = getattr(datasets, name)(
             skip_check=True,
-            lot=config.lot,
+            lot=lot,
         )
         raw_src_paths.extend(ds.store_locations)
     raw_src_paths = sorted(set(raw_src_paths))
     ds = datasets.ANIDataset(locations=raw_src_paths)
-    if "species" in ds.tensor_properties:
-        config.properties.append("species")
-    if "coordinates" in ds.tensor_properties:
-        config.properties.append("coordinates")
+    _props = config.properties
+    if _props:
+        if "species" not in _props and "species" in ds.tensor_properties:
+            config.properties.append("species")
+        if "coordinates" not in _props and "coordinates" in ds.tensor_properties:
+            config.properties.append("coordinates")
 
     datasets.create_batched_dataset(
         src=ds,

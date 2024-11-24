@@ -15,6 +15,14 @@ from anitune.paths import (
 
 
 def simplify_metric(arg: str) -> str:
+    if arg.endswith("rmse_forces"):
+        return "F_ha/ang"
+    if arg.endswith("mae_forces"):
+        return "Fmae_ha/ang"
+    if arg.endswith("rmse_energies"):
+        return "E_ha"
+    if arg.endswith("mae_energies"):
+        return "Emae_ha"
     return (
         arg.replace("valid/", "")
         .replace("train/", "")
@@ -24,6 +32,10 @@ def simplify_metric(arg: str) -> str:
         .replace("rmse_forces", "F")
         .replace("|ang", "/ang")
         .replace("|mol", "/mol")
+        .replace("rmse_atomic_charges", "Q")
+        .replace("mae_atomic_charges", "Qmae")
+        .replace("rmse_dipoles", "M")
+        .replace("mae_dipoles", "Mmae")
         # bw compat
         .replace("train_", "")
         .replace("valid_", "")
@@ -175,6 +187,7 @@ def ls(
         if optim_detail:
             table.add_column("optim")
             table.add_column("optim-options")
+        table.add_column("lot")
         table.add_column("arch")
         if arch_detail:
             table.add_column("arch-options")
@@ -204,6 +217,7 @@ def ls(
                     f"[bold]{j}[/bold]",
                     p.name,
                     f"{config.ds.path.name}|{config.ds.fold_idx}",
+                    config.model.lot,
                     config.model.arch_fn,
                     f"{config.optim.weight_decay:.0e}",
                     f"{config.optim.lr:.0e}",
