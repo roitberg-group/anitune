@@ -53,7 +53,7 @@ class Config:
             # Needed for bw compat
             if "use_cuda_ops" in dict_:
                 dict_.pop("use_cuda_ops")
-                dict_["strategy"] = "cuaev"
+                dict_["strategy"] = "auto"
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
@@ -66,10 +66,9 @@ class Config:
     def from_json_str(cls, json_str: str) -> tpx.Self:
         dict_ = json.loads(json_str)
         # Needed for bw compat
-        # Needed for bw compat
         if "use_cuda_ops" in dict_:
             dict_.pop("use_cuda_ops")
-            dict_["strategy"] = "cuaev"
+            dict_["strategy"] = "auto"
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
