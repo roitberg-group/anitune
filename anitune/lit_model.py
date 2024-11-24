@@ -112,7 +112,7 @@ class LitModel(lightning.LightningModule):
         for k, v in self.metrics.items():
             if not k.startswith(f"{div}/"):
                 continue
-            label = k.split("_")[-1]
+            label = "_".join(k.split("_")[1:])
             v.update(pred[label], batch[self.loss.term(label).targ_label])
 
     # Metrics are logged at the end of each validation epoch only

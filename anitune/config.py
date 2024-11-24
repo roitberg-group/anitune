@@ -184,7 +184,7 @@ class ModelConfig(FnConfig):
     r"""
     model-specific configurations
     """
-
+    lot: str = ""
     arch_fn: str = ""
     builtin: bool = False
     symbols: tp.List[str] = field(default_factory=list)

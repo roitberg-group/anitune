@@ -1,5 +1,7 @@
 r"""Command line interface entrypoints"""
 
+import typing_extensions as tpx
+import json
 import tempfile
 import uuid
 import subprocess
@@ -46,21 +48,26 @@ app = Typer(
 )
 
 
-# TODO the ds part of this is broken?
-def _fetch_builtin_config(name_or_idx: str) -> TrainConfig:
+def _fetch_builtin_model_config(name_or_idx: str) -> ModelConfig:
     name, idx = name_or_idx.split(":")
-    config = TrainConfig()
-    config.ds.fold_idx = idx
     symbols = ["H", "C", "N", "O"]
+    lot = {
+        "ani1x": "wb97x-631gd",
+        "ani2x": "wb97x-631gd",
+        "aniala": "wb97x-631gd",
+        "anidr": "b973c-def2mtzvp",
+        "ani1ccx": "ccsd(t)star-cbs",
+        "animbis": "wb97x-631gd",
+    }
     if not (("1x" in name) or ("1ccx" in name)):
         symbols.extend(["S", "F", "Cl"])
-    config.model = ModelConfig(
+    return ModelConfig(
         builtin=True,
         arch_fn=name,
         options={"model_index": int(idx)},
         symbols=symbols,
+        lot=lot[name],
     )
-    return config
 
 
 @app.command(help="Generate an ensemble from a set of models")
@@ -117,19 +124,29 @@ def ensemble(
 def batch(
     name: Annotated[
         str,
-        Option("-n", "--output-batched-ds-name", help="Name of output batched dataset"),
+        Option("-n", "--out-ds", help="Name of output batched dataset"),
     ] = "",
     lot: Annotated[
         str,
-        Option("-l", "--builtin-src-ds-lot", help="LoT of built-in ds to src from"),
+        Option(
+            "-l",
+            "--lot",
+            help="LoT of the output batched dataset."
+            " By default it is set to the lot of the builtin datasets."
+            " If there is a mismatch, or if no built-in datasets are specified, it must be explicitly passed",
+        ),
     ] = "wb97x-631gd",
-    data_names: Annotated[
+    builtins: Annotated[
         Optional[tp.List[str]],
-        Option("-b", "--builtin-src-ds-name", help="Built-in ANI ds to src from"),
+        Option(
+            "-d",
+            "--builtin-ds",
+            help="Built-in ANI ds name(s) to src from. Format is 'name:lot'",
+        ),
     ] = None,
     src_paths: Annotated[
         Optional[tp.List[Path]],
-        Option("-s", "--src-ds-path", help="Paths to non-builtin ds to src from"),
+        Option("-s", "--ds", help="Paths to non-builtin ds to src from"),
     ] = None,
     properties: Annotated[
         Optional[tp.List[str]],
@@ -153,19 +170,39 @@ def batch(
         int,
         Option("--shuffle-seed", help="Seed for shuffling divisions before batching"),
     ] = 1234,
+    allow_lot_mismatch: tpx.Annotated[
+        bool,
+        Option("--allow-ds-lot-mismatch/ ", help="Allow built-in ds with different LoT"),
+    ] = False,
 ) -> None:
     from anitune.batching import batch_data
+
+    builtins = sorted(builtins) if builtins is not None else []
+    try:
+        builtin_lots = [k.split(":")[1] for k in builtins]
+    except IndexError:
+        raise ValueError("Wrong dataset name. 'name:lot' expected") from None
+
+    num_lots = len(set(builtin_lots))
+    if not allow_lot_mismatch and num_lots > 1:
+        raise ValueError("One or more of the specified built-in ds have different LoT")
+
+    if num_lots == 1 and not lot:
+        lot = builtin_lots[0].lower()
+
+    if not lot:
+        raise ValueError("LoT must be specified")
 
     ds = DatasetConfig(
         label=name,
         lot=lot,
+        data_names=builtins,
         properties=[] if properties is None else sorted(properties),
-        data_names=[] if data_names is None else sorted(data_names),
         raw_src_paths=[] if src_paths is None else sorted(map(str, src_paths)),
         batch_size=batch_size,
         fold_idx=-1,
         folds=folds,
-        validation_frac=1.0 - train_frac,
+        validation_frac=round(1.0 - train_frac, 5),
         train_frac=train_frac,
         batch_seed=batch_seed,
         divs_seed=divs_seed,
@@ -277,7 +314,7 @@ def compare(
 
 @app.command(help="Train from scratch or finetune an ANI-style model")
 def train(
-    batch_name_or_idx: Annotated[str, Argument(help="Name|idx of the batched dataset")],
+    batch_id: Annotated[str, Argument(help="Name|idx of the batched dataset")],
     fold_idx: Annotated[
         Optional[int],
         Option(
@@ -288,6 +325,13 @@ def train(
         ),
     ] = None,
     name: Annotated[str, Option("-n", "--run-name", help="Name of run")] = "",
+    allow_lot_mismatch: tpx.Annotated[
+        bool,
+        Option(
+            "--allow-ds-model-lot-mismatch/ ",
+            help="Allow model lot to differ from ds lot. Useful for transfer learning.",
+        ),
+    ] = False,
     auto_restart: Annotated[
         bool,
         Option("--auto-restart/ ", help="Auto restart runs that match a prev run"),
@@ -303,6 +347,25 @@ def train(
         ),
     ] = 50,
     # From-scratch specific config
+    symbols: Annotated[
+        str,
+        Option(
+            "--symbols",
+            help="Chemical symbols the model will support. The default is 'all present in the dataset'."
+            " If specified, it should be a single string with symbols separated by commas. e.g. '--symbols H,C,N,O,F,S'",
+            show_default=False,
+            rich_help_panel="Arch",
+        ),
+    ] = "",
+    lot: Annotated[
+        str,
+        Option(
+            "--lot",
+            help="LoT of the model. Default is 'dataset lot'.",
+            show_default=False,
+            rich_help_panel="Arch",
+        ),
+    ] = "",
     arch_fn: Annotated[
         str,
         Option(
@@ -365,7 +428,7 @@ def train(
             help="Initial lr. If ftune, used for the 'head'",
             rich_help_panel="Optimizer",
         ),
-    ] = 1e-4,
+    ] = 5e-4,
     # Loss config
     xc: Annotated[
         bool, Option("--xc/ ", help="Train to XC energies", rich_help_panel="Loss")
@@ -399,7 +462,7 @@ def train(
     total_charge: Annotated[
         float,
         Option(
-            "-Q", "--total-charge", help="Total charge factor", rich_help_panel="Loss"
+            "--total-q", help="Total charge factor", rich_help_panel="Loss"
         ),
     ] = 0.0,
     monitor: Annotated[
@@ -488,14 +551,18 @@ def train(
         bool, Option("-v/ ", "--verbose/ ", rich_help_panel="Debug")
     ] = False,
 ) -> None:
-    batched_dataset_path = select_subdirs((batch_name_or_idx,), kind=DataKind.BATCH)[0]
+    batched_dataset_path = select_subdirs((batch_id,), kind=DataKind.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.json"
     ds_config = DatasetConfig.from_json_file(ds_config_path)
     ds_config.fold_idx = "train" if fold_idx is None else fold_idx
+
     if fold_idx is not None:
         if not name:
             name = "train" if not ftune_from else "ftune"
         name = f"{str(fold_idx).zfill(2)}-{name}"
+
+    with open(ds_config.path / "creation_log.json", mode="rt") as f:
+        ds_symbols = json.load(f)["symbols"]
 
     if debug:
         console.print("Debugging enabled:")
@@ -539,8 +606,8 @@ def train(
 
     # Finetune config
     if ftune_from:
-        if arch_fn != "simple_ani" or arch_options:
-            raise ValueError("Don't specify arch and arch options when finetuning")
+        if arch_fn != "simple_ani" or arch_options or symbols:
+            raise ValueError("Don't specify 'arch', 'arch-opts' or 'symbols' for ftune")
         backbone_lr = backbone_lr or 0.0
         num_head_layers = num_head_layers or 1
         # Validation
@@ -554,15 +621,16 @@ def train(
             raise ValueError(
                 "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning"
             )
+        # Create finetune and model configs
         if ftune_from.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
             ptrain_name = ftune_from
-            ptrain_config = _fetch_builtin_config(ftune_from)
+            model_config = _fetch_builtin_model_config(ftune_from)
             raw_ptrain_state_dict_path = ""
         else:
             _path = select_subdirs((ftune_from,), kind=DataKind.TRAIN)[0]
 
             ptrain_name = _path.name
-            ptrain_config = TrainConfig.from_json_file(_path / "config.json")
+            model_config = TrainConfig.from_json_file(_path / "config.json").model
             raw_ptrain_state_dict_path = str(Path(_path, "best-model", "best.ckpt"))
 
             if not Path(raw_ptrain_state_dict_path).is_file():
@@ -573,11 +641,21 @@ def train(
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
         )
-        model_config = ptrain_config.model
     else:
         ftune_config = None
         model_config = ModelConfig(
-            arch_fn=arch_fn, options=resolve_options(arch_options or (), arch_fn)
+            lot=lot or ds_config.lot,
+            symbols=symbols.split(",") if symbols else ds_symbols,
+            arch_fn=arch_fn,
+            options=resolve_options(arch_options or (), arch_fn),
+        )
+    if not allow_lot_mismatch and model_config.lot != ds_config.lot:
+        raise ValueError("Model LoT must match dataset LoT unless --allow-any-lot")
+
+    if not set(model_config.symbols).issubset(ds_symbols):
+        raise ValueError(
+            f"Not all ds symbols {ds_symbols} are supported by the model."
+            f"Model supports {model_config.symbols}"
         )
 
     config = TrainConfig(
