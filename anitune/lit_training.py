@@ -46,6 +46,7 @@ def train_lit_model(
         ModelCheckpointWithMetrics,
         NoLogLRMonitor,
     )
+
     if not restart and config.path.is_dir():
         if allow_restart or Confirm.ask("Run exists, do you want to restart it?"):
             # Reload config from the path

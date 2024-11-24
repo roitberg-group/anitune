@@ -184,6 +184,7 @@ class ModelConfig(FnConfig):
     r"""
     model-specific configurations
     """
+
     lot: str = ""
     arch_fn: str = ""
     builtin: bool = False

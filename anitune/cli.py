@@ -172,7 +172,9 @@ def batch(
     ] = 1234,
     allow_lot_mismatch: tpx.Annotated[
         bool,
-        Option("--allow-ds-lot-mismatch/ ", help="Allow built-in ds with different LoT"),
+        Option(
+            "--allow-ds-lot-mismatch/ ", help="Allow built-in ds with different LoT"
+        ),
     ] = False,
 ) -> None:
     from anitune.batching import batch_data
@@ -461,9 +463,7 @@ def train(
     ] = 0.0,
     total_charge: Annotated[
         float,
-        Option(
-            "--total-q", help="Total charge factor", rich_help_panel="Loss"
-        ),
+        Option("--total-q", help="Total charge factor", rich_help_panel="Loss"),
     ] = 0.0,
     monitor: Annotated[
         str,
