@@ -52,7 +52,7 @@ class Config:
             dict_ = json.load(f)
             # Needed for bw compat
             if "options" in dict_:
-                dict_["options"].pop("use_cuda_ops")
+                dict_["options"].pop("use_cuda_ops", "")
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
@@ -66,7 +66,7 @@ class Config:
         dict_ = json.loads(json_str)
         # Needed for bw compat
         if "options" in dict_:
-            dict_["options"].pop("use_cuda_ops")
+            dict_["options"].pop("use_cuda_ops", "")
         obj = cls()
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
