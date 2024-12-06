@@ -13,7 +13,7 @@ from typing import Optional
 from typing_extensions import Annotated
 from pathlib import Path
 
-from typer import Argument, Option, Typer
+from typer import Argument, Option, Typer, Abort
 
 from anitune.console import console
 from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
@@ -183,17 +183,22 @@ def batch(
     try:
         builtin_lots = [k.split(":")[1] for k in builtins]
     except IndexError:
-        raise ValueError("Wrong dataset name. 'name:lot' expected") from None
+        console.print("Wrong dataset name. 'name:lot' expected", style="red")
+        raise Abort()
 
     num_lots = len(set(builtin_lots))
     if not allow_lot_mismatch and num_lots > 1:
-        raise ValueError("One or more of the specified built-in ds have different LoT")
+        console.print(
+            "One or more of the specified built-in ds have different LoT", style="red"
+        )
+        raise Abort()
 
     if num_lots == 1 and not lot:
         lot = builtin_lots[0].lower()
 
     if not lot:
-        raise ValueError("LoT must be specified")
+        console.print("LoT must be specified", style="red")
+        raise Abort()
 
     ds = DatasetConfig(
         label=name,
@@ -212,7 +217,7 @@ def batch(
     batch_data(ds, max_batches_per_packet=100)
 
 
-@app.command(help="Continue a previously checkpointed run")
+@app.command()
 def restart(
     ftune_name_or_idx: Annotated[
         str, Option("-f", "--ftune-run", help="Name or idx of ftune run")
@@ -226,18 +231,21 @@ def restart(
     ] = None,
     verbose: Annotated[bool, Option("-v/ ", "--verbose/ ")] = False,
 ) -> None:
+    r"""Continue a checkpointed run"""
     if (
         ftune_name_or_idx
         and ptrain_name_or_idx
         or not (ftune_name_or_idx or ptrain_name_or_idx)
     ):
-        raise ValueError("One and only one of -f and -t should be specified")
+        console.print("One and only one of -f and -t should be specified", style="red")
+        raise Abort()
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
 
     path = select_subdirs((name_or_idx,), kind=kind)[0] / "config.json"
     if not path.is_file():
-        raise ValueError(f"{path} is not a file dir")
+        console.print(f"{path} is not a file dir", style="red")
+        raise Abort()
 
     config = TrainConfig.from_json_file(path)
     if max_epochs is not None:
@@ -248,7 +256,7 @@ def restart(
 ls = app.command(help="Display training and finetuning runs")(ls)
 
 
-@app.command(help="Delete specific training or finetuning run")
+@app.command()
 def rm(
     ftune_id: Annotated[
         Optional[tp.List[str]],
@@ -265,6 +273,7 @@ def rm(
         Optional[tp.List[str]], Option("-e", help="Name|idx of ensemble")
     ] = None,
 ) -> None:
+    r"""Delete one or more batched datasets, training, or finetuning run"""
     for selectors, dkind in zip(
         (ftune_id, train_id, batch_id, ensemble_id),
         (DataKind.FTUNE, DataKind.TRAIN, DataKind.BATCH, DataKind.ENSEMBLE),
@@ -287,7 +296,8 @@ def compare(
     ] = "",
 ) -> None:
     if (not (ftune_id or train_id)) or (ftune_id and train_id):
-        raise ValueError("One and only one of -t or -f has to be specified")
+        console.print("One and only one of -t or -f has to be specified", style="red")
+        raise Abort()
     kind = DataKind.FTUNE if ftune_id else DataKind.TRAIN
     root = select_subdirs(
         (train_id or ftune_id,),
@@ -602,25 +612,36 @@ def train(
     optim_opts = (optim_opts or []) + [f"lr={lr}", f"weight_decay={wd}"]
 
     if lr <= 0.0:
-        raise ValueError("lr must be strictly positive")
+        console.print("lr must be strictly positive", style="red")
+        raise Abort()
 
     # Finetune config
     if ftune_from:
         if arch_fn != "simple_ani" or arch_options or symbols:
-            raise ValueError("Don't specify 'arch', 'arch-opts' or 'symbols' for ftune")
+            console.print(
+                "Don't specify 'arch', 'arch-opts' or 'symbols' for ftune", style="red"
+            )
+            raise Abort()
         backbone_lr = backbone_lr or 0.0
         num_head_layers = num_head_layers or 1
         # Validation
         if backbone_lr < 0.0:
-            raise ValueError("backbone lr must be positive or zero")
+            console.print("backbone lr must be positive or zero", style="red")
+            raise Abort()
         if backbone_lr > lr:
-            raise ValueError("Backbone lr must be greater or equal to head lr")
-        if num_head_layers < 1:
-            raise ValueError("There must be at least one head layer")
-        if lr is not None:
-            raise ValueError(
-                "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning"
+            console.print(
+                "Backbone lr must be greater or equal to head lr", style="red"
             )
+            raise Abort()
+        if num_head_layers < 1:
+            console.print("There must be at least one head layer", style="red")
+            raise Abort()
+        if lr is not None:
+            console.print(
+                "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning",
+                style="red",
+            )
+            raise Abort()
         # Create finetune and model configs
         if ftune_from.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
             ptrain_name = ftune_from
@@ -634,7 +655,10 @@ def train(
             raw_ptrain_state_dict_path = str(Path(_path, "best-model", "best.ckpt"))
 
             if not Path(raw_ptrain_state_dict_path).is_file():
-                raise ValueError(f"{raw_ptrain_state_dict_path} is not a valid ckpt")
+                console.print(
+                    f"{raw_ptrain_state_dict_path} is not a valid ckpt", style="red"
+                )
+                raise Abort()
         ftune_config = FinetuneConfig(
             pretrained_name=ptrain_name,
             raw_state_dict_path=raw_ptrain_state_dict_path,
@@ -650,13 +674,18 @@ def train(
             options=resolve_options(arch_options or (), arch_fn),
         )
     if not allow_lot_mismatch and model_config.lot != ds_config.lot:
-        raise ValueError("Model LoT must match dataset LoT unless --allow-any-lot")
+        console.print(
+            "Model LoT must match dataset LoT unless --allow-any-lot", style="red"
+        )
+        raise Abort()
 
     if not set(model_config.symbols).issubset(ds_symbols):
-        raise ValueError(
+        console.print(
             f"Not all ds symbols {ds_symbols} are supported by the model."
-            f"Model supports {model_config.symbols}"
+            f"Model supports {model_config.symbols}",
+            style="red",
         )
+        raise Abort()
 
     config = TrainConfig(
         name=name,
