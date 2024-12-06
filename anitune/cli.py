@@ -1,5 +1,7 @@
 r"""Command line interface entrypoints"""
 
+import jinja2
+import sys
 import typing_extensions as tpx
 import json
 import tempfile
@@ -337,6 +339,14 @@ def train(
         ),
     ] = None,
     name: Annotated[str, Option("-n", "--run-name", help="Name of run")] = "",
+    slurm: tpx.Annotated[
+        str,
+        Option("--slurm"),
+    ] = "",
+    slurm_gpu: tpx.Annotated[
+        str,
+        Option("--slurm-gpu"),
+    ] = "gp100",
     allow_lot_mismatch: tpx.Annotated[
         bool,
         Option(
@@ -707,6 +717,41 @@ def train(
             profiler=profiler,
         ),
     )
+
+    # Re-run everything after the train config has been set up, to prevent potential
+    # issues
+    if slurm == "moria":
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates/"),
+            undefined=jinja2.StrictUndefined,
+            autoescape=jinja2.select_autoescape(),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        arg_list = sys.argv[1:]
+        for j, arg in enumerate(deepcopy(arg_list)):
+            # re-introduce quotes in strings
+            if arg in ["--prof", "--ftune-from", "--monitor", "--lot"]:
+                arg_list[j + 1] = f"'{arg_list[j + 1]}'"
+            if arg == "--slurm":
+                arg_list[j] = ""
+                arg_list[j + 1] = ""
+            if arg == "--slurm-gpu":
+                arg_list[j] = ""
+                arg_list[j + 1] = ""
+        args = " ".join(arg_list)
+        tmpl = env.get_template("moria.slurm.sh.jinja").render(
+            name=str(config.path.name),
+            gpu=slurm_gpu,
+            args=args,
+        )
+        unique_id = str(uuid.uuid4()).split("-")[0]
+        input_dir = Path(Path.home(), "IO", "ani", unique_id)
+        input_fpath = input_dir / "moria.slurm.sh"
+        input_fpath.write_text(tmpl)
+        console.print("Launching slurm script ...")
+        subprocess.run(["sbatch", str(input_fpath)], cwd=input_dir, check=True)
+        sys.exit(0)
     train_lit_model(config, allow_restart=auto_restart, verbose=verbose)
 
 
