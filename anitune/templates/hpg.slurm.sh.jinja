@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name={{ name }}
 #SBATCH --output={{ name }}.out
+#SBATCH --partition=gpu
 #SBATCH --gres=gpu:{{ gpu }}
 #SBATCH --time=96:00:00
 #SBATCH --nodes=1
@@ -8,6 +9,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 
+module purge
 source /home/ipickering/Conda/etc/profile.d/conda.sh
 source /home/ipickering/Conda/etc/profile.d/mamba.sh
 mamba activate anitune
