@@ -2,7 +2,7 @@
 #SBATCH --job-name={{ name }}
 #SBATCH --output={{ name }}.out
 #SBATCH --gres=gpu:{{ gpu }}:1
-#SBATCH --time=48:00:00
+#SBATCH --time=96:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
@@ -12,4 +12,4 @@ source /home/ipickering/Conda/etc/profile.d/conda.sh
 source /home/ipickering/Conda/etc/profile.d/mamba.sh
 mamba activate anitune
 
-anitune train {{ args }}
+anitune {{ args }}
