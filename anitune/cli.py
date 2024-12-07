@@ -745,8 +745,9 @@ def train(
             gpu=slurm_gpu,
             args=args,
         )
-        unique_id = str(uuid.uuid4()).split("-")[0]
+        unique_id = config.path.name.split("-")[-1]
         input_dir = Path(Path.home(), "IO", "ani", unique_id)
+        input_dir.mkdir(exist_ok=False, parents=True)
         input_fpath = input_dir / "moria.slurm.sh"
         input_fpath.write_text(tmpl)
         console.print("Launching slurm script ...")
