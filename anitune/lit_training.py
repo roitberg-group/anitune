@@ -101,14 +101,16 @@ def train_lit_model(
             model.load_state_dict(config.ftune.pretrained_state_dict)
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
+    # Not sure what the problem with mypy is here, it infers LitModel to have
+    # type[Never]
+    lit_model: tp.Any
     if ckpt_path.is_file():
-        # Not sure what the problem with mypy is here
         lit_model = LitModel.load_from_checkpoint(  # type: ignore
             ckpt_path,
             model=model,
         )
     else:
-        lit_model = LitModel(
+        lit_model = LitModel(  # type: ignore
             model,
             loss_terms_and_factors=config.loss.terms_and_factors,
             monitor_label=config.monitor_label,
