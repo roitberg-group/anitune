@@ -728,7 +728,7 @@ def train(
         elif slurm == "hpg":
             assert slurm_gpu in ["a100", "2080ti", ""]
         else:
-            console.write(f"Unknown cluster {slurm}", style="red")
+            console.print(f"Unknown cluster {slurm}", style="red")
             raise Abort()
         slurm_gpu = f"{slurm_gpu}:1" if slurm_gpu else "1"
 
