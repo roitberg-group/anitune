@@ -346,7 +346,7 @@ def train(
     slurm_gpu: tpx.Annotated[
         str,
         Option("--slurm-gpu"),
-    ] = "gp100",
+    ] = "",
     allow_lot_mismatch: tpx.Annotated[
         bool,
         Option(
@@ -720,7 +720,18 @@ def train(
 
     # Re-run everything after the train config has been set up, to prevent potential
     # issues
-    if slurm == "moria":
+    if slurm:
+        if slurm == "moria":
+            if not slurm_gpu:
+                slurm_gpu = "gp100"
+            assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti"]
+        elif slurm == "hpg":
+            assert slurm_gpu in ["a100", "2080ti", ""]
+        else:
+            console.print(f"Unknown cluster {slurm}", style="red")
+            raise Abort()
+        slurm_gpu = f"{slurm_gpu}:1" if slurm_gpu else "1"
+
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates/"),
             undefined=jinja2.StrictUndefined,
@@ -740,7 +751,7 @@ def train(
                 arg_list[j] = ""
                 arg_list[j + 1] = ""
         args = " ".join(arg_list)
-        tmpl = env.get_template("moria.slurm.sh.jinja").render(
+        tmpl = env.get_template(f"{slurm}.slurm.sh.jinja").render(
             name=str(config.path.name),
             gpu=slurm_gpu,
             args=args,
@@ -748,7 +759,7 @@ def train(
         unique_id = config.path.name.split("-")[-1]
         input_dir = Path(Path.home(), "IO", "ani", unique_id)
         input_dir.mkdir(exist_ok=False, parents=True)
-        input_fpath = input_dir / "moria.slurm.sh"
+        input_fpath = input_dir / f"{slurm}.slurm.sh"
         input_fpath.write_text(tmpl)
         console.print("Launching slurm script ...")
         subprocess.run(["sbatch", str(input_fpath)], cwd=input_dir, check=True)
