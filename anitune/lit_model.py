@@ -1,4 +1,3 @@
-import math
 import itertools
 import typing as tp
 
@@ -82,9 +81,7 @@ class LitModel(lightning.LightningModule):
             if isinstance(logger, TensorBoardLogger):
                 # hparams seems to be of the correct type, but lightning marks it
                 # differently
-                logger.log_hyperparams(
-                    self.hparams, {self.monitor_label: math.inf}  # type: ignore
-                )
+                logger.log_hyperparams(self.hparams)  # type: ignore
 
     def training_step(
         self,

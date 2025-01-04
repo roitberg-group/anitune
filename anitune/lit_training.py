@@ -157,7 +157,7 @@ def train_lit_model(
         monitor=lit_model.monitor_label,
         strict=True,
         mode="min",
-        patience=config.accel.early_stop_patience,  # type: ignore
+        patience=config.accel.early_stop_patience,
     )
     best_model_ckpt = ModelCheckpointWithMetrics(
         dirpath=config.path / "best-model",
@@ -185,7 +185,7 @@ def train_lit_model(
     ]
     (config.path / "tb-logs").mkdir(exist_ok=True, parents=True)
     tb_logger = TensorBoardLogger(
-        save_dir=config.path, name="tb-logs", default_hp_metric=False
+        save_dir=config.path, name="tb-logs", default_hp_metric=True
     )
     (config.path / "csv-logs").mkdir(exist_ok=True, parents=True)
     csv_logger = CSVLogger(save_dir=config.path, name="csv-logs")
