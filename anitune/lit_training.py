@@ -101,10 +101,21 @@ def train_lit_model(
             model.load_state_dict(config.ftune.pretrained_state_dict)
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
+
     # Not sure what the problem with mypy is here, it infers LitModel to have
     # type[Never]
     lit_model: tp.Any
     if ckpt_path.is_file():
+        # Rewrite ckpt to modify the early-stopping callback, since all callbacks
+        # get overwritten on restart
+        ckpt = torch.load(ckpt_path)
+        callbacks = deepcopy(ckpt["callbacks"])
+        for k, v in callbacks.items():
+            if k.startswith("EarlyStopping"):
+                v["patience"] = config.accel.early_stop_patience
+                ckpt["callbacks"][k] = v
+        torch.save(ckpt, ckpt_path)
+
         lit_model = LitModel.load_from_checkpoint(  # type: ignore
             ckpt_path,
             model=model,
