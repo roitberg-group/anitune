@@ -758,10 +758,10 @@ def train(
         )
         unique_id = config.path.name.split("-")[-1]
         j = 0
-        input_dir = Path(Path.home(), "IO", "ani", unique_id, f"_v{j}")
+        input_dir = Path(Path.home(), "IO", "ani", f"{unique_id}_v{f}")
         while input_dir.is_dir():
             j += 1
-            input_dir = Path(Path.home(), "IO", "ani", unique_id, f"_v{j}")
+            input_dir = Path(Path.home(), "IO", "ani", f"{unique_id}_v{f}")
         input_dir.mkdir(exist_ok=False, parents=True)
         input_fpath = input_dir / f"{slurm}.slurm.sh"
         input_fpath.write_text(tmpl)
