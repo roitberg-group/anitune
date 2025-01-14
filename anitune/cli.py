@@ -87,7 +87,11 @@ def _fetch_builtin_model_config(name_or_idx: str) -> ModelConfig:
 def save(
     name: Annotated[
         str,
-        Option("-n", "--ens-name", help="Name of ensemble or saved model. CamelCase recommended"),
+        Option(
+            "-n",
+            "--ens-name",
+            help="Name of ensemble or saved model. CamelCase recommended",
+        ),
     ] = "Ensemble",
     ftune_names_or_idxs: Annotated[
         Optional[tp.List[str]],
@@ -791,10 +795,22 @@ def bench(
             help="Built-in ANI ds name to benchmark on. Format is 'name:lot'",
         ),
     ],
-    model_name: tpx.Annotated[str, Option("-m", "--model-name"),] = "ANI2x",
-    device: tpx.Annotated[tp.Optional[DeviceKind], Option("-d", "--device", case_sensitive=False),] = None,
-    dtype: tpx.Annotated[tp.Optional[DTypeKind], Option("-d", "--dtype", case_sensitive=False),] = None,
-    chunk_size: tpx.Annotated[int, Option("-c", "--chunk-size"),] = 2500,
+    model_name: tpx.Annotated[
+        str,
+        Option("-m", "--model-name"),
+    ] = "ANI2x",
+    device: tpx.Annotated[
+        tp.Optional[DeviceKind],
+        Option("-d", "--device", case_sensitive=False),
+    ] = None,
+    dtype: tpx.Annotated[
+        tp.Optional[DTypeKind],
+        Option("-d", "--dtype", case_sensitive=False),
+    ] = None,
+    chunk_size: tpx.Annotated[
+        int,
+        Option("-c", "--chunk-size"),
+    ] = 2500,
 ) -> None:
     import math
     import dataclasses
@@ -843,9 +859,9 @@ def bench(
 
     for k, idx, v in tqdm(
         ds.chunked_items(
-            max_size=chunk_size,
-            properties=["coordinates", "energies", "species"]),
-            total=ds.num_chunks(chunk_size),
+            max_size=chunk_size, properties=["coordinates", "energies", "species"]
+        ),
+        total=ds.num_chunks(chunk_size),
     ):
         store_name, group = k.split("/")
         v["species"] = v["species"].to(device=_device)
@@ -855,7 +871,7 @@ def bench(
         energies = model((v["species"], v["coordinates"])).energies
         delta = torch.abs(v["energies"] - energies)
         delta *= HARTREE_TO_KCALPERMOL
-        sum_sq_err = (delta ** 2).sum().item()
+        sum_sq_err = (delta**2).sum().item()
         sum_abs_err = delta.sum().item()
 
         _results[store_name].rmse += sum_sq_err
@@ -872,7 +888,8 @@ def bench(
             rmse=math.sqrt(v.rmse / v.num),
             mae=v.mae / v.num,
             num=v.num,
-        ) for k, v in _results.items()
+        )
+        for k, v in _results.items()
     }
 
     with open(Path(f"{ds_key}.json"), mode="wt", encoding="utf-8") as f:
