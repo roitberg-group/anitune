@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+from enum import Enum
 import jinja2
 import sys
 import typing_extensions as tpx
@@ -50,6 +51,16 @@ app = Typer(
 )
 
 
+class DTypeKind(Enum):
+    F32 = "f32"
+    F64 = "f64"
+
+
+class DeviceKind(Enum):
+    CUDA = "cuda"
+    CPU = "cpu"
+
+
 def _fetch_builtin_model_config(name_or_idx: str) -> ModelConfig:
     name, idx = name_or_idx.split(":")
     symbols = ["H", "C", "N", "O"]
@@ -72,12 +83,16 @@ def _fetch_builtin_model_config(name_or_idx: str) -> ModelConfig:
     )
 
 
-@app.command(help="Generate an ensemble from a set of models")
-def ensemble(
+@app.command()
+def save(
     name: Annotated[
         str,
-        Option("-n", "--ens-name", help="Name of ensemble"),
-    ] = "ensemble",
+        Option(
+            "-n",
+            "--ens-name",
+            help="Name of ensemble or saved model. CamelCase recommended",
+        ),
+    ] = "Ensemble",
     ftune_names_or_idxs: Annotated[
         Optional[tp.List[str]],
         Option("-f", "--ftune-run", help="Name|idx of train run"),
@@ -87,6 +102,7 @@ def ensemble(
         Option("-t", "--train-run", help="Name|idx of ftune run"),
     ] = None,
 ) -> None:
+    r"""Extract and save a model or an ensemble an ensemble from a set of models"""
     if ptrain_names_or_idxs is None:
         ptrain_names_or_idxs = []
     if ftune_names_or_idxs is None:
@@ -769,6 +785,119 @@ def train(
         subprocess.run(["sbatch", str(input_fpath)], cwd=input_dir, check=True)
         sys.exit(0)
     train_lit_model(config, allow_restart=auto_restart, verbose=verbose)
+
+
+@app.command(help="Benchmark model on a given dataset")
+def bench(
+    builtin: Annotated[
+        str,
+        Argument(
+            help="Built-in ANI ds name to benchmark on. Format is 'name:lot'",
+        ),
+    ],
+    model_name: tpx.Annotated[
+        str,
+        Option("-m", "--model-name"),
+    ] = "ANI2x",
+    device: tpx.Annotated[
+        tp.Optional[DeviceKind],
+        Option("-d", "--device", case_sensitive=False),
+    ] = None,
+    dtype: tpx.Annotated[
+        tp.Optional[DTypeKind],
+        Option("-d", "--dtype", case_sensitive=False),
+    ] = None,
+    chunk_size: tpx.Annotated[
+        int,
+        Option("-c", "--chunk-size"),
+    ] = 2500,
+) -> None:
+    import math
+    import dataclasses
+    import torch
+    import torchani
+    from torchani.annotations import Device, DType
+    from torchani.units import HARTREE_TO_KCALPERMOL
+
+    from tqdm import tqdm
+
+    def parse_device_and_dtype(
+        device: tp.Optional[DeviceKind] = None,
+        dtype: tp.Optional[DTypeKind] = None,
+    ) -> tp.Tuple[Device, DType]:
+        if dtype is None:
+            dtype = DTypeKind.F32
+
+        if dtype is DTypeKind.F32:
+            _dtype = torch.float32
+        elif dtype is DTypeKind.F64:
+            _dtype = torch.float64
+
+        if device is DeviceKind.CUDA:
+            _device = "cuda"
+        elif device is DeviceKind.CPU:
+            _device = "cpu"
+        else:
+            _device = "cuda" if torch.cuda.is_available() else "cpu"
+        return _device, _dtype
+
+    bench_set, lot = builtin.split(":")
+    _device, _dtype = parse_device_and_dtype(device, dtype)
+    ds_key = f"{bench_set}-{lot}"
+
+    ds = getattr(torchani.datasets, bench_set)(lot=lot)
+    model = getattr(torchani.models, model_name)(device=_device, dtype=_dtype)
+
+    @dataclasses.dataclass
+    class Metrics:
+        rmse: float = 0.0
+        mae: float = 0.0
+        num: int = 0
+
+    _results: tp.Dict[str, Metrics] = {s: Metrics() for s in ds.store_names}
+    _results["total"] = Metrics()
+
+    for k, idx, v in tqdm(
+        ds.chunked_items(
+            max_size=chunk_size, properties=["coordinates", "energies", "species"]
+        ),
+        total=ds.num_chunks(chunk_size),
+    ):
+        store_name, group = k.split("/")
+        v["species"] = v["species"].to(device=_device)
+        v["coordinates"] = v["coordinates"].to(device=_device, dtype=_dtype)
+        v["energies"] = v["energies"].to(device=_device, dtype=_dtype)
+
+        energies = model((v["species"], v["coordinates"])).energies
+        delta = torch.abs(v["energies"] - energies)
+        delta *= HARTREE_TO_KCALPERMOL
+        sum_sq_err = (delta**2).sum().item()
+        sum_abs_err = delta.sum().item()
+
+        _results[store_name].rmse += sum_sq_err
+        _results["total"].rmse += sum_sq_err
+
+        _results[store_name].mae += sum_abs_err
+        _results["total"].mae += sum_abs_err
+
+        _results[store_name].num += len(delta)
+        _results["total"].num += len(delta)
+
+    _results = {
+        k: Metrics(
+            rmse=math.sqrt(v.rmse / v.num),
+            mae=v.mae / v.num,
+            num=v.num,
+        )
+        for k, v in _results.items()
+    }
+
+    with open(Path(f"{ds_key}.json"), mode="wt", encoding="utf-8") as f:
+        json.dump(
+            {k: dataclasses.asdict(v) for k, v in _results.items()},
+            f,
+            indent=4,
+        )
 
 
 @app.command(help="Visualize train|ftune process with tensorboard")
