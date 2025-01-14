@@ -472,7 +472,7 @@ def ls(
         console.print("(No finetuning runs found)")
     console.print()
     if ensemble:
-        table = Table(title="Ensembles", box=None)
+        table = Table(title="Saved models and ensembles", box=None)
         table.add_column("", style="cyan")
         table.add_column("name", style="cyan")
         table.add_column("ftune-src", style="blue")
