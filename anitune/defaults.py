@@ -18,7 +18,7 @@ class Options:
 class ReduceLROnPlateau(Options):
     factor: float = 0.5
     patience: int = 100
-    threshold: float = 0.0
+    threshold: float = 1e-4
 
 
 @dataclass
