@@ -490,5 +490,5 @@ def ls(
             table.add_row(*row_args)
         console.print(table)
     else:
-        console.print("(No ensembles found)")
+        console.print("(No saved models or ensembles found)")
     console.print()
