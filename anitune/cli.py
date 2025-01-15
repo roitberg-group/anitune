@@ -138,7 +138,7 @@ def save(
     torch.save(state_dict, path / "model.pt")
 
 
-@app.command(help="Generate a pre-batched dataset from one or more ANI datasets")
+@app.command()
 def batch(
     name: Annotated[
         str,
@@ -195,6 +195,7 @@ def batch(
         ),
     ] = False,
 ) -> None:
+    r"""Generate a pre-batched dataset from one or more ANI datasets"""
     from anitune.batching import batch_data
 
     builtins = sorted(builtins) if builtins is not None else []
@@ -787,7 +788,7 @@ def train(
     train_lit_model(config, allow_restart=auto_restart, verbose=verbose)
 
 
-@app.command(help="Benchmark model on a given dataset")
+@app.command()
 def bench(
     builtin: Annotated[
         str,
@@ -812,6 +813,7 @@ def bench(
         Option("-c", "--chunk-size"),
     ] = 2500,
 ) -> None:
+    r"""Benchmark model on a given dataset"""
     import math
     import dataclasses
     import torch
@@ -900,7 +902,7 @@ def bench(
         )
 
 
-@app.command(help="Visualize train|ftune process with tensorboard")
+@app.command()
 def tb(
     ftune_name_or_idx: Annotated[
         Optional[tp.List[str]],
@@ -911,6 +913,7 @@ def tb(
         Option("-t", "--train-run", help="Name|idx of train run"),
     ] = None,
 ) -> None:
+    r"""Visualize train|ftune process with tensorboard"""
     paths = []
     for selectors, dkind in zip(
         (
