@@ -248,6 +248,13 @@ def restart(
         Optional[int],
         Option("--max-epochs", help="Max epochs to train"),
     ] = None,
+    swa: tpx.Annotated[
+        bool,
+        Option(
+            "--swa/--no-swa",
+            help="Perform SWA for the remaining epochs instead of normal training",
+        ),
+    ] = False,
     verbose: Annotated[bool, Option("-v/ ", "--verbose/ ")] = False,
 ) -> None:
     r"""Continue a checkpointed run"""
@@ -584,10 +591,20 @@ def train(
             rich_help_panel="Debug",
         ),
     ] = False,
+    device: tpx.Annotated[
+        tp.Optional[DeviceKind],
+        Option("-d", "--device", case_sensitive=False),
+    ] = None,
     verbose: Annotated[
         bool, Option("-v/ ", "--verbose/ ", rich_help_panel="Debug")
     ] = False,
 ) -> None:
+
+    import torch
+
+    if device is None:
+        device = DeviceKind.CUDA if torch.cuda.is_available() else DeviceKind.CPU
+
     batched_dataset_path = select_subdirs((batch_id,), kind=DataKind.BATCH)[0]
     ds_config_path = batched_dataset_path / "ds_config.json"
     ds_config = DatasetConfig.from_json_file(ds_config_path)
@@ -725,6 +742,7 @@ def train(
         optim=OptimizerConfig(resolve_options(optim_opts, optim), optim),
         scheduler=SchedulerConfig(resolve_options(lrsched_opts, lrsched), lrsched),
         accel=AccelConfig(
+            device=device.value,
             max_batches_per_packet=100,
             limit=limit,
             deterministic=deterministic,
