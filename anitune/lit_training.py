@@ -88,11 +88,13 @@ def train_lit_model(
         model = _get_dotted_name(torchani, f"arch.{config.model.arch_fn}")(
             lot=lot,
             symbols=symbols,
+            strategy="auto" if config.accel.device == "gpu" else "pyaev",
             **config.model.options,
         )
     else:
         model = _get_dotted_name(torchani, f"models.{config.model.arch_fn}")(
-            **config.model.options
+            strategy="auto" if config.accel.device == "gpu" else "pyaev",
+            **config.model.options,
         )
         model.requires_grad_(True)
 
