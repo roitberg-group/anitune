@@ -252,7 +252,8 @@ def restart(
         bool,
         Option(
             "--swa/--no-swa",
-            help="Perform SWA for the remaining epochs instead of normal training"),
+            help="Perform SWA for the remaining epochs instead of normal training",
+        ),
     ] = False,
     verbose: Annotated[bool, Option("-v/ ", "--verbose/ ")] = False,
 ) -> None:
@@ -590,13 +591,17 @@ def train(
             rich_help_panel="Debug",
         ),
     ] = False,
-    device: tpx.Annotated[tp.Optional[DeviceKind], Option("-d", "--device", case_sensitive=False),] = None,
+    device: tpx.Annotated[
+        tp.Optional[DeviceKind],
+        Option("-d", "--device", case_sensitive=False),
+    ] = None,
     verbose: Annotated[
         bool, Option("-v/ ", "--verbose/ ", rich_help_panel="Debug")
     ] = False,
 ) -> None:
 
     import torch
+
     if device is None:
         device = DeviceKind.CUDA if torch.cuda.is_available() else DeviceKind.CPU
 
