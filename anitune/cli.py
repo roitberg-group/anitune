@@ -757,9 +757,7 @@ def train(
     # issues
     if slurm:
         if slurm == "moria":
-            if not slurm_gpu:
-                slurm_gpu = "gp100"
-            assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti"]
+            assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti", ""]
         elif slurm == "hpg":
             assert slurm_gpu in ["a100", "2080ti", ""]
         else:
