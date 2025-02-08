@@ -2,4 +2,3 @@
 	path = submodules/torchani_sandbox
 	url = git@github.com:roitberg-group/torchani_sandbox.git
 	branch = master
-	update = merge
