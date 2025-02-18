@@ -969,20 +969,34 @@ def plot(
         Optional[tp.List[str]],
         Option("-t", "--train-run", help="Name|idx of train run"),
     ] = None,
-    labels: tpx.Annotated[tp.Optional[tp.List[str]], Option("-l", "--label"),] = None,
-    limits: tpx.Annotated[tp.Optional[tp.List[str]], Option("--lim"),] = None,
-    validation: tpx.Annotated[bool, Option("--val/--train"),] = True,
+    labels: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option("-l", "--label"),
+    ] = None,
+    limits: tpx.Annotated[
+        tp.Optional[tp.List[str]],
+        Option("--lim"),
+    ] = None,
+    validation: tpx.Annotated[
+        bool,
+        Option("--val/--train"),
+    ] = True,
 ) -> None:
     prefix = "train" if not validation else "valid"
     r"""Plot a specific metric"""
     if labels is None:
-        labels = ["mae_energies_kcal|mol", "mae_forces_kcal|mol|ang", "rmse_energies_kcal|mol", "rmse_forces_kcal|mol|ang"]
+        labels = [
+            "mae_energies_kcal|mol",
+            "mae_forces_kcal|mol|ang",
+            "rmse_energies_kcal|mol",
+            "rmse_forces_kcal|mol|ang",
+        ]
     if limits is None:
         limit_tuples = [(0.8, 4), (0.8, 2), (1.3, 4), (2.75, 4)]
     else:
         limit_tuples = tp.cast(
             tp.List[tp.Tuple[int, int]],
-            [tuple(map(int, lim.split(","))) for lim in limits]
+            [tuple(map(int, lim.split(","))) for lim in limits],
         )
     if len(limit_tuples) != len(labels):
         raise ValueError("Limit tuples and labels must have the same length")
@@ -1015,10 +1029,18 @@ def plot(
                 fig, ax = plt.subplots()
                 for j, (name, df) in enumerate(dfs.items()):
                     ax.plot(df["epoch"], df[f"{prefix}/{label}"], label=f"Model {j}")
-                label = label.replace("mae_energies_kcal|mol", r"$E_{\text{MAE}}$ (kcal/mol)")
-                label = label.replace("mae_forces_kcal|mol|ang", r"$F_{\text{MAE}}$ (kcal/mol/\AA{})")
-                label = label.replace("rmse_energies_kcal|mol", r"$E_{\text{RMSE}}$ (kcal/mol)")
-                label = label.replace("rmse_forces_kcal|mol|ang", r"$F_{\text{RMSE}}$ (kcal/mol/\AA{})")
+                label = label.replace(
+                    "mae_energies_kcal|mol", r"$E_{\text{MAE}}$ (kcal/mol)"
+                )
+                label = label.replace(
+                    "mae_forces_kcal|mol|ang", r"$F_{\text{MAE}}$ (kcal/mol/\AA{})"
+                )
+                label = label.replace(
+                    "rmse_energies_kcal|mol", r"$E_{\text{RMSE}}$ (kcal/mol)"
+                )
+                label = label.replace(
+                    "rmse_forces_kcal|mol|ang", r"$F_{\text{RMSE}}$ (kcal/mol/\AA{})"
+                )
                 ax.set_ylabel(f"{label}")
                 ax.set_xlabel(r"Epoch")
                 ax.set_ylim(lim[0], lim[1])
