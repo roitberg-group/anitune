@@ -70,3 +70,5 @@ dependencies:
 
   # Utils:
   - psutil
+  - matplotlib
+  - pandas
