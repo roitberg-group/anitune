@@ -995,7 +995,7 @@ def plot(
         limit_tuples = [(0.8, 4), (0.8, 2), (1.3, 4), (2.75, 4)]
     else:
         limit_tuples = tp.cast(
-            tp.List[tp.Tuple[int, int]],
+            tp.List[tp.Tuple[float, int]],
             [tuple(map(int, lim.split(","))) for lim in limits],
         )
     if len(limit_tuples) != len(labels):
