@@ -498,6 +498,15 @@ def train(
     dipoles: Annotated[
         float, Option("-m", "--dipoles", help="Dipole factor", rich_help_panel="Loss")
     ] = 0.0,
+    atomic_volumes: Annotated[
+        float,
+        Option(
+            "-V",
+            "--atomic-volumes",
+            help="Atomic volumes factor",
+            rich_help_panel="Loss",
+        ),
+    ] = 0.0,
     atomic_charges: Annotated[
         float,
         Option(
@@ -649,6 +658,8 @@ def train(
         terms_and_factors["Dipoles"] = dipoles
     if atomic_charges > 0.0:
         terms_and_factors["AtomicCharges"] = atomic_charges
+    if atomic_volumes > 0.0:
+        terms_and_factors["AtomicVolumes"] = atomic_volumes
     if total_charge > 0.0:
         terms_and_factors["TotalCharge"] = total_charge
 
