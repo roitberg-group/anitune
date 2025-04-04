@@ -105,6 +105,17 @@ def Dipoles(factor: float = 1.0) -> LossTerm:
     )
 
 
+def AtomicVolumes(
+    factor: float = 1.0, targ_label: str = "atomic_volumes_mbis"
+) -> LossTerm:
+    return LossTerm(
+        label="atomic_charges",
+        targ_label_only="atomic_volumes_mbis",
+        is_extensive=True,
+        factor=factor,
+    )
+
+
 def AtomicCharges(
     factor: float = 1.0, targ_label: str = "atomic_charges_mbis"
 ) -> LossTerm:
