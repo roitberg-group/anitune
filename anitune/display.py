@@ -34,6 +34,8 @@ def simplify_metric(arg: str) -> str:
         .replace("|mol", "/mol")
         .replace("rmse_atomic_charges", "Q")
         .replace("mae_atomic_charges", "Qmae")
+        # .replace("rmse_atomic_volumes", "V")
+        # .replace("mae_atomic_volumes", "Vmae")
         .replace("rmse_dipoles", "M")
         .replace("mae_dipoles", "Mmae")
         # bw compat
