@@ -88,16 +88,15 @@ def train_lit_model(
         model = _get_dotted_name(torchani, f"arch.{config.model.arch_fn}")(
             lot=lot,
             symbols=symbols,
-            strategy="auto" if config.accel.device == "gpu" else "pyaev",
+            strategy="auto" if config.accel.device in ["cuda", "gpu"] else "pyaev",
             **config.model.options,
         )
     else:
         model = _get_dotted_name(torchani, f"models.{config.model.arch_fn}")(
-            strategy="auto" if config.accel.device == "gpu" else "pyaev",
+            strategy="auto" if config.accel.device in ["cuda", "gpu"] else "pyaev",
             **config.model.options,
         )
         model.requires_grad_(True)
-
     if config.ftune is not None:
         if config.ftune.pretrained_state_dict:
             model.load_state_dict(config.ftune.pretrained_state_dict)
@@ -222,7 +221,7 @@ def train_lit_model(
     trainer = lightning.Trainer(
         default_root_dir=config.path,
         devices=1,
-        accelerator=config.accel.device,
+        accelerator=config.accel.device.replace("cuda", "gpu"),
         max_epochs=config.accel.max_epochs,
         logger=loggers,
         callbacks=callbacks,
