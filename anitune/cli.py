@@ -712,9 +712,7 @@ def train(
             console.print("backbone lr must be >= 0", style="red")
             raise Abort()
         if backbone_lr > lr:
-            console.print(
-                "Backbone lr must be <= head lr", style="red"
-            )
+            console.print("Backbone lr must be <= head lr", style="red")
             raise Abort()
         if num_head_layers < 1:
             console.print("There must be at least one head layer", style="red")
