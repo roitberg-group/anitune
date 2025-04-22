@@ -9,12 +9,12 @@ from torchani.paths import data_dir
 
 # TODO fix this hack
 DATA_DIR = data_dir()
-ENSEMBLE_PATH = DATA_DIR / "Ensemble"
+MODELS_PATH = DATA_DIR / "Models"
 BATCH_PATH = DATA_DIR / "Batched"
 TRAIN_PATH = DATA_DIR / "Train"
 FTUNE_PATH = DATA_DIR / "Ftune"
 
-ENSEMBLE_PATH.mkdir(exist_ok=True, parents=True)
+MODELS_PATH.mkdir(exist_ok=True, parents=True)
 BATCH_PATH.mkdir(exist_ok=True, parents=True)
 TRAIN_PATH.mkdir(exist_ok=True, parents=True)
 FTUNE_PATH.mkdir(exist_ok=True, parents=True)
@@ -24,7 +24,7 @@ class DataKind(Enum):
     TRAIN = "train"
     FTUNE = "ftune"
     BATCH = "batch"
-    ENSEMBLE = "ensemble"
+    MODELS = "models"
 
 
 class DisambiguationError(RuntimeError):
@@ -39,7 +39,7 @@ def select_subdirs(
         DataKind.TRAIN: TRAIN_PATH,
         DataKind.FTUNE: FTUNE_PATH,
         DataKind.BATCH: BATCH_PATH,
-        DataKind.ENSEMBLE: ENSEMBLE_PATH,
+        DataKind.MODELS: MODELS_PATH,
     }[kind]
 
     sorted_paths = sorted(root.iterdir())
