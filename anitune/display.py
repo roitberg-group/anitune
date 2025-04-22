@@ -10,7 +10,7 @@ from anitune.paths import (
     TRAIN_PATH,
     FTUNE_PATH,
     BATCH_PATH,
-    ENSEMBLE_PATH,
+    MODELS_PATH,
 )
 
 
@@ -127,7 +127,7 @@ def ls(
     batch = sorted(BATCH_PATH.iterdir())
     train = sorted(TRAIN_PATH.iterdir())
     ftune = sorted(FTUNE_PATH.iterdir())
-    ensemble = sorted(ENSEMBLE_PATH.iterdir())
+    ensemble = sorted(MODELS_PATH.iterdir())
     if batch:
         table = Table(title="Batched datasets", box=None)
         table.add_column("", style="magenta")

@@ -21,7 +21,7 @@ from pathlib import Path
 from typer import Argument, Option, Typer, Abort
 
 from anitune.console import console
-from anitune.paths import ENSEMBLE_PATH, DataKind, select_subdirs
+from anitune.paths import MODELS_PATH, DataKind, select_subdirs
 from anitune.lit_training import train_lit_model
 from anitune.config import (
     load_state_dict,
@@ -95,6 +95,14 @@ def save(
             help="Name of ensemble or saved model. CamelCase recommended",
         ),
     ] = "Ensemble",
+    desc: Annotated[
+        str,
+        Option(
+            "-d",
+            "--description",
+            help="Description of the model",
+        ),
+    ] = "Custom ANI model",
     ftune_names_or_idxs: Annotated[
         Optional[tp.List[str]],
         Option("-f", "--ftune-run", help="Name|idx of train run"),
@@ -122,21 +130,39 @@ def save(
     hasher = hashlib.shake_128()
     for p in paths:
         hasher.update(p.name.encode("utf-8"))
-    paths = [(p / "best-model") / "best.ckpt" for p in paths]
+    ckpt_paths = [(p / "best-model") / "best.ckpt" for p in paths]
 
     import torch
     from torchani.utils import merge_state_dicts
 
-    state_dict = merge_state_dicts(paths)
+    state_dict = merge_state_dicts(ckpt_paths)
 
     _hash = hasher.hexdigest(4)
-    path = ENSEMBLE_PATH / f"{name}-{_hash}"
+    config = TrainConfig.from_json_file(paths[0] / "config.json")
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates/"),
+        undefined=jinja2.StrictUndefined,
+        autoescape=jinja2.select_autoescape(),
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    tmpl = env.get_template("custom.py.jinja").render(
+        name=name,
+        desc=desc,
+        ensemble_size=len(paths),
+        lot=config.model.lot,
+        symbols=config.model.symbols,
+        arch_fn=config.model.arch_fn,
+        arch_opts=config.model.options,
+    )
+    path = MODELS_PATH / f"{name}-{_hash}"
     path.mkdir(exist_ok=True, parents=True)
     src_config = SrcConfig(
         train_src=list(p.name for p in ptrain_paths),
         ftune_src=list(p.name for p in ftune_paths),
     )
     src_config.to_json_file(path / "src_config.json")
+    (path / "model.py").write_text(tmpl)
     torch.save(state_dict, path / "model.pt")
 
 
@@ -304,7 +330,7 @@ def rm(
     r"""Delete one or more batched datasets, training, or finetuning run"""
     for selectors, dkind in zip(
         (ftune_id, train_id, batch_id, ensemble_id),
-        (DataKind.FTUNE, DataKind.TRAIN, DataKind.BATCH, DataKind.ENSEMBLE),
+        (DataKind.FTUNE, DataKind.TRAIN, DataKind.BATCH, DataKind.MODELS),
     ):
         if selectors is not None:
             paths = select_subdirs(selectors, kind=dkind)
