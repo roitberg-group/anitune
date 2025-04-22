@@ -709,21 +709,15 @@ def train(
         num_head_layers = num_head_layers or 1
         # Validation
         if backbone_lr < 0.0:
-            console.print("backbone lr must be positive or zero", style="red")
+            console.print("backbone lr must be >= 0", style="red")
             raise Abort()
         if backbone_lr > lr:
             console.print(
-                "Backbone lr must be greater or equal to head lr", style="red"
+                "Backbone lr must be <= head lr", style="red"
             )
             raise Abort()
         if num_head_layers < 1:
             console.print("There must be at least one head layer", style="red")
-            raise Abort()
-        if lr is not None:
-            console.print(
-                "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning",
-                style="red",
-            )
             raise Abort()
         # Create finetune and model configs
         if ftune_from.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
