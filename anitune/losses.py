@@ -203,6 +203,8 @@ class MultiTaskLoss(torch.nn.Module):
             if term.is_vec3:
                 error = error / 3
 
+            # Sum over everything except batch size
+            error = error.view(error.size(0), -1).sum(-1)
             mean_error = error.mean()
             losses[term.label] = mean_error
             losses["loss"] += mean_error * term.factor

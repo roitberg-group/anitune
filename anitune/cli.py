@@ -709,21 +709,13 @@ def train(
         num_head_layers = num_head_layers or 1
         # Validation
         if backbone_lr < 0.0:
-            console.print("backbone lr must be positive or zero", style="red")
+            console.print("backbone lr must be >= 0", style="red")
             raise Abort()
         if backbone_lr > lr:
-            console.print(
-                "Backbone lr must be greater or equal to head lr", style="red"
-            )
+            console.print("Backbone lr must be <= head lr", style="red")
             raise Abort()
         if num_head_layers < 1:
             console.print("There must be at least one head layer", style="red")
-            raise Abort()
-        if lr is not None:
-            console.print(
-                "Instead of '--lr', specify '--head-lr' and --backbone-lr for finetuning",
-                style="red",
-            )
             raise Abort()
         # Create finetune and model configs
         if ftune_from.split(":")[0] in ("ani1x", "ani2x", "ani1ccx", "anidr", "aniala"):
@@ -863,6 +855,10 @@ def bench(
         tp.Optional[DTypeKind],
         Option("-d", "--dtype", case_sensitive=False),
     ] = None,
+    forces: tpx.Annotated[
+        bool,
+        Option("-f/-F", "--forces/--no-forces", help="Also benchmark forces"),
+    ] = True,
     chunk_size: tpx.Annotated[
         int,
         Option("-c", "--chunk-size"),
@@ -907,23 +903,29 @@ def bench(
 
     @dataclasses.dataclass
     class Metrics:
+        force_rmse: float = 0.0
+        force_mae: float = 0.0
         rmse: float = 0.0
         mae: float = 0.0
         num: int = 0
 
     _results: tp.Dict[str, Metrics] = {s: Metrics() for s in ds.store_names}
     _results["total"] = Metrics()
-
+    props = ["coordinates", "energies", "species"]
+    if forces:
+        props.append("forces")
     for k, idx, v in tqdm(
-        ds.chunked_items(
-            max_size=chunk_size, properties=["coordinates", "energies", "species"]
-        ),
+        ds.chunked_items(max_size=chunk_size, properties=props),
         total=ds.num_chunks(chunk_size),
     ):
         store_name, group = k.split("/")
         v["species"] = v["species"].to(device=_device)
         v["coordinates"] = v["coordinates"].to(device=_device, dtype=_dtype)
         v["energies"] = v["energies"].to(device=_device, dtype=_dtype)
+        if forces:
+            num_atoms = (v["species"] != -1).sum()
+            v["forces"] = v["forces"].to(device=_device, dtype=_dtype)
+            v["coordinates"].requires_grad_(True)
 
         energies = model((v["species"], v["coordinates"])).energies
         delta = torch.abs(v["energies"] - energies)
@@ -940,8 +942,21 @@ def bench(
         _results[store_name].num += len(delta)
         _results["total"].num += len(delta)
 
+        if forces:
+            _forces = -torch.autograd.grad(energies.sum(), v["coordinates"])[0]
+            delta = torch.abs(v["forces"] - _forces) * HARTREE_TO_KCALPERMOL
+            sum_sq_err = ((delta**2).sum((-1, -2)) / num_atoms / 3).sum().item()
+            sum_abs_err = (delta.sum((-1, -2)) / num_atoms / 3).sum().item()
+
+            _results[store_name].force_rmse += sum_sq_err
+            _results["total"].force_rmse += sum_sq_err
+            _results[store_name].force_mae += sum_abs_err
+            _results["total"].force_mae += sum_abs_err
+
     _results = {
         k: Metrics(
+            force_rmse=math.sqrt(v.force_rmse / v.num),
+            force_mae=v.force_mae / v.num,
             rmse=math.sqrt(v.rmse / v.num),
             mae=v.mae / v.num,
             num=v.num,
@@ -949,12 +964,15 @@ def bench(
         for k, v in _results.items()
     }
 
-    with open(Path(f"{ds_key}.json"), mode="wt", encoding="utf-8") as f:
-        json.dump(
-            {k: dataclasses.asdict(v) for k, v in _results.items()},
-            f,
-            indent=4,
-        )
+    with open(Path(f"{ds_key}.{model_name}.json"), mode="wt", encoding="utf-8") as f:
+        output = {}
+        for k, v in _results.items():
+            _dict = dataclasses.asdict(v)
+            if not forces:
+                _dict.pop("force_rmse")
+                _dict.pop("force_mae")
+            output[k] = _dict
+        json.dump(output, f, indent=4)
 
 
 @app.command()
