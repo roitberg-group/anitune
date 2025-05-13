@@ -945,7 +945,7 @@ def bench(
         if forces:
             _forces = -torch.autograd.grad(energies.sum(), v["coordinates"])[0]
             delta = torch.abs(v["forces"] - _forces) * HARTREE_TO_KCALPERMOL
-            sum_sq_err = ((delta**2).sum((-1, -2)) / num_atoms / 3) .sum().item()
+            sum_sq_err = ((delta**2).sum((-1, -2)) / num_atoms / 3).sum().item()
             sum_abs_err = (delta.sum((-1, -2)) / num_atoms / 3).sum().item()
 
             _results[store_name].force_rmse += sum_sq_err
