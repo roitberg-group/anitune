@@ -928,30 +928,27 @@ def bench(
             v["coordinates"].requires_grad_(True)
 
         energies = model((v["species"], v["coordinates"])).energies
-        delta = torch.abs(v["energies"] - energies)
-        delta *= HARTREE_TO_KCALPERMOL
+        delta = torch.abs(v["energies"] - energies) * HARTREE_TO_KCALPERMOL
         sum_sq_err = (delta**2).sum().item()
         sum_abs_err = delta.sum().item()
 
         _results[store_name].rmse += sum_sq_err
         _results["total"].rmse += sum_sq_err
-
         _results[store_name].mae += sum_abs_err
         _results["total"].mae += sum_abs_err
-
         _results[store_name].num += len(delta)
         _results["total"].num += len(delta)
 
         if forces:
             _forces = -torch.autograd.grad(energies.sum(), v["coordinates"])[0]
-            delta = torch.abs(v["forces"] - _forces) * HARTREE_TO_KCALPERMOL
-            sum_sq_err = ((delta**2).sum((-1, -2)) / num_atoms / 3).sum().item()
-            sum_abs_err = (delta.sum((-1, -2)) / num_atoms / 3).sum().item()
+            delta_f = torch.abs(v["forces"] - _forces) * HARTREE_TO_KCALPERMOL
+            sum_sq_err_f = ((delta_f**2).sum((-1, -2)) / num_atoms / 3).sum().item()
+            sum_abs_err_f = (delta_f.sum((-1, -2)) / num_atoms / 3).sum().item()
 
-            _results[store_name].force_rmse += sum_sq_err
-            _results["total"].force_rmse += sum_sq_err
-            _results[store_name].force_mae += sum_abs_err
-            _results["total"].force_mae += sum_abs_err
+            _results[store_name].force_rmse += sum_sq_err_f
+            _results["total"].force_rmse += sum_sq_err_f
+            _results[store_name].force_mae += sum_abs_err_f
+            _results["total"].force_mae += sum_abs_err_f
 
     _results = {
         k: Metrics(
