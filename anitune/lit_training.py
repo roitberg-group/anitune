@@ -136,7 +136,9 @@ def train_lit_model(
             scheduler_cls=config.scheduler.cls,
             scheduler_options=config.scheduler.options,
             # Ftune
-            num_head_layers=0 if no_ftune else getattr(config.ftune, "num_head_layers", 0),
+            num_head_layers=(
+                0 if no_ftune else getattr(config.ftune, "num_head_layers", 0)
+            ),
         )
 
     if restart:
