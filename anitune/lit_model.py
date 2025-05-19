@@ -70,7 +70,7 @@ class LitModel(lightning.LightningModule):
         if num_head_layers > 0:
             for k in model.symbols:
                 layers = model.neural_networks.atomics[k].layers
-                last_layer = model.neural_networks.atomics[k].last_layer
+                last_layer = model.neural_networks.atomics[k].final_layer
                 rev_layers = itertools.chain([last_layer], reversed(layers))
                 module_list.extend(list(rev_layers)[:num_head_layers])
         self.backbone = module_list
