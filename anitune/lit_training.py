@@ -122,6 +122,7 @@ def train_lit_model(
             model=model,
         )
     else:
+        no_ftune = config.ftune is None or config.ftune.dummy_ftune
         lit_model = LitModel(  # type: ignore
             model,
             loss_terms_and_factors=config.loss.terms_and_factors,
@@ -135,7 +136,7 @@ def train_lit_model(
             scheduler_cls=config.scheduler.cls,
             scheduler_options=config.scheduler.options,
             # Ftune
-            num_head_layers=0 if config.ftune is None else config.ftune.num_head_layers,
+            num_head_layers=0 if no_ftune else getattr(config.ftune, "num_head_layers", 0),
         )
 
     if restart:
@@ -203,8 +204,8 @@ def train_lit_model(
     csv_logger = CSVLogger(save_dir=config.path, name="csv-logs")
     loggers = [tb_logger, csv_logger]
 
-    # Finetuning configuration
-    if config.ftune is not None:
+    # Finetuning configuration, "dummy ftune" just performs normal training
+    if config.ftune is not None and not config.ftune.dummy_ftune:
         if config.ftune.frozen_backbone:
             unfreeze_epoch = config.accel.max_epochs + 1
         else:
