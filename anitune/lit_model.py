@@ -155,7 +155,10 @@ class LitModel(lightning.LightningModule):
     def configure_optimizers(self) -> OptimizerLRScheduler:
         # Optimizer setup
         opt_type = getattr(torch.optim, self.optimizer_cls)
-        optimizer = opt_type(self.model.parameters(), **self.optimizer_options)
+        optimizer = opt_type(
+            filter(lambda p: p.requires_grad, self.model.parameters()),
+            **self.optimizer_options,
+        )
         scheduler_type = getattr(torch.optim.lr_scheduler, self.scheduler_cls)
         # Schedulers setup
         scheduler = scheduler_type(optimizer=optimizer, **self.scheduler_options)
