@@ -86,6 +86,7 @@ class FinetuneConfig(Config):
     raw_state_dict_path: str
     num_head_layers: int = 1
     backbone_lr: float = 0.0
+    dummy_ftune: bool = False
 
     @property
     def state_dict_path(self) -> tp.Optional[Path]:

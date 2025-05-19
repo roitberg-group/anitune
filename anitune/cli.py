@@ -560,6 +560,10 @@ def train(
         ),
     ] = "valid/rmse_default",
     # Finetuning specific config
+    dummy_ftune: tpx.Annotated[
+        bool,
+        Option("--dummy-ftune/--no-dummy-ftune"),
+    ] = False,
     ftune_from: Annotated[
         str,
         Option(
@@ -739,6 +743,7 @@ def train(
             raw_state_dict_path=raw_ptrain_state_dict_path,
             num_head_layers=num_head_layers,
             backbone_lr=backbone_lr,
+            dummy_ftune=dummy_ftune,
         )
     else:
         ftune_config = None
