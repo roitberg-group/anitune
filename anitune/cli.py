@@ -399,6 +399,10 @@ def train(
         str,
         Option("--slurm-gpu"),
     ] = "",
+    num_workers: tpx.Annotated[
+        int,
+        Option("-n", "--num-workers"),
+    ] = 0,
     allow_lot_mismatch: tpx.Annotated[
         bool,
         Option(
@@ -786,6 +790,7 @@ def train(
             max_epochs=max_epochs,
             early_stop_patience=early_stop_patience,
             profiler=profiler,
+            num_workers=num_workers,
         ),
     )
 
