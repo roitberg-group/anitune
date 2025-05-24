@@ -88,8 +88,8 @@ class FinetuneConfig(Config):
     ftune-specific configurations
     """
 
-    pretrained_name: str
-    raw_state_dict_path: str
+    pretrained_name: str = ""
+    raw_state_dict_path: str = ""
     num_head_layers: int = 1
     backbone_lr: float = 0.0
     dummy_ftune: bool = False
