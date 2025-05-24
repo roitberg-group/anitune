@@ -272,6 +272,14 @@ def restart(
     ptrain_name_or_idx: Annotated[
         str, Option("-t", "--train-run", help="Name or idx of train run")
     ] = "",
+    slurm: tpx.Annotated[
+        str,
+        Option("--slurm"),
+    ] = "",
+    slurm_gpu: tpx.Annotated[
+        str,
+        Option("--slurm-gpu"),
+    ] = "",
     max_epochs: Annotated[
         Optional[int],
         Option("--max-epochs", help="Max epochs to train"),
@@ -302,6 +310,53 @@ def restart(
         raise Abort()
 
     config = TrainConfig.from_json_file(path)
+    # TODO: Remove duplicated code
+    if slurm:
+        if slurm == "moria":
+            assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti", ""]
+        elif slurm == "hpg":
+            assert slurm_gpu in ["a100", "2080ti", ""]
+        else:
+            console.print(f"Unknown cluster {slurm}", style="red")
+            raise Abort()
+        slurm_gpu = f"{slurm_gpu}:1" if slurm_gpu else "1"
+
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(Path(__file__).parent / "templates/"),
+            undefined=jinja2.StrictUndefined,
+            autoescape=jinja2.select_autoescape(),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        arg_list = sys.argv[1:]
+        for j, arg in enumerate(deepcopy(arg_list)):
+            # re-introduce quotes in strings
+            if arg in ["--prof", "--ftune-from", "--monitor", "--lot"]:
+                arg_list[j + 1] = f"'{arg_list[j + 1]}'"
+            if arg == "--slurm":
+                arg_list[j] = ""
+                arg_list[j + 1] = ""
+            if arg == "--slurm-gpu":
+                arg_list[j] = ""
+                arg_list[j + 1] = ""
+        args = " ".join(arg_list)
+        tmpl = env.get_template(f"{slurm}.slurm.sh.jinja").render(
+            name=str(config.path.name),
+            gpu=slurm_gpu,
+            args=args,
+        )
+        unique_id = config.path.name.split("-")[-1]
+        j = 0
+        input_dir = Path(Path.home(), "IO", "ani", f"{unique_id}_v{j}")
+        while input_dir.is_dir():
+            j += 1
+            input_dir = Path(Path.home(), "IO", "ani", f"{unique_id}_v{j}")
+        input_dir.mkdir(exist_ok=False, parents=True)
+        input_fpath = input_dir / f"{slurm}.slurm.sh"
+        input_fpath.write_text(tmpl)
+        console.print("Launching slurm script ...")
+        subprocess.run(["sbatch", str(input_fpath)], cwd=input_dir, check=True)
+        sys.exit(0)
     if max_epochs is not None:
         config.accel.max_epochs = max_epochs
     train_lit_model(config, restart=True, verbose=verbose)
