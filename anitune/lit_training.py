@@ -97,11 +97,13 @@ def train_lit_model(
             **config.model.options,
         )
         model.requires_grad_(True)
-    if config.ftune is not None:
-        if config.ftune.pretrained_state_dict:
-            model.load_state_dict(config.ftune.pretrained_state_dict)
 
     ckpt_path = (config.path / "latest-model") / "latest.ckpt"
+
+    if config.ftune is not None:
+        # If a checkpoint path exists this is not needed
+        if config.ftune.pretrained_state_dict and not ckpt_path.is_file():
+            model.load_state_dict(config.ftune.pretrained_state_dict)
 
     # Not sure what the problem with mypy is here, it infers LitModel to have
     # type[Never]
