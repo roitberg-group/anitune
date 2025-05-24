@@ -57,6 +57,9 @@ class Config:
         for k, v in dict_.copy().items():
             if isinstance(getattr(obj, k), Config):
                 setattr(obj, k, getattr(obj, k).from_json_str(json.dumps(v)))
+            elif k == "ftune":
+                # Special case, since this can be None
+                setattr(obj, k, FinetuneConfig.from_json_str(json.dumps(v)))
             else:
                 setattr(obj, k, v)
         return obj
