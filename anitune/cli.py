@@ -817,7 +817,8 @@ def train(
         )
     if not allow_lot_mismatch and model_config.lot != ds_config.lot:
         console.print(
-            "Model LoT must match dataset LoT unless --allow-ds-model-lot-mismatch", style="red"
+            "Model LoT must match dataset LoT unless --allow-ds-model-lot-mismatch",
+            style="red",
         )
         raise Abort()
 
