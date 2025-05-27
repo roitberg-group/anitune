@@ -19,7 +19,7 @@ def load_state_dict(path: Path) -> tp.Dict[str, tp.Any]:
     """
     import torch
 
-    _state_dict = torch.load(path, map_location="cpu")
+    _state_dict = torch.load(path, map_location="cpu", weights_only=False)
     if "state_dict" in _state_dict:
         _state_dict = _state_dict["state_dict"]
         return {
