@@ -786,7 +786,10 @@ def train(
             model_config = _fetch_builtin_model_config(ftune_from)
             raw_ptrain_state_dict_path = ""
         else:
-            _path = select_subdirs((ftune_from,), kind=DataKind.TRAIN)[0]
+            try:
+                _path = select_subdirs((ftune_from,), kind=DataKind.TRAIN)[0]
+            except RuntimeError:
+                _path = select_subdirs((ftune_from,), kind=DataKind.FTUNE)[0]
 
             ptrain_name = _path.name
             model_config = TrainConfig.from_json_file(_path / "config.json").model
