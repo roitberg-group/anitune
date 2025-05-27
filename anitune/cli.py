@@ -457,7 +457,7 @@ def train(
     num_workers: tpx.Annotated[
         int,
         Option("-n", "--num-workers"),
-    ] = 0,
+    ] = 1,
     allow_lot_mismatch: tpx.Annotated[
         bool,
         Option(
@@ -817,7 +817,7 @@ def train(
         )
     if not allow_lot_mismatch and model_config.lot != ds_config.lot:
         console.print(
-            "Model LoT must match dataset LoT unless --allow-any-lot", style="red"
+            "Model LoT must match dataset LoT unless --allow-ds-model-lot-mismatch", style="red"
         )
         raise Abort()
 
