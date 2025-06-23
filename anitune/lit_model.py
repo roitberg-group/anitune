@@ -43,7 +43,7 @@ class LitModel(lightning.LightningModule):
             getattr(losses, name)(factor=factor)
             for name, factor in loss_terms_and_factors.items()
         )
-        metrics: tp.Dict[str, Metric] = {}
+        metrics: tp.Dict[str, tp.Union[Metric, MetricCollection]] = {}
         for term in loss_terms:
             for div in ("valid", "train"):
                 # MeanSquaredError(squared=False) is directly the RMSE
@@ -168,4 +168,7 @@ class LitModel(lightning.LightningModule):
             "strict": True,
             "monitor": self.monitor_label,
         }
-        return {"optimizer": optimizer, "lr_scheduler": scheduler_config}
+        return tp.cast(
+            OptimizerLRScheduler,
+            {"optimizer": optimizer, "lr_scheduler": scheduler_config},
+        )
