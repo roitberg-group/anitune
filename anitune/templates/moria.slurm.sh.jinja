@@ -8,8 +8,11 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=2
 
-source /home/ipickering/Conda/etc/profile.d/conda.sh
-source /home/ipickering/Conda/etc/profile.d/mamba.sh
+CONDA_LOC='/blue/roitberg/ipickering/'
+eval "$("$CONDA_LOC/Conda/bin/conda" 'shell.bash' 'hook')"
+export MAMBA_EXE="$CONDA_LOC/Conda/bin/mamba";
+export MAMBA_ROOT_PREFIX="$CONDA_LOC/Conda";
+eval "$("$MAMBA_EXE" shell hook --shell bash --root-prefix "$MAMBA_ROOT_PREFIX")"
 mamba activate anitune
 
 anitune {{ args }}
