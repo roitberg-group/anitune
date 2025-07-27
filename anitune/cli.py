@@ -282,7 +282,7 @@ def restart(
     ] = "",
     num_workers: tpx.Annotated[
         int,
-        Option("-n", "--num-workers"),
+        Option("--num-workers"),
     ] = 1,
     max_epochs: Annotated[
         Optional[int],
