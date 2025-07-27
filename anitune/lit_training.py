@@ -154,7 +154,9 @@ def train_lit_model(
 
     kwargs = {
         "num_workers": config.accel.num_workers,
-        "prefetch_factor": config.accel.prefetch_factor,
+        "prefetch_factor": (
+            config.accel.prefetch_factor if config.accel.num_workers > 0 else None
+        ),
         "pin_memory": True,
     }
     _fold_idx = config.ds.fold_idx if config.ds.fold_idx != "train" else ""
