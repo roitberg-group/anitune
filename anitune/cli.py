@@ -992,7 +992,7 @@ def bench(
         v["coordinates"] = v["coordinates"].to(device=_device, dtype=_dtype)
         v["energies"] = v["energies"].to(device=_device, dtype=_dtype)
         if forces:
-            num_atoms = (v["species"] != -1).sum()
+            num_atoms = (v["species"] != -1).sum(-1)
             v["forces"] = v["forces"].to(device=_device, dtype=_dtype)
             v["coordinates"].requires_grad_(True)
 

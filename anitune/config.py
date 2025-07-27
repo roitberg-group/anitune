@@ -272,14 +272,14 @@ class TrainConfig(Config):
 
     name: str = "run"
     monitor_label: str = "energies"
-    ds: DatasetConfig = DatasetConfig()
-    model: ModelConfig = ModelConfig()
-    loss: LossConfig = LossConfig()
-    optim: OptimizerConfig = OptimizerConfig()
-    scheduler: SchedulerConfig = SchedulerConfig()
+    ds: DatasetConfig = field(default_factory=DatasetConfig)
+    model: ModelConfig = field(default_factory=ModelConfig)
+    loss: LossConfig = field(default_factory=LossConfig)
+    optim: OptimizerConfig = field(default_factory=OptimizerConfig)
+    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
     ftune: tp.Optional[FinetuneConfig] = None
     debug: bool = False
-    accel: AccelConfig = AccelConfig()
+    accel: AccelConfig = field(default_factory=AccelConfig)
 
     @property
     def path(self) -> Path:
