@@ -315,7 +315,7 @@ def restart(
         if slurm == "moria":
             assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti", ""]
         elif slurm == "hpg":
-            assert slurm_gpu in ["a100", "2080ti", ""]
+            assert slurm_gpu in ["b200", "l4", ""]
         else:
             console.print(f"Unknown cluster {slurm}", style="red")
             raise Abort()
@@ -859,7 +859,7 @@ def train(
         if slurm == "moria":
             assert slurm_gpu in ["v100", "gp100", "titanv", "gtx1080ti", ""]
         elif slurm == "hpg":
-            assert slurm_gpu in ["a100", "2080ti", ""]
+            assert slurm_gpu in ["b200", "l4", ""]
         else:
             console.print(f"Unknown cluster {slurm}", style="red")
             raise Abort()
