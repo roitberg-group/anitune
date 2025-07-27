@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name={{ name }}
 #SBATCH --output={{ name }}.out
-#SBATCH --partition=gpu
+#SBATCH --partition={{ 'hpg-b200' if gpu == "b200:1" else 'hpg-turin' }}
 #SBATCH --qos=mingjieliu-faimm
 #SBATCH --account=mingjieliu-faimm
 #SBATCH --gres=gpu:{{ gpu }}
