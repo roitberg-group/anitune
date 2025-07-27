@@ -280,6 +280,10 @@ def restart(
         str,
         Option("--slurm-gpu"),
     ] = "",
+    num_workers: tpx.Annotated[
+        int,
+        Option("-n", "--num-workers"),
+    ] = 1,
     max_epochs: Annotated[
         Optional[int],
         Option("--max-epochs", help="Max epochs to train"),
@@ -342,6 +346,7 @@ def restart(
         args = " ".join(arg_list)
         tmpl = env.get_template(f"{slurm}.slurm.sh.jinja").render(
             name=str(config.path.name),
+            num_workers=num_workers,
             gpu=slurm_gpu,
             args=args,
         )
@@ -357,6 +362,7 @@ def restart(
         console.print("Launching slurm script ...")
         subprocess.run(["sbatch", str(input_fpath)], cwd=input_dir, check=True)
         sys.exit(0)
+    config.accel.num_workers = num_workers
     if max_epochs is not None:
         config.accel.max_epochs = max_epochs
     train_lit_model(config, restart=True, verbose=verbose)
@@ -885,6 +891,7 @@ def train(
                 arg_list[j + 1] = ""
         args = " ".join(arg_list)
         tmpl = env.get_template(f"{slurm}.slurm.sh.jinja").render(
+            num_workers=num_workers,
             name=str(config.path.name),
             gpu=slurm_gpu,
             args=args,
