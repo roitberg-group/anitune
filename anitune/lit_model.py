@@ -136,6 +136,7 @@ class LitModel(lightning.LightningModule):
 
     def batch_eval(self, batch: tp.Dict[str, Tensor]) -> tp.Dict[str, Tensor]:
         for term in self.loss.grad_terms:
+            # e.g. batch["coordinates"].requires_grad_(True)
             batch[term.grad_wrt_targ_label].requires_grad_(True)
         pred = self.model((batch["species"], batch["coordinates"]))._asdict()
         pred.pop("species")

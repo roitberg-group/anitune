@@ -190,6 +190,7 @@ class MultiTaskLoss(torch.nn.Module):
             if term.penalty is Penalty.SQUARE:
                 error = (pred[term.label] - targ[term.targ_label]).pow(2)
             elif term.penalty is Penalty.ABS:
+                #  For forces: error.shape = (N, A, 3)
                 error = torch.abs(pred[term.label] - targ[term.targ_label])
 
             if term.scale_by_sqrt_atoms or term.is_extensive:
