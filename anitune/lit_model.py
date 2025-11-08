@@ -138,7 +138,15 @@ class LitModel(lightning.LightningModule):
         for term in self.loss.grad_terms:
             # e.g. batch["coordinates"].requires_grad_(True)
             batch[term.grad_wrt_targ_label].requires_grad_(True)
-        pred = self.model((batch["species"], batch["coordinates"]))._asdict()
+        if "cell" in batch:
+            # Periodic
+            pred = self.model(
+                (batch["species"], batch["coordinates"]),
+                cell=batch["cell"],
+                pbc=torch.tensor([True, True, True], dtype=torch.bool),
+            )._asdict()
+        else:
+            pred = self.model((batch["species"], batch["coordinates"]))._asdict()
         pred.pop("species")
 
         for term in self.loss.grad_terms:
