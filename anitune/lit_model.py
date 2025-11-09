@@ -138,12 +138,24 @@ class LitModel(lightning.LightningModule):
         for term in self.loss.grad_terms:
             # e.g. batch["coordinates"].requires_grad_(True)
             batch[term.grad_wrt_targ_label].requires_grad_(True)
+
+        # Rename common synonyms
+        if "energy" in batch:
+            batch["energies"] = batch.pop("energy").view(-1)
+        if "force" in batch:
+            batch["forces"] = batch.pop("force")
+        if "coords" in batch:
+            batch["coordinates"] = batch.pop("coords")
+
         if "cell" in batch:
             # Periodic
+            # TODO: Remove float casts
             pred = self.model(
-                (batch["species"], batch["coordinates"]),
-                cell=batch["cell"],
-                pbc=torch.tensor([True, True, True], dtype=torch.bool),
+                (batch["species"], batch["coordinates"].float()),
+                cell=batch["cell"].view(3, 3).float(),
+                pbc=torch.tensor(
+                    [True, True, True], dtype=torch.bool, device=batch["species"].device
+                ),
             )._asdict()
         else:
             pred = self.model((batch["species"], batch["coordinates"]))._asdict()
