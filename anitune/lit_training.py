@@ -29,6 +29,7 @@ def train_lit_model(
     r"""Train an ANI-style neural network potential using PyTorch Lightning"""
     import torch
     import lightning
+
     if not restart and loss_terms_and_factors is not None:
         raise ValueError("Loss terms and factors only valid for restarts")
 
