@@ -24,10 +24,13 @@ def train_lit_model(
     restart: bool = False,
     allow_restart: bool = False,
     verbose: bool = False,
+    loss_terms_and_factors: tp.Optional[tp.Dict[str, float]] = None,
 ) -> None:
     r"""Train an ANI-style neural network potential using PyTorch Lightning"""
     import torch
     import lightning
+    if not restart and loss_terms_and_factors is not None:
+        raise ValueError("Loss terms and factors only valid for restarts")
 
     if not verbose:
         from lightning_utilities.core.rank_zero import log
@@ -123,6 +126,8 @@ def train_lit_model(
             ckpt_path,
             model=model,
         )
+        if loss_terms_and_factors:
+            lit_model.set_loss(loss_terms_and_factors)
     else:
         no_ftune = config.ftune is None or config.ftune.dummy_ftune
         lit_model = LitModel(  # type: ignore

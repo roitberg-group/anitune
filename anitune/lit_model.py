@@ -75,6 +75,37 @@ class LitModel(lightning.LightningModule):
                 module_list.extend(list(rev_layers)[:-num_head_layers])
         self.backbone = module_list
 
+    def set_loss(
+        self,
+        loss_terms_and_factors: tp.Dict[str, float],
+        monitor_label: tp.Optional[str] = None,
+        uncertainty_weighted: tp.Optional[bool] = None,
+    ) -> None:
+        loss_terms = tuple(
+            getattr(losses, name)(factor=factor)
+            for name, factor in loss_terms_and_factors.items()
+        )
+        metrics: tp.Dict[str, tp.Union[Metric, MetricCollection]] = {}
+        for term in loss_terms:
+            for div in ("valid", "train"):
+                # MeanSquaredError(squared=False) is directly the RMSE
+                metrics[f"{div}/rmse_{term.label}"] = MeanSquaredError(squared=False)
+                metrics[f"{div}/mae_{term.label}"] = MeanAbsoluteError()
+        self.metrics = MetricCollection(metrics)
+
+        if monitor_label is not None:
+            if len(loss_terms) == 1 and monitor_label == "valid/rmse_default":
+                monitor_label = f"valid/rmse_{loss_terms[0].label}"
+            elif any(term.label == "forces" for term in loss_terms):
+                monitor_label = "valid/rmse_forces"
+            elif not any(monitor_label.endswith(term.label) for term in loss_terms):
+                raise ValueError("Monitor label must be one of the enabled loss terms")
+            self.monitor_label = monitor_label
+        if uncertainty_weighted is not None:
+            self.loss = losses.MultiTaskLoss(loss_terms, uncertainty_weighted)
+        else:
+            self.loss = losses.MultiTaskLoss(loss_terms)
+
     def on_train_start(self) -> None:
         # Log hyperparameters to tensorboard events file (only a single time)
         for logger in self.loggers:
@@ -158,7 +189,9 @@ class LitModel(lightning.LightningModule):
                 ),
             )._asdict()
         else:
-            pred = self.model((batch["species"], batch["coordinates"]))._asdict()
+            pred = self.model(
+                (batch["species"], batch["coordinates"].float())
+            )._asdict()
         pred.pop("species")
 
         for term in self.loss.grad_terms:

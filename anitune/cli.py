@@ -288,6 +288,49 @@ def restart(
         Optional[int],
         Option("--max-epochs", help="Max epochs to train"),
     ] = None,
+    # Loss config
+    xc: Annotated[
+        bool, Option("--xc/ ", help="Train to XC energies", rich_help_panel="Loss")
+    ] = False,
+    no_sqrt_atoms: Annotated[
+        bool,
+        Option(
+            "--no-sqrt-atoms/ ",
+            help="Divide energy loss by atoms instead of sqrt(atoms)",
+            rich_help_panel="Loss",
+        ),
+    ] = False,
+    energies: Annotated[
+        float, Option("-e", "--energies", help="Energy factor", rich_help_panel="Loss")
+    ] = 0.0,
+    forces: Annotated[
+        float, Option("-f", "--forces", help="Force factor", rich_help_panel="Loss")
+    ] = 0.0,
+    dipoles: Annotated[
+        float, Option("-m", "--dipoles", help="Dipole factor", rich_help_panel="Loss")
+    ] = 0.0,
+    atomic_volumes: Annotated[
+        float,
+        Option(
+            "-V",
+            "--atomic-volumes",
+            help="Atomic volumes factor",
+            rich_help_panel="Loss",
+        ),
+    ] = 0.0,
+    atomic_charges: Annotated[
+        float,
+        Option(
+            "-q",
+            "--atomic-charges",
+            help="Atomic charges factor",
+            rich_help_panel="Loss",
+        ),
+    ] = 0.0,
+    total_charge: Annotated[
+        float,
+        Option("--total-q", help="Total charge factor", rich_help_panel="Loss"),
+    ] = 0.0,
     swa: tpx.Annotated[
         bool,
         Option(
@@ -307,6 +350,24 @@ def restart(
         raise Abort()
     name_or_idx = ftune_name_or_idx or ptrain_name_or_idx
     kind = DataKind.FTUNE if ftune_name_or_idx else DataKind.TRAIN
+
+    terms_and_factors: tp.Optional[tp.Dict[str, float]] = {}
+    assert isinstance(terms_and_factors, dict)
+    if energies > 0.0:
+        label = "EnergiesXC" if xc else "Energies"
+        terms_and_factors[label if no_sqrt_atoms else f"{label}SqrtAtoms"] = energies
+    if forces > 0.0:
+        terms_and_factors["Forces"] = forces
+    if dipoles > 0.0:
+        terms_and_factors["Dipoles"] = dipoles
+    if atomic_charges > 0.0:
+        terms_and_factors["AtomicCharges"] = atomic_charges
+    if atomic_volumes > 0.0:
+        terms_and_factors["AtomicVolumes"] = atomic_volumes
+    if total_charge > 0.0:
+        terms_and_factors["TotalCharge"] = total_charge
+    if not terms_and_factors:
+        terms_and_factors = None
 
     path = select_subdirs((name_or_idx,), kind=kind)[0] / "config.json"
     if not path.is_file():
@@ -939,6 +1000,14 @@ def bench(
         int,
         Option("-c", "--chunk-size"),
     ] = 2500,
+    convert: Annotated[
+        bool,
+        Option("--convert/--no-convert"),
+    ] = True,
+    convert_model_to_ev: Annotated[
+        bool,
+        Option("--convert-model-to-ev/--no-convert-model-to-ev"),
+    ] = False,
 ) -> None:
     r"""Benchmark model on a given dataset"""
     import math
@@ -946,7 +1015,12 @@ def bench(
     import torch
     import torchani
     from torchani.annotations import Device, DType
-    from torchani.units import HARTREE_TO_KCALPERMOL
+    from torchani.units import HARTREE_TO_KCALPERMOL, HARTREE_TO_EV
+
+    if not convert or convert_model_to_ev:
+        factor = 1
+    else:
+        factor = HARTREE_TO_KCALPERMOL
 
     from tqdm import tqdm
 
@@ -970,11 +1044,18 @@ def bench(
             _device = "cuda" if torch.cuda.is_available() else "cpu"
         return _device, _dtype
 
-    bench_set, lot = builtin.split(":")
     _device, _dtype = parse_device_and_dtype(device, dtype)
+    if Path(builtin).exists():
+        if Path(builtin).is_dir():
+            ds = torchani.datasets.ANIDataset.from_dir(builtin)
+        else:
+            ds = torchani.datasets.ANIDataset(builtin)
+        bench_set = "Custom"
+        lot = "unk"
+    else:
+        bench_set, lot = builtin.split(":")
+        ds = getattr(torchani.datasets, bench_set)(lot=lot)
     ds_key = f"{bench_set}-{lot}"
-
-    ds = getattr(torchani.datasets, bench_set)(lot=lot)
     model = getattr(torchani.models, model_name)(device=_device, dtype=_dtype)
 
     @dataclasses.dataclass
@@ -994,17 +1075,23 @@ def bench(
         ds.chunked_items(max_size=chunk_size, properties=props),
         total=ds.num_chunks(chunk_size),
     ):
-        store_name, group = k.split("/")
+        parts = k.split("/")
+        if len(parts) > 1:
+            store_name = parts[0]
+        else:
+            store_name = ds.store_names[0]
         v["species"] = v["species"].to(device=_device)
         v["coordinates"] = v["coordinates"].to(device=_device, dtype=_dtype)
-        v["energies"] = v["energies"].to(device=_device, dtype=_dtype)
+        v["energies"] = v["energies"].to(device=_device, dtype=_dtype).view(-1)
         if forces:
             num_atoms = (v["species"] != -1).sum(-1)
             v["forces"] = v["forces"].to(device=_device, dtype=_dtype)
             v["coordinates"].requires_grad_(True)
 
-        energies = model((v["species"], v["coordinates"])).energies
-        delta = torch.abs(v["energies"] - energies) * HARTREE_TO_KCALPERMOL
+        energies = model((v["species"], v["coordinates"])).energies.view(-1)
+        if convert_model_to_ev:
+            energies = energies * HARTREE_TO_EV
+        delta = torch.abs(v["energies"] - energies) * factor
         sum_sq_err = (delta**2).sum().item()
         sum_abs_err = delta.sum().item()
 
@@ -1017,7 +1104,7 @@ def bench(
 
         if forces:
             _forces = -torch.autograd.grad(energies.sum(), v["coordinates"])[0]
-            delta_f = torch.abs(v["forces"] - _forces) * HARTREE_TO_KCALPERMOL
+            delta_f = torch.abs(v["forces"] - _forces) * factor
             sum_sq_err_f = ((delta_f**2).sum((-1, -2)) / num_atoms / 3).sum().item()
             sum_abs_err_f = (delta_f.sum((-1, -2)) / num_atoms / 3).sum().item()
 
@@ -1025,7 +1112,6 @@ def bench(
             _results["total"].force_rmse += sum_sq_err_f
             _results[store_name].force_mae += sum_abs_err_f
             _results["total"].force_mae += sum_abs_err_f
-
     _results = {
         k: Metrics(
             force_rmse=math.sqrt(v.force_rmse / v.num),
