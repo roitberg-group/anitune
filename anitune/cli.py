@@ -230,7 +230,7 @@ def batch(
     builtins = sorted(builtins) if builtins is not None else []
     builtins = [f"{k}:default" if ":" not in k else k for k in builtins]
     try:
-            builtin_lots = [k.split(":")[1] for k in builtins]
+        builtin_lots = [k.split(":")[1] for k in builtins]
     except IndexError:
         console.print("Wrong dataset name. 'name:lot' expected", style="red")
         raise Abort()
