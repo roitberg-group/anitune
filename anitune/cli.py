@@ -1,5 +1,6 @@
 r"""Command line interface entrypoints"""
 
+import warnings
 import matplotlib.pyplot as plt
 import pandas as pd
 from enum import Enum
@@ -227,8 +228,9 @@ def batch(
     from anitune.batching import batch_data
 
     builtins = sorted(builtins) if builtins is not None else []
+    builtins = [f"{k}:default" if ":" not in k else k for k in builtins]
     try:
-        builtin_lots = [k.split(":")[1] for k in builtins]
+            builtin_lots = [k.split(":")[1] for k in builtins]
     except IndexError:
         console.print("Wrong dataset name. 'name:lot' expected", style="red")
         raise Abort()
@@ -239,6 +241,8 @@ def batch(
             "One or more of the specified built-in ds have different LoT", style="red"
         )
         raise Abort()
+    if len(builtins) > 1 and "default" in builtin_lots:
+        warnings.warn("Choosing default lots could generate a mismatch")
 
     if num_lots == 1 and not lot:
         lot = builtin_lots[0].lower()

@@ -22,10 +22,15 @@ def batch_data(config: DatasetConfig, max_batches_per_packet: int = 300) -> None
     raw_src_paths = list(config.raw_src_paths)
     for builtin in config.data_names:
         name, lot = builtin.split(":")
-        ds = getattr(datasets, name)(
-            skip_check=True,
-            lot=lot,
-        )
+        if lot != "default":
+            ds = getattr(datasets, name)(
+                skip_check=True,
+                lot=lot,
+            )
+        else:
+            ds = getattr(datasets, name)(
+                skip_check=True
+            )
         raw_src_paths.extend(ds.store_locations)
     raw_src_paths = sorted(set(raw_src_paths))
     ds = datasets.ANIDataset(locations=raw_src_paths)
