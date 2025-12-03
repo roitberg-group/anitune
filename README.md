@@ -1,15 +1,12 @@
 # anitune
 
-## Overview
-
-## Installation
+Experimental trainer for ANI models. This repo is proof-of-concept only, please do not use in production!!
 
 From source:
 
 ```bash
-cd ./submodules/torchani_sandbox/
-pip install --no-deps --no-build-isolation --config-settings=--global-option=ext --verbose --editable .
-cd ../..
-mamba env create --file ./environment.yaml
-pip install --verbose --editable .
+conda env create -f ./environment.yaml
+conda activate anitune
+pip install -v -e .
+ani build-extensions
 ```
